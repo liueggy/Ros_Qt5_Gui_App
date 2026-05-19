@@ -62,7 +62,7 @@
 ![建图效果](./doc/images/mapping.gif)
 
 软件提供丰富的地图编辑功能：
-![地图编辑工具](./images/edit_map2.png)
+![地图编辑工具](./doc/images/edit_map2.png)
 
 ## 🚀 快速开始
 
