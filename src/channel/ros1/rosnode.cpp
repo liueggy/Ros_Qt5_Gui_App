@@ -228,6 +228,14 @@ void RosNode::OdometryCallback(const nav_msgs::Odometry::ConstPtr &msg) {
 }
 
 void RosNode::MapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
+  // 节流：MAP_THROTTLE_SEC 内只处理最新一帧
+  ros::Time now = msg->header.stamp;
+  if (now.isZero()) now = ros::Time::now();
+  if (!last_map_time_.isZero() && (now - last_map_time_).toSec() < MAP_THROTTLE_SEC) {
+    return;
+  }
+  last_map_time_ = now;
+
   double origin_x = msg->info.origin.position.x;
   double origin_y = msg->info.origin.position.y;
   int width = msg->info.width;
@@ -252,7 +260,6 @@ void RosNode::LocalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
   int height = msg->info.height;
   double origin_x = msg->info.origin.position.x;
   double origin_y = msg->info.origin.position.y;
-  double origin_theta = 0;
   basic::OccupancyMap cost_map(height, width,
                                Eigen::Vector3d(origin_x, origin_y, 0),
                                msg->info.resolution);
@@ -265,7 +272,6 @@ void RosNode::LocalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
   basic::OccupancyMap sized_cost_map = occ_map_;
   basic::RobotPose origin_pose;
   try {
-    // 坐标变换 将局部代价地图的基础坐标转换为map下 进行绘制显示
     geometry_msgs::PointStamped pose_map_frame;
     geometry_msgs::PointStamped pose_curr_frame;
     pose_curr_frame.point.x = origin_x;
@@ -277,21 +283,20 @@ void RosNode::LocalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
     origin_pose.y = pose_map_frame.point.y + cost_map.heightMap();
     origin_pose.theta = 0;
   } catch (tf2::TransformException &ex) {
-    // LOG_ERROR("getTransform localCostMapCallback error:" << ex.what());
   }
 
   double map_o_x, map_o_y;
   occ_map_.xy2OccPose(origin_pose.x, origin_pose.y, map_o_x, map_o_y);
+
+  // 只清零并填充局部代价地图覆盖的区域，不遍历全图
   sized_cost_map.map_data.setZero();
-  for (int x = 0; x < occ_map_.rows; x++)
-    for (int y = 0; y < occ_map_.cols; y++) {
-      if (x > map_o_x && y > map_o_y && y < map_o_y + cost_map.rows &&
-          x < map_o_x + cost_map.cols) {
-        sized_cost_map(x, y) = cost_map(x - map_o_x, y - map_o_y);
-      } else {
-        sized_cost_map(x, y) = 0;
-      }
-    }
+  int x_start = std::max(0, (int)map_o_x);
+  int y_start = std::max(0, (int)map_o_y);
+  int x_end = std::min((int)occ_map_.rows, (int)map_o_x + cost_map.rows);
+  int y_end = std::min((int)occ_map_.cols, (int)map_o_y + cost_map.cols);
+  for (int x = x_start; x < x_end; x++)
+    for (int y = y_start; y < y_end; y++)
+      sized_cost_map(x, y) = cost_map(x - (int)map_o_x, y - (int)map_o_y);
   PUBLISH(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
 }
 
@@ -315,37 +320,34 @@ void RosNode::GlobalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
 // 激光雷达点云话题回调
 void RosNode::LaserScanCallback(sensor_msgs::LaserScanConstPtr msg) {
   double angle_min = msg->angle_min;
-  double angle_max = msg->angle_max;
   double angle_increment = msg->angle_increment;
   try {
-    geometry_msgs::PointStamped point_base_frame;
-    geometry_msgs::PointStamped point_laser_frame;
+    // 一次 TF 查询获取 laser_frame → base_link 的变换
+    std::string base_frame = Config::ConfigManager::Instance()->GetConfigValue("BaseFrameId", "base_link");
+    tf::StampedTransform transform;
+    tf_listener_->lookupTransform(base_frame, msg->header.frame_id, ros::Time(0), transform);
+    double tx = transform.getOrigin().x();
+    double ty = transform.getOrigin().y();
+    double yaw = tf::getYaw(transform.getRotation());
+    double cos_yaw = cos(yaw);
+    double sin_yaw = sin(yaw);
+
     basic::LaserScan laser_points;
-    for (int i = 0; i < msg->ranges.size(); i++) {
-      // 计算当前偏移角度
-      double angle = angle_min + i * angle_increment;
+    laser_points.reserve(msg->ranges.size());
+    for (size_t i = 0; i < msg->ranges.size(); i++) {
       double dist = msg->ranges[i];
       if (isinf(dist))
         continue;
+      double angle = angle_min + i * angle_increment;
       double x = dist * cos(angle);
       double y = dist * sin(angle);
-      point_laser_frame.point.x = x;
-      point_laser_frame.point.y = y;
-      point_laser_frame.header.frame_id = msg->header.frame_id;
-
-      std::string base_frame = Config::ConfigManager::Instance()->GetConfigValue("BaseFrameId", "base_link");
-      tf_listener_->transformPoint(base_frame, point_laser_frame,
-                                   point_base_frame);
+      // 一次旋转变换，不再逐点调用 TF
       basic::Point p;
-      p.x = point_base_frame.point.x;
-      p.y = point_base_frame.point.y;
+      p.x = cos_yaw * x - sin_yaw * y + tx;
+      p.y = sin_yaw * x + cos_yaw * y + ty;
       laser_points.push_back(p);
     }
     laser_points.id = 0;
-    // basic::RobotPose pose = getTransform(msg->header.frame_id,
-    // "base_link"); std::cout << "get transform" << pose.x << " " << pose.y
-    // << " " << pose.theta
-    //           << std::endl;
     PUBLISH(MSG_ID_LASER_SCAN, laser_points);
   } catch (tf2::TransformException &ex) {
   }
@@ -353,22 +355,32 @@ void RosNode::LaserScanCallback(sensor_msgs::LaserScanConstPtr msg) {
 
 
 void RosNode::GlobalPathCallback(nav_msgs::Path::ConstPtr msg) {
+  // 节流
+  ros::Time now = msg->header.stamp;
+  if (now.isZero()) now = ros::Time::now();
+  if (!last_global_path_time_.isZero() && (now - last_global_path_time_).toSec() < PATH_THROTTLE_SEC) {
+    return;
+  }
+  last_global_path_time_ = now;
+
   try {
-    //        geometry_msgs::msg::TransformStamped laser_transform =
-    //        tf_buffer_->lookupTransform("map","base_scan",tf2::TimePointZero);
-    geometry_msgs::PointStamped point_map_frame;
-    geometry_msgs::PointStamped point_odom_frame;
+    // 一次 TF 查询
+    tf::StampedTransform transform;
+    tf_listener_->lookupTransform("map", msg->header.frame_id, ros::Time(0), transform);
+    double tx = transform.getOrigin().x();
+    double ty = transform.getOrigin().y();
+    double yaw = tf::getYaw(transform.getRotation());
+    double cos_yaw = cos(yaw);
+    double sin_yaw = sin(yaw);
+
     basic::RobotPath path;
-    for (int i = 0; i < msg->poses.size(); i++) {
+    path.reserve(msg->poses.size());
+    for (size_t i = 0; i < msg->poses.size(); i++) {
       double x = msg->poses.at(i).pose.position.x;
       double y = msg->poses.at(i).pose.position.y;
-      point_odom_frame.point.x = x;
-      point_odom_frame.point.y = y;
-      point_odom_frame.header.frame_id = msg->header.frame_id;
-      tf_listener_->transformPoint("map", point_odom_frame, point_map_frame);
       basic::Point point;
-      point.x = point_map_frame.point.x;
-      point.y = point_map_frame.point.y;
+      point.x = cos_yaw * x - sin_yaw * y + tx;
+      point.y = sin_yaw * x + cos_yaw * y + ty;
       path.push_back(point);
     }
     PUBLISH(MSG_ID_GLOBAL_PATH, path);
@@ -378,22 +390,32 @@ void RosNode::GlobalPathCallback(nav_msgs::Path::ConstPtr msg) {
 
 
 void RosNode::LocalPathCallback(nav_msgs::Path::ConstPtr msg) {
+  // 节流
+  ros::Time now = msg->header.stamp;
+  if (now.isZero()) now = ros::Time::now();
+  if (!last_local_path_time_.isZero() && (now - last_local_path_time_).toSec() < PATH_THROTTLE_SEC) {
+    return;
+  }
+  last_local_path_time_ = now;
+
   try {
-    //        geometry_msgs::msg::TransformStamped laser_transform =
-    //        tf_buffer_->lookupTransform("map","base_scan",tf2::TimePointZero);
-    geometry_msgs::PointStamped point_map_frame;
-    geometry_msgs::PointStamped point_odom_frame;
+    // 一次 TF 查询
+    tf::StampedTransform transform;
+    tf_listener_->lookupTransform("map", msg->header.frame_id, ros::Time(0), transform);
+    double tx = transform.getOrigin().x();
+    double ty = transform.getOrigin().y();
+    double yaw = tf::getYaw(transform.getRotation());
+    double cos_yaw = cos(yaw);
+    double sin_yaw = sin(yaw);
+
     basic::RobotPath path;
-    for (int i = 0; i < msg->poses.size(); i++) {
+    path.reserve(msg->poses.size());
+    for (size_t i = 0; i < msg->poses.size(); i++) {
       double x = msg->poses.at(i).pose.position.x;
       double y = msg->poses.at(i).pose.position.y;
-      point_odom_frame.point.x = x;
-      point_odom_frame.point.y = y;
-      point_odom_frame.header.frame_id = msg->header.frame_id;
-      tf_listener_->transformPoint("map", point_odom_frame, point_map_frame);
       basic::Point point;
-      point.x = point_map_frame.point.x;
-      point.y = point_map_frame.point.y;
+      point.x = cos_yaw * x - sin_yaw * y + tx;
+      point.y = sin_yaw * x + cos_yaw * y + ty;
       path.push_back(point);
     }
     PUBLISH(MSG_ID_LOCAL_PATH, path);

@@ -66,4 +66,11 @@ class RosNode : public VirtualChannelNode {
   basic::OccupancyMap occ_map_;
 
   tf::TransformListener *tf_listener_;
+
+  // 节流用时间戳
+  ros::Time last_map_time_;
+  ros::Time last_global_path_time_;
+  ros::Time last_local_path_time_;
+  static constexpr double MAP_THROTTLE_SEC = 0.5;
+  static constexpr double PATH_THROTTLE_SEC = 0.1;
 };
