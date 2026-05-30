@@ -104,7 +104,7 @@ NavGoalWidget::NavGoalWidget(QWidget *parent) : QWidget(parent) {
   
   QHBoxLayout *layout_name = new QHBoxLayout();
   layout_name->setSpacing(6);
-  QLabel *label_name = new QLabel("name:");
+  QLabel *label_name = new QLabel("名称:");
   label_name->setMinimumSize(40, 20);
   lineEdit_name_ = new QLineEdit();
   lineEdit_name_->setReadOnly(true);
@@ -135,7 +135,7 @@ NavGoalWidget::NavGoalWidget(QWidget *parent) : QWidget(parent) {
   
   QHBoxLayout *layout_z = new QHBoxLayout();
   layout_z->setSpacing(6);
-  QLabel *label_z = new QLabel("theta:");
+  QLabel *label_z = new QLabel("角度:");
   label_z->setMinimumSize(40, 20);
   spinBox_theta_ = new QDoubleSpinBox();
   spinBox_theta_->setRange(-180, 180);
@@ -145,9 +145,9 @@ NavGoalWidget::NavGoalWidget(QWidget *parent) : QWidget(parent) {
   
   QVBoxLayout *layout_button = new QVBoxLayout();
   layout_button->setSpacing(4);
-  button_send_ = new QPushButton("Go To Point");
-  button_remove_ = new QPushButton("Remove Point");
-  button_cancel_ = new QPushButton("Close");
+  button_send_ = new QPushButton("前往点位");
+  button_remove_ = new QPushButton("移除点位");
+  button_cancel_ = new QPushButton("关闭");
   
   // 设置按钮对象名以便样式表识别
   button_remove_->setObjectName("deleteButton");

@@ -127,7 +127,7 @@ void DisplayConfigWidget::InitUI() {
   main_layout_->setSpacing(0);
   setAutoFillBackground(true);
 
-  title_label_ = new QLabel(tr("Settings"), this);
+  title_label_ = new QLabel(tr("设置"), this);
   title_label_->setStyleSheet(
       QStringLiteral("QLabel { font-size: 22px; font-weight: 700; color: #202124; padding: 4px 2px 14px 2px; }"));
   main_layout_->addWidget(title_label_);
@@ -143,8 +143,8 @@ void DisplayConfigWidget::InitUI() {
   nav_list_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
-  const QStringList navTitles = {tr("Channel"), tr("Display & topics"), tr("Cameras"),
-                                 tr("Robot shape"), tr("Default map"), tr("Key-value")};
+  const QStringList navTitles = {tr("通道"), tr("显示与话题"), tr("摄像头"),
+                                 tr("机器人外形"), tr("默认地图"), tr("键值对")};
   for (const QString &t : navTitles) {
     nav_list_->addItem(t);
   }
@@ -173,14 +173,14 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Channel"));
+  QLabel *page_title = new QLabel(tr("通道"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
-               tr("Maps to channel_config in config.json: channel_type (e.g. auto, rosbridge, ros1, ros2) "
-                  "and rosbridge_config.ip / port when using rosbridge."));
+               tr("对应 config.json 中的 channel_config：通道类型（如 auto、rosbridge、ros1、ros2）"
+                  "以及使用 rosbridge 时的 ip 和端口配置。"));
 
-  connection_section_label_ = AddSectionHeader(root, tr("Connection"));
+  connection_section_label_ = AddSectionHeader(root, tr("连接"));
 
   QFrame *card = CreateSettingsCard(page);
   QVBoxLayout *card_layout = new QVBoxLayout(card);
@@ -188,7 +188,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   card_layout->setSpacing(14);
 
   QHBoxLayout *type_layout = new QHBoxLayout();
-  channel_type_label_ = new QLabel(tr("Channel type"));
+  channel_type_label_ = new QLabel(tr("通道类型"));
   channel_type_label_->setFixedWidth(88);
   channel_type_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   channel_type_combo_ = new QComboBox(card);
@@ -211,8 +211,8 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
     rosbridge_ip_edit_->setEnabled(show_rosbridge);
     rosbridge_port_edit_->setEnabled(show_rosbridge);
     if (QString::fromStdString(channel_type) != old_channel_type) {
-      QMessageBox::information(this, tr("Channel"),
-                               tr("Channel type changed. Restart the application to apply."), QMessageBox::Ok);
+      QMessageBox::information(this, tr("通道"),
+                               tr("通道类型已更改，请重启应用以生效。"), QMessageBox::Ok);
     }
   });
   type_layout->addWidget(channel_type_label_);
@@ -224,7 +224,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   card_layout->addWidget(rosbridge_section_label_);
 
   QHBoxLayout *ip_layout = new QHBoxLayout();
-  rosbridge_ip_label_ = new QLabel(tr("Address"));
+  rosbridge_ip_label_ = new QLabel(tr("地址"));
   rosbridge_ip_label_->setFixedWidth(88);
   rosbridge_ip_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   rosbridge_ip_edit_ = new QLineEdit(card);
@@ -241,7 +241,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
     AutoSaveConfig();
     if (new_ip != old_ip && !new_ip.isEmpty()) {
       QMessageBox::information(this, tr("ROSBridge"),
-                               tr("IP changed. Restart the application to apply."), QMessageBox::Ok);
+                               tr("IP已更改，请重启应用以生效。"), QMessageBox::Ok);
     }
   });
   ip_layout->addWidget(rosbridge_ip_label_);
@@ -249,7 +249,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   card_layout->addLayout(ip_layout);
 
   QHBoxLayout *port_layout = new QHBoxLayout();
-  rosbridge_port_label_ = new QLabel(tr("Port"));
+  rosbridge_port_label_ = new QLabel(tr("端口"));
   rosbridge_port_label_->setFixedWidth(88);
   rosbridge_port_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   rosbridge_port_edit_ = new QLineEdit(card);
@@ -266,7 +266,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
     AutoSaveConfig();
     if (new_port != old_port && !new_port.isEmpty()) {
       QMessageBox::information(this, tr("ROSBridge"),
-                               tr("Port changed. Restart the application to apply."), QMessageBox::Ok);
+                               tr("端口已更改，请重启应用以生效。"), QMessageBox::Ok);
     }
   });
   port_layout->addWidget(rosbridge_port_label_);
@@ -275,15 +275,15 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
 
   root->addWidget(card);
 
-  reconnect_channel_btn_ = new QPushButton(tr("Help"), page);
+  reconnect_channel_btn_ = new QPushButton(tr("帮助"), page);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
   reconnect_channel_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:none; color:#1a73e8; font-size:13px; padding:10px 4px; background:transparent; }"
                      "QPushButton:hover { text-decoration:underline; color:#1557b0; }"));
   connect(reconnect_channel_btn_, &QPushButton::clicked, [this]() {
     QMessageBox::information(
-        this, tr("Channel"),
-        tr("Changes are saved to config.json.\nRestart the application after changing channel type or ROSBridge address."),
+        this, tr("通道"),
+        tr("更改已保存到 config.json。\n更改通道类型或 ROSBridge 地址后请重启应用。"),
         QMessageBox::Ok);
   });
   root->addWidget(reconnect_channel_btn_, 0, Qt::AlignLeft);
@@ -297,12 +297,12 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Display & topics"));
+  QLabel *page_title = new QLabel(tr("显示与话题"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
-               tr("Maps to display_config in config.json: display_name, topic, visible. "
-                  "Labels on the left match layer names; edit the ROS topic for each layer."));
+               tr("对应 config.json 中的 display_config：显示名称、话题、可见性。"
+                  "左侧标签对应图层名称；可编辑每个图层的 ROS 话题。"));
 
   QScrollArea *scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -318,17 +318,17 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
     const char *section_en;
     std::vector<std::pair<std::string, const char *>> rows;
   } groups[] = {
-      {"Map & localization",
-       {{DISPLAY_MAP, "Occupancy map"},
-        {DISPLAY_ROBOT, "Odometry / robot"}}},
-      {"Perception", {{DISPLAY_LASER, "Laser scan"}}},
-      {"Planning",
-       {{DISPLAY_GLOBAL_PATH, "Global path"}, {DISPLAY_LOCAL_PATH, "Local path"}}},
-      {"Costmaps",
-       {{DISPLAY_GLOBAL_COST_MAP, "Global costmap"},
-        {DISPLAY_LOCAL_COST_MAP, "Local costmap"}}},
-      {"Interaction",
-       {{DISPLAY_ROBOT_FOOTPRINT, "Robot footprint"}, {DISPLAY_GOAL, "Navigation goal"}}},
+      {"地图与定位",
+       {{DISPLAY_MAP, "占据栅格地图"},
+        {DISPLAY_ROBOT, "里程计 / 机器人"}}},
+      {"感知", {{DISPLAY_LASER, "激光扫描"}}},
+      {"路径规划",
+       {{DISPLAY_GLOBAL_PATH, "全局路径"}, {DISPLAY_LOCAL_PATH, "局部路径"}}},
+      {"代价地图",
+       {{DISPLAY_GLOBAL_COST_MAP, "全局代价地图"},
+        {DISPLAY_LOCAL_COST_MAP, "局部代价地图"}}},
+      {"交互",
+       {{DISPLAY_ROBOT_FOOTPRINT, "机器人足迹"}, {DISPLAY_GOAL, "导航目标"}}},
   };
 
   for (const auto &grp : groups) {
@@ -405,10 +405,10 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Cameras"));
+  QLabel *page_title = new QLabel(tr("摄像头"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("Maps to images in config.json: location (dock id), topic, enable."));
+  AddHintLabel(root, tr("对应 config.json 中的 images：位置标识（dock id）、话题、启用状态。"));
 
   QFrame *card = CreateSettingsCard(page);
   QVBoxLayout *card_layout = new QVBoxLayout(card);
@@ -417,7 +417,7 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
 
   image_table_ = new QTableWidget(0, 4, card);
   image_table_->setHorizontalHeaderLabels(
-      QStringList() << tr("Location") << tr("Topic") << tr("Enable") << QString());
+      QStringList() << tr("位置") << tr("话题") << tr("启用") << QString());
   image_table_->horizontalHeader()->setMinimumSectionSize(72);
   image_table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   image_table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
@@ -445,7 +445,7 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
     OnImageConfigChanged(row);
   });
 
-  image_add_btn_ = new QPushButton(tr("Add camera"), card);
+  image_add_btn_ = new QPushButton(tr("添加摄像头"), card);
   image_add_btn_->setCursor(Qt::PointingHandCursor);
   image_add_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:8px 16px; "
@@ -465,10 +465,10 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Robot shape"));
+  QLabel *page_title = new QLabel(tr("机器人外形"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("Maps to robot_shape_config in config.json: shaped_points, is_ellipse, color, opacity."));
+  AddHintLabel(root, tr("对应 config.json 中的 robot_shape_config：顶点坐标、椭圆近似、颜色、不透明度。"));
 
   QScrollArea *scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -478,13 +478,13 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   outer->setContentsMargins(0, 0, 8, 0);
   outer->setSpacing(12);
 
-  robot_polygon_section_label_ = AddSectionHeader(outer, tr("Polygon vertices"));
+  robot_polygon_section_label_ = AddSectionHeader(outer, tr("多边形顶点"));
   QFrame *points_card = CreateSettingsCard(scroll_content);
   QVBoxLayout *points_layout = new QVBoxLayout(points_card);
   points_layout->setContentsMargins(14, 14, 14, 14);
   points_layout->setSpacing(10);
 
-  robot_points_hint_label_ = new QLabel(tr("Vertices in the plane (meters)"));
+  robot_points_hint_label_ = new QLabel(tr("平面顶点坐标（米）"));
   robot_points_hint_label_->setStyleSheet(QStringLiteral("QLabel { color:#80868b; font-size:12px; }"));
   points_layout->addWidget(robot_points_hint_label_);
 
@@ -501,7 +501,7 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   connect(robot_points_table_, &QTableWidget::cellChanged, this, &DisplayConfigWidget::OnRobotShapePointChanged);
 
   QHBoxLayout *points_btn_layout = new QHBoxLayout();
-  robot_add_vertex_btn_ = new QPushButton(tr("Add vertex"), points_card);
+  robot_add_vertex_btn_ = new QPushButton(tr("添加顶点"), points_card);
   robot_add_vertex_btn_->setCursor(Qt::PointingHandCursor);
   robot_add_vertex_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:6px 12px; "
@@ -515,7 +515,7 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
     OnRobotShapePointChanged();
   });
 
-  robot_remove_vertex_btn_ = new QPushButton(tr("Remove selected"), points_card);
+  robot_remove_vertex_btn_ = new QPushButton(tr("移除选中"), points_card);
   robot_remove_vertex_btn_->setCursor(Qt::PointingHandCursor);
   robot_remove_vertex_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:none; border-radius:8px; padding:6px 12px; background:transparent; "
@@ -537,22 +537,22 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   points_layout->addLayout(points_btn_layout);
   outer->addWidget(points_card);
 
-  robot_style_section_label_ = AddSectionHeader(outer, tr("Style"));
+  robot_style_section_label_ = AddSectionHeader(outer, tr("样式"));
   QFrame *style_card = CreateSettingsCard(scroll_content);
   QVBoxLayout *style_layout = new QVBoxLayout(style_card);
   style_layout->setContentsMargins(14, 14, 14, 14);
   style_layout->setSpacing(14);
 
-  robot_is_ellipse_checkbox_ = new QCheckBox(tr("Approximate with ellipse"), style_card);
+  robot_is_ellipse_checkbox_ = new QCheckBox(tr("椭圆近似"), style_card);
   robot_is_ellipse_checkbox_->setStyleSheet(QStringLiteral("QCheckBox { font-size:13px; color:#202124; spacing:8px; }"
                                                            "QCheckBox::indicator { width:18px; height:18px; }"));
   connect(robot_is_ellipse_checkbox_, &QCheckBox::toggled, this, &DisplayConfigWidget::OnRobotShapeIsEllipseChanged);
 
   QHBoxLayout *color_layout = new QHBoxLayout();
-  robot_color_caption_label_ = new QLabel(tr("Color"));
+  robot_color_caption_label_ = new QLabel(tr("颜色"));
   robot_color_caption_label_->setFixedWidth(72);
   robot_color_caption_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
-  robot_color_button_ = new QPushButton(tr("Choose color"), style_card);
+  robot_color_button_ = new QPushButton(tr("选择颜色"), style_card);
   robot_color_button_->setMinimumWidth(120);
   robot_color_button_->setCursor(Qt::PointingHandCursor);
   robot_color_button_->setStyleSheet(
@@ -565,7 +565,7 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   color_layout->addStretch();
 
   QHBoxLayout *opacity_layout = new QHBoxLayout();
-  robot_opacity_caption_label_ = new QLabel(tr("Opacity"));
+  robot_opacity_caption_label_ = new QLabel(tr("不透明度"));
   robot_opacity_caption_label_->setFixedWidth(72);
   robot_opacity_caption_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   robot_opacity_slider_ = new QSlider(Qt::Horizontal, style_card);
@@ -603,11 +603,11 @@ QWidget *DisplayConfigWidget::CreateMapPage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Default map"));
+  QLabel *page_title = new QLabel(tr("默认地图"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
-               tr("Maps to map_config.path in config.json: YAML file to load on startup (with or without .yaml)."));
+               tr("对应 config.json 中的 map_config.path：启动时加载的地图 YAML 文件路径。"));
 
   QFrame *card = CreateSettingsCard(page);
   QVBoxLayout *card_layout = new QVBoxLayout(card);
@@ -615,11 +615,11 @@ QWidget *DisplayConfigWidget::CreateMapPage() {
   card_layout->setSpacing(12);
 
   QHBoxLayout *path_layout = new QHBoxLayout();
-  map_path_label_ = new QLabel(tr("Map path"));
+  map_path_label_ = new QLabel(tr("地图路径"));
   map_path_label_->setFixedWidth(88);
   map_path_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   map_path_edit_ = new QLineEdit(card);
-  map_path_edit_->setPlaceholderText(tr("e.g. C:/maps/office.yaml"));
+  map_path_edit_->setPlaceholderText(tr("例如 /home/maps/office.yaml"));
   map_path_edit_->setStyleSheet(LineEditStyle());
   connect(map_path_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
@@ -628,15 +628,15 @@ QWidget *DisplayConfigWidget::CreateMapPage() {
     Config::ConfigManager::Instance()->GetRootConfig().map_config.path = map_path_edit_->text().toStdString();
     AutoSaveConfig();
   });
-  map_browse_btn_ = new QPushButton(tr("Browse…"), card);
+  map_browse_btn_ = new QPushButton(tr("浏览…"), card);
   map_browse_btn_->setCursor(Qt::PointingHandCursor);
   map_browse_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 14px; background:#fff; "
                      "font-size:13px; color:#1a73e8; }"
                      "QPushButton:hover { background:#e8f0fe; border-color:#1a73e8; }"));
   connect(map_browse_btn_, &QPushButton::clicked, [this]() {
-    QString f = QFileDialog::getOpenFileName(this, tr("Select map YAML"), QString(),
-                                               tr("YAML (*.yaml *.yml);;All (*.*)"));
+    QString f = QFileDialog::getOpenFileName(this, tr("选择地图YAML"), QString(),
+                                               tr("YAML (*.yaml *.yml);;所有文件 (*.*)"));
     if (!f.isEmpty()) {
       map_path_edit_->setText(f);
       if (!is_loading_config_) {
@@ -661,12 +661,11 @@ QWidget *DisplayConfigWidget::CreateKeyValuePage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("Key-value"));
+  QLabel *page_title = new QLabel(tr("键值对"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
-               tr("Maps to key_value in config.json: arbitrary string pairs for channel and app options "
-                  "(e.g. BaseFrameId)."));
+               tr("对应 config.json 中的 key_value：通道和应用选项的任意字符串键值对。"));
 
   QFrame *card = CreateSettingsCard(page);
   QVBoxLayout *card_layout = new QVBoxLayout(card);
@@ -684,7 +683,7 @@ QWidget *DisplayConfigWidget::CreateKeyValuePage() {
   scroll->setWidget(key_value_host_);
   card_layout->addWidget(scroll);
 
-  key_value_add_btn_ = new QPushButton(tr("Add entry"), page);
+  key_value_add_btn_ = new QPushButton(tr("添加条目"), page);
   key_value_add_btn_->setCursor(Qt::PointingHandCursor);
   key_value_add_btn_->setStyleSheet(
       QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:8px 16px; "
@@ -703,7 +702,7 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string> &channel
   channel_type_combo_->blockSignals(true);
   channel_type_combo_->clear();
 
-  channel_type_combo_->addItem(tr("Auto"), QStringLiteral("auto"));
+  channel_type_combo_->addItem(tr("自动"), QStringLiteral("auto"));
   for (const auto &channel_type : channel_list_) {
     QString q = QString::fromStdString(channel_type);
     channel_type_combo_->addItem(q, q);
@@ -765,9 +764,9 @@ void DisplayConfigWidget::OnKeyValueChanged(const std::string &key, const QStrin
 
 void DisplayConfigWidget::OnAddKeyValue() {
   bool ok = false;
-  QString key = QInputDialog::getText(this, tr("Add entry"), tr("Key:"), QLineEdit::Normal, QString(), &ok);
+  QString key = QInputDialog::getText(this, tr("添加条目"), tr("键:"), QLineEdit::Normal, QString(), &ok);
   if (ok && !key.isEmpty()) {
-    QString value = QInputDialog::getText(this, tr("Add entry"), tr("Value:"), QLineEdit::Normal, QString(), &ok);
+    QString value = QInputDialog::getText(this, tr("添加条目"), tr("值:"), QLineEdit::Normal, QString(), &ok);
     if (ok) {
       SET_KEY_VALUE(key.toStdString(), value.toStdString())
       RefreshKeyValueTab();
@@ -811,7 +810,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
     item_layout->addWidget(key_label);
 
     QLineEdit *value_edit = new QLineEdit(QString::fromStdString(value), item_widget);
-    value_edit->setPlaceholderText(tr("Value"));
+    value_edit->setPlaceholderText(tr("值"));
     value_edit->setStyleSheet(LineEditStyle());
     key_value_edits_[key] = value_edit;
     connect(value_edit, &QLineEdit::editingFinished, [this, key, value_edit]() {
@@ -819,7 +818,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
     });
     item_layout->addWidget(value_edit, 1);
 
-    QPushButton *remove_btn = new QPushButton(tr("Remove"), item_widget);
+    QPushButton *remove_btn = new QPushButton(tr("移除"), item_widget);
     remove_btn->setFixedWidth(52);
     remove_btn->setCursor(Qt::PointingHandCursor);
     remove_btn->setStyleSheet(
@@ -840,9 +839,9 @@ void DisplayConfigWidget::OnAddImageConfig() {
   image_table_->insertRow(row);
 
   QTableWidgetItem *location_item = new QTableWidgetItem(QString());
-  location_item->setToolTip(QStringLiteral("Dock id, e.g. front, rear"));
+  location_item->setToolTip(QStringLiteral("停靠标识，如 front、rear"));
   QTableWidgetItem *topic_item = new QTableWidgetItem(QString());
-  topic_item->setToolTip(QStringLiteral("Image topic, e.g. /camera/front/image_raw"));
+  topic_item->setToolTip(QStringLiteral("图像话题，如 /camera/front/image_raw"));
   QTableWidgetItem *enable_item = new QTableWidgetItem(QStringLiteral("true"));
   enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
@@ -855,7 +854,7 @@ void DisplayConfigWidget::OnAddImageConfig() {
     OnImageConfigChanged(row);
   });
 
-  QPushButton *remove_btn = new QPushButton(tr("Remove"));
+  QPushButton *remove_btn = new QPushButton(tr("移除"));
   remove_btn->setCursor(Qt::PointingHandCursor);
   remove_btn->setStyleSheet(
       QStringLiteral("QPushButton { border:none; color:#d93025; font-size:13px; padding:4px 8px; }"
@@ -960,7 +959,7 @@ void DisplayConfigWidget::OnRobotShapeIsEllipseChanged(bool checked) {
 }
 
 void DisplayConfigWidget::OnRobotShapeColorChanged() {
-  QColor color = QColorDialog::getColor(robot_color_, this, tr("Choose color"));
+  QColor color = QColorDialog::getColor(robot_color_, this, tr("选择颜色"));
   if (color.isValid()) {
     robot_color_ = color;
     QString color_style = QStringLiteral("background-color: %1;").arg(color.name());
@@ -1024,9 +1023,9 @@ void DisplayConfigWidget::LoadConfig() {
     image_table_->insertRow(row);
 
     QTableWidgetItem *location_item = new QTableWidgetItem(QString::fromStdString(image_config.location));
-    location_item->setToolTip(QStringLiteral("Location id"));
+    location_item->setToolTip(QStringLiteral("位置标识"));
     QTableWidgetItem *topic_item = new QTableWidgetItem(QString::fromStdString(image_config.topic));
-    topic_item->setToolTip(QStringLiteral("Image topic"));
+    topic_item->setToolTip(QStringLiteral("图像话题"));
     QTableWidgetItem *enable_item = new QTableWidgetItem(image_config.enable ? QStringLiteral("true") : QStringLiteral("false"));
     enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
@@ -1037,7 +1036,7 @@ void DisplayConfigWidget::LoadConfig() {
       OnImageConfigChanged(row);
     });
 
-    QPushButton *remove_btn = new QPushButton(tr("Remove"));
+    QPushButton *remove_btn = new QPushButton(tr("移除"));
     remove_btn->setCursor(Qt::PointingHandCursor);
     remove_btn->setStyleSheet(
         QStringLiteral("QPushButton { border:none; color:#d93025; font-size:13px; padding:4px 8px; }"

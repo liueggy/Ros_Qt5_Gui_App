@@ -80,9 +80,9 @@ ViewManager::ViewManager(QWidget *parent) : QGraphicsView(parent) {
   label_pos_map_->setMinimumWidth(160);
   label_pos_map_->setMaximumWidth(220);
   label_pos_map_->setFixedHeight(20);
-  label_pos_map_->setPlaceholderText("Map: (x, y)");
+  label_pos_map_->setPlaceholderText("地图: (x, y)");
   label_pos_map_->setStyleSheet("QLineEdit { border: none; background-color: transparent; font-size: 10px; }");
-  label_pos_map_->setText("Map: (0.00, 0.00)");
+  label_pos_map_->setText("地图: (0.00, 0.00)");
   bottom_layout->addWidget(label_pos_map_);
 
   label_pos_scene_ = new QLineEdit();
@@ -91,9 +91,9 @@ ViewManager::ViewManager(QWidget *parent) : QGraphicsView(parent) {
   label_pos_scene_->setMinimumWidth(160);
   label_pos_scene_->setMaximumWidth(220);
   label_pos_scene_->setFixedHeight(20);
-  label_pos_scene_->setPlaceholderText("Scene: (x, y)");
+  label_pos_scene_->setPlaceholderText("场景: (x, y)");
   label_pos_scene_->setStyleSheet("QLineEdit { border: none; background-color: transparent; font-size: 10px; }");
-  label_pos_scene_->setText("Scene: (0.00, 0.00)");
+  label_pos_scene_->setText("场景: (0.00, 0.00)");
   bottom_layout->addWidget(label_pos_scene_);
 
   label_pos_robot_ = new QLineEdit();
@@ -102,9 +102,9 @@ ViewManager::ViewManager(QWidget *parent) : QGraphicsView(parent) {
   label_pos_robot_->setMinimumWidth(180);
   label_pos_robot_->setMaximumWidth(240);
   label_pos_robot_->setFixedHeight(20);
-  label_pos_robot_->setPlaceholderText("Robot: (x, y, θ)");
+  label_pos_robot_->setPlaceholderText("机器人: (x, y, θ)");
   label_pos_robot_->setStyleSheet("QLineEdit { border: none; background-color: transparent; font-size: 10px; }");
-  label_pos_robot_->setText("Robot: (0.00, 0.00, 0.00)");
+  label_pos_robot_->setText("机器人: (0.00, 0.00, 0.00)");
   bottom_layout->addWidget(label_pos_robot_);
   
   // 中间spacer，将右侧按钮推到右边

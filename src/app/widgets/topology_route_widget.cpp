@@ -164,7 +164,7 @@ TopologyRouteWidget::TopologyRouteWidget(QWidget *parent) : QWidget(parent) {
   // 路径名称（只读）
   QHBoxLayout *layout_name = new QHBoxLayout();
   layout_name->setSpacing(6);
-  QLabel *label_name = new QLabel("name:");
+  QLabel *label_name = new QLabel("名称:");
   label_name->setMinimumSize(50, 20);
   lineEdit_route_name_ = new QLineEdit();
   lineEdit_route_name_->setReadOnly(true); // 路径名不可修改
@@ -175,7 +175,7 @@ TopologyRouteWidget::TopologyRouteWidget(QWidget *parent) : QWidget(parent) {
   // 控制器类型
   QHBoxLayout *layout_controller = new QHBoxLayout();
   layout_controller->setSpacing(6);
-  QLabel *label_controller = new QLabel("controller:");
+  QLabel *label_controller = new QLabel("控制器:");
   label_controller->setMinimumSize(50, 20);
   comboBox_controller_ = new QComboBox();
   layout_controller->addWidget(label_controller);
@@ -185,7 +185,7 @@ TopologyRouteWidget::TopologyRouteWidget(QWidget *parent) : QWidget(parent) {
   // 目标检查器类型
   QHBoxLayout *layout_goal_checker = new QHBoxLayout();
   layout_goal_checker->setSpacing(6);
-  QLabel *label_goal_checker = new QLabel("goal_checker:");
+  QLabel *label_goal_checker = new QLabel("目标检查器:");
   label_goal_checker->setMinimumSize(50, 20);
   comboBox_goal_checker_ = new QComboBox();
   layout_goal_checker->addWidget(label_goal_checker);

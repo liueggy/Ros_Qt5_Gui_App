@@ -145,7 +145,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   summary_row->addWidget(summary_error_);
   summary_row->addWidget(summary_stale_);
   summary_row->addStretch();
-  refresh_btn_ = new QPushButton(tr("Refresh"));
+  refresh_btn_ = new QPushButton(tr("刷新"));
   refresh_btn_->setFixedHeight(26);
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
   summary_row->addWidget(refresh_btn_);
@@ -153,7 +153,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
 
   auto *filter_row = new QHBoxLayout();
   search_edit_ = new QLineEdit();
-  search_edit_->setPlaceholderText(tr("Search components, messages or key values…"));
+  search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
   filter_row->addWidget(search_edit_, 2);
 
@@ -162,7 +162,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   const struct {
     const char *label;
     int level;
-  } chips[] = {{"All", -1}, {"OK", 0}, {"Warning", 1}, {"Error", 2}, {"Stale", 3}};
+  } chips[] = {{"全部", -1}, {"正常", 0}, {"警告", 1}, {"错误", 2}, {"过期", 3}};
   auto *chip_layout = new QHBoxLayout();
   chip_layout->setSpacing(4);
   for (int i = 0; i < 5; ++i) {
@@ -182,7 +182,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   }
   filter_row->addLayout(chip_layout, 3);
 
-  clear_filter_btn_ = new QPushButton(tr("Clear filter"));
+  clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setFixedHeight(26);
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
@@ -207,12 +207,12 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
 
   tree_ = new QTreeWidget();
   tree_->setColumnCount(2);
-  tree_->setHeaderLabels({tr("Name / key"), tr("Status / value")});
+  tree_->setHeaderLabels({tr("名称 / 键"), tr("状态 / 值")});
   tree_->setAlternatingRowColors(true);
   tree_->setUniformRowHeights(false);
   root->addWidget(tree_, 1);
 
-  empty_label_ = new QLabel(tr("No diagnostic data"));
+  empty_label_ = new QLabel(tr("无诊断数据"));
   empty_label_->setAlignment(Qt::AlignCenter);
   empty_label_->setStyleSheet(QStringLiteral("color:#888;font-size:13px;padding:24px;"));
   empty_label_->hide();
@@ -242,15 +242,15 @@ QString DiagnosticDockWidget::FormatTimeMs(int64_t ms) {
 QString DiagnosticDockWidget::LevelDisplayName(int level) const {
   switch (level) {
     case 0:
-      return tr("OK");
+      return tr("正常");
     case 1:
-      return tr("Warning");
+      return tr("警告");
     case 2:
-      return tr("Error");
+      return tr("错误");
     case 3:
-      return tr("Stale");
+      return tr("过期");
     default:
-      return tr("Unknown");
+      return tr("未知");
   }
 }
 
@@ -294,10 +294,10 @@ void DiagnosticDockWidget::UpdateSummary() {
       }
     }
   }
-  summary_ok_->setText(tr("%1 OK").arg(c0));
-  summary_warn_->setText(tr("%1 Warning").arg(c1));
-  summary_error_->setText(tr("%1 Error").arg(c2));
-  summary_stale_->setText(tr("%1 Stale").arg(c3));
+  summary_ok_->setText(tr("%1 正常").arg(c0));
+  summary_warn_->setText(tr("%1 警告").arg(c1));
+  summary_error_->setText(tr("%1 错误").arg(c2));
+  summary_stale_->setText(tr("%1 过期").arg(c3));
 }
 
 void DiagnosticDockWidget::RebuildUi() {
@@ -320,13 +320,13 @@ void DiagnosticDockWidget::RebuildUi() {
     tree_->hide();
     empty_label_->show();
     if (snapshot_.hardware.empty()) {
-      empty_label_->setText(has_filter ? tr("No matching diagnostics") : tr("No diagnostic data"));
+      empty_label_->setText(has_filter ? tr("无匹配诊断") : tr("无诊断数据"));
     } else {
-      empty_label_->setText(has_filter ? tr("No matching diagnostics") : tr("No diagnostic data"));
+      empty_label_->setText(has_filter ? tr("无匹配诊断") : tr("无诊断数据"));
     }
     filter_hint_->setVisible(has_filter);
     if (has_filter) {
-      filter_hint_->setText(tr("No results with the current filter. Clear the filter or adjust the criteria."));
+      filter_hint_->setText(tr("当前筛选无结果。请清除筛选或调整条件。"));
     }
     return;
   }
@@ -335,7 +335,7 @@ void DiagnosticDockWidget::RebuildUi() {
   empty_label_->hide();
   filter_hint_->setVisible(has_filter);
   if (has_filter) {
-    filter_hint_->setText(tr("Showing %1 hardware group(s) (filter active)")
+    filter_hint_->setText(tr("显示 %1 个硬件组（筛选已启用）")
                               .arg(static_cast<int>(rows.size())));
   }
 
@@ -343,14 +343,14 @@ void DiagnosticDockWidget::RebuildUi() {
     const std::string &hid = entry.first;
     const auto &filtered = entry.second;
     int max_lv = MaxLevelInMap(filtered);
-    QString display_hid = hid == "unknown_hardware" ? tr("Unknown hardware") : QString::fromStdString(hid);
+    QString display_hid = hid == "unknown_hardware" ? tr("未知硬件") : QString::fromStdString(hid);
     auto *hw_item = new QTreeWidgetItem(tree_);
     QFont f = hw_item->font(0);
     f.setBold(true);
     hw_item->setFont(0, f);
     hw_item->setText(0, display_hid);
     hw_item->setForeground(1, LevelColor(max_lv));
-    hw_item->setText(1, tr("Status: %1 | Components: %2 | Latest: %3")
+    hw_item->setText(1, tr("状态: %1 | 组件: %2 | 最新: %3")
                             .arg(LevelDisplayName(max_lv))
                             .arg(static_cast<int>(filtered.size()))
                             .arg(FormatTimeMs(LatestUpdateMs(filtered))));
@@ -363,9 +363,9 @@ void DiagnosticDockWidget::RebuildUi() {
       comp_item->setForeground(1, LevelColor(st.level));
       QString msg = QString::fromStdString(st.message);
       if (msg == QStringLiteral("data_stale")) {
-        msg = tr("Data stale");
+        msg = tr("数据过期");
       }
-      comp_item->setText(1, tr("Status: %1 | %2 | Updated: %3")
+      comp_item->setText(1, tr("状态: %1 | %2 | 更新: %3")
                                  .arg(LevelDisplayName(st.level))
                                  .arg(msg)
                                  .arg(FormatTimeMs(st.last_update_ms)));
@@ -378,7 +378,7 @@ void DiagnosticDockWidget::RebuildUi() {
         }
       } else {
         auto *empty_item = new QTreeWidgetItem(comp_item);
-        empty_item->setText(0, tr("(No key-value details)"));
+        empty_item->setText(0, tr("（无键值详情）"));
         empty_item->setText(1, FormatTimeMs(st.last_update_ms));
       }
     }

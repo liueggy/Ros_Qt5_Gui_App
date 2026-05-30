@@ -134,8 +134,8 @@ void MainWindow::registerChannel() {
       nav_goal_table_view_->UpdateRobotPose(robot_pose);
       Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
       if (view_manager) {
-        view_manager->UpdateRobotPos("Robot: (" + QString::number(robot_pose.x, 'f', 2) + ", " + 
-                                     QString::number(robot_pose.y, 'f', 2) + ", " + 
+        view_manager->UpdateRobotPos("机器人: (" + QString::number(robot_pose.x, 'f', 2) + ", " +
+                                     QString::number(robot_pose.y, 'f', 2) + ", " +
                                      QString::number(robot_pose.theta, 'f', 2) + ")");
       }
   });
@@ -672,7 +672,7 @@ void MainWindow::setupUi() {
   center_docker_area_->setAllowedAreas(DockWidgetArea::OuterDockAreas);
 
   //////////////////////////////////////////////////////////速度仪表盘
-  ads::CDockWidget *DashBoardDockWidget = new ads::CDockWidget("DashBoard");
+  ads::CDockWidget *DashBoardDockWidget = new ads::CDockWidget("速度仪表盘");
   QWidget *speed_dashboard_widget = new QWidget();
   DashBoardDockWidget->setWidget(speed_dashboard_widget);
   speed_dash_board_ = new DashBoard(speed_dashboard_widget);
@@ -687,7 +687,7 @@ void MainWindow::setupUi() {
           [this](const RobotSpeed &speed) {
             PUBLISH(MSG_ID_SET_ROBOT_SPEED, speed);
           });
-  ads::CDockWidget *SpeedCtrlDockWidget = new ads::CDockWidget("SpeedCtrl");
+  ads::CDockWidget *SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
@@ -698,7 +698,7 @@ void MainWindow::setupUi() {
   display_config_widget_ = new DisplayConfigWidget();
   display_config_widget_->SetDisplayManager(display_manager_);
   display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
-  settings_dock_ = new ads::CDockWidget(tr("Setting"));
+  settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_);
   settings_dock_->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
   settings_dock_->setMinimumSize(320, 240);
@@ -710,7 +710,7 @@ void MainWindow::setupUi() {
   ui->menuView->addAction(settings_dock_->toggleViewAction());
 
   diagnostic_dock_widget_ = new DiagnosticDockWidget();
-  diagnostic_dock_ = new ads::CDockWidget(tr("Diagnostic"));
+  diagnostic_dock_ = new ads::CDockWidget(tr("诊断"));
   diagnostic_dock_->setWidget(diagnostic_dock_widget_);
   diagnostic_dock_->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
   diagnostic_dock_->setMinimumSize(280, 200);
@@ -725,7 +725,7 @@ void MainWindow::setupUi() {
   QVBoxLayout *horizontalLayout_13 = new QVBoxLayout();
   horizontalLayout_13->addWidget(nav_goal_table_view_);
   task_list_widget->setLayout(horizontalLayout_13);
-  ads::CDockWidget *nav_goal_list_dock_widget = new ads::CDockWidget("Task");
+  ads::CDockWidget *nav_goal_list_dock_widget = new ads::CDockWidget("任务");
   
   // 现代化按钮样式
   QString modernButtonStyle = R"(
@@ -750,14 +750,14 @@ void MainWindow::setupUi() {
     }
   )";
   
-  QPushButton *btn_add_one_goal = new QPushButton("Add Point");
+  QPushButton *btn_add_one_goal = new QPushButton("添加点位");
   btn_add_one_goal->setStyleSheet(modernButtonStyle);
   
   QHBoxLayout *horizontalLayout_15 = new QHBoxLayout();
-  QPushButton *btn_start_task_chain = new QPushButton("Start Task Chain");
+  QPushButton *btn_start_task_chain = new QPushButton("开始任务链");
   btn_start_task_chain->setStyleSheet(modernButtonStyle);
   
-  QCheckBox *loop_task_checkbox = new QCheckBox("Loop Task");
+  QCheckBox *loop_task_checkbox = new QCheckBox("循环任务");
   loop_task_checkbox->setStyleSheet(R"(
     QCheckBox {
       color: #333333;
@@ -788,8 +788,8 @@ void MainWindow::setupUi() {
   horizontalLayout_14->addWidget(btn_start_task_chain);
   horizontalLayout_14->addWidget(loop_task_checkbox);
   
-  QPushButton *btn_load_task_chain = new QPushButton("Load Task Chain");
-  QPushButton *btn_save_task_chain = new QPushButton("Save Task Chain");
+  QPushButton *btn_load_task_chain = new QPushButton("加载任务链");
+  QPushButton *btn_save_task_chain = new QPushButton("保存任务链");
   btn_load_task_chain->setStyleSheet(modernButtonStyle);
   btn_save_task_chain->setStyleSheet(modernButtonStyle);
   
@@ -813,8 +813,8 @@ void MainWindow::setupUi() {
             PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
           });
   connect(btn_load_task_chain, &QPushButton::clicked, [this]() {
-    QString fileName = QFileDialog::getOpenFileName(nullptr, "Open JSON file",
-                                                    "", "JSON files (*.json)",
+    QString fileName = QFileDialog::getOpenFileName(nullptr, "打开JSON文件",
+                                                    "", "JSON文件 (*.json)",
                                                     nullptr, QFileDialog::DontUseNativeDialog);
 
     // 如果用户选择了文件，则输出文件名
@@ -824,8 +824,8 @@ void MainWindow::setupUi() {
     }
   });
   connect(btn_save_task_chain, &QPushButton::clicked, [this]() {
-    QString fileName = QFileDialog::getSaveFileName(nullptr, "Save JSON file",
-                                                    "", "JSON files (*.json)",
+    QString fileName = QFileDialog::getSaveFileName(nullptr, "保存JSON文件",
+                                                    "", "JSON文件 (*.json)",
                                                     nullptr, QFileDialog::DontUseNativeDialog);
 
     // 如果用户选择了文件，则输出文件名
@@ -850,18 +850,18 @@ void MainWindow::setupUi() {
       [this, nav_goal_list_dock_widget]() { nav_goal_table_view_->AddItem(); });
   connect(btn_start_task_chain, &QPushButton::clicked,
           [this, btn_start_task_chain, loop_task_checkbox]() {
-            if (btn_start_task_chain->text() == "Start Task Chain") {
-              btn_start_task_chain->setText("Stop Task Chain");
+            if (btn_start_task_chain->text() == "开始任务链") {
+              btn_start_task_chain->setText("停止任务链");
               nav_goal_table_view_->StartTaskChain(loop_task_checkbox->isChecked());
             } else {
-              btn_start_task_chain->setText("Start Task Chain");
+              btn_start_task_chain->setText("开始任务链");
               nav_goal_table_view_->StopTaskChain();
             }
           });
   connect(nav_goal_table_view_, &NavGoalTableView::signalTaskFinish,
           [this, btn_start_task_chain]() {
             LOG_INFO("task finish!");
-            btn_start_task_chain->setText("Start Task Chain");
+            btn_start_task_chain->setText("开始任务链");
           });
   connect(display_manager_,
           SIGNAL(signalTopologyMapUpdate(const TopologyMap &)),
@@ -899,8 +899,8 @@ void MainWindow::setupUi() {
           [this]() { display_manager_->StartReloc(); });
 
   connect(re_save_map_btn, &QToolButton::clicked, [this]() {
-    QString fileName = QFileDialog::getSaveFileName(nullptr, "Save Map files",
-                                                    "", "Map files (*.yaml,*.pgm,*.pgm.json)",
+    QString fileName = QFileDialog::getSaveFileName(nullptr, "保存地图文件",
+                                                    "", "地图文件 (*.yaml,*.pgm,*.pgm.json)",
                                                     nullptr, QFileDialog::DontUseNativeDialog);
     if (!fileName.isEmpty()) {
       // 用户选择了文件夹，可以在这里进行相应的操作
@@ -961,7 +961,7 @@ void MainWindow::setupUi() {
         << "地图(*.yaml)"
         << "拓扑地图(*.topology)";
 
-    QString fileName = QFileDialog::getOpenFileName(nullptr, "OPen Map files",
+    QString fileName = QFileDialog::getOpenFileName(nullptr, "打开地图文件",
                                                     "", filters.join(";;"),
                                                     nullptr, QFileDialog::DontUseNativeDialog);
     if (!fileName.isEmpty()) {
@@ -1092,9 +1092,9 @@ void MainWindow::signalCursorPose(QPointF pos) {
       display_manager_->mapPose2Word(basic::Point(pos.x(), pos.y()));
   Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
   if (view_manager) {
-    view_manager->UpdateMapPos("Map: (" + QString::number(mapPos.x, 'f', 2) +
+    view_manager->UpdateMapPos("地图: (" + QString::number(mapPos.x, 'f', 2) +
                                ", " + QString::number(mapPos.y, 'f', 2) + ")");
-    view_manager->UpdateScenePos("Scene: (" + QString::number(pos.x(), 'f', 2) +
+    view_manager->UpdateScenePos("场景: (" + QString::number(pos.x(), 'f', 2) +
                                  ", " + QString::number(pos.y(), 'f', 2) + ")");
   }
 }

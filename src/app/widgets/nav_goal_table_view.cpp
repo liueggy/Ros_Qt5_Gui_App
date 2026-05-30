@@ -63,9 +63,9 @@ void NavGoalTableView::AddItem() {
   }
   comboBox->addItem("");
   comboBox->setCurrentText("");
-  QLabel *label_status = new QLabel("None");
-  QPushButton *button_remove = new QPushButton("Delete");
-  QPushButton *button_run = new QPushButton("Run");
+  QLabel *label_status = new QLabel("无");
+  QPushButton *button_remove = new QPushButton("删除");
+  QPushButton *button_run = new QPushButton("运行");
   int row = table_model_->rowCount();
 
   connect(button_remove, &QPushButton::clicked, [this, row]() {
@@ -90,11 +90,11 @@ void NavGoalTableView::StartTaskChain(bool is_loop) {
             static_cast<QComboBox *>(indexWidget(model()->index(row, 0)));
         QLabel *label_status =
             static_cast<QLabel *>(indexWidget(model()->index(row, 1)));
-        label_status->setText("Running");
+        label_status->setText("运行中");
         TopologyMap::PointInfo point =
             topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
         if (point.name == "") {
-          label_status->setText("Point Not Found!");
+          label_status->setText("未找到点位!");
           continue;
         }
         RobotPose target_pose = point.ToRobotPose();
@@ -110,7 +110,7 @@ void NavGoalTableView::StartTaskChain(bool is_loop) {
           }
           QThread::msleep(100);
         }
-        label_status->setText("Finish");
+        label_status->setText("完成");
       }
     } while (is_loop);
 
@@ -148,9 +148,9 @@ bool NavGoalTableView::LoadTaskChain(const std::string &name) {
       continue;
     }
     comboBox->setCurrentText(QString::fromStdString(point.name));
-    QLabel *label_status = new QLabel("None");
-    QPushButton *button_remove = new QPushButton("Delete");
-    QPushButton *button_run = new QPushButton("Run");
+    QLabel *label_status = new QLabel("无");
+    QPushButton *button_remove = new QPushButton("删除");
+    QPushButton *button_run = new QPushButton("运行");
     int row = table_model_->rowCount();
 
     connect(button_remove, &QPushButton::clicked, [this, row]() {
@@ -174,11 +174,11 @@ bool NavGoalTableView::SaveTaskChain(const std::string &name) {
         static_cast<QComboBox *>(indexWidget(model()->index(row, 0)));
     QLabel *label_status =
         static_cast<QLabel *>(indexWidget(model()->index(row, 1)));
-    label_status->setText("Running");
+    label_status->setText("运行中");
     TopologyMap::PointInfo point =
         topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
     if (point.name == "") {
-      label_status->setText("Point Not Found!");
+      label_status->setText("未找到点位!");
       continue;
     }
     task_chain_.points.push_back(point);

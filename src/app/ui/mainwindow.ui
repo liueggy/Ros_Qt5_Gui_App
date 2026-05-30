@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>主窗口</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout"/>
@@ -27,19 +27,19 @@
    </property>
    <widget class="QMenu" name="menuView">
     <property name="title">
-     <string>view</string>
+     <string>视图</string>
     </property>
    </widget>
    <addaction name="menuView"/>
   </widget>
   <action name="speed_ctrl">
    <property name="text">
-    <string>speed_ctrl</string>
+    <string>速度控制</string>
    </property>
   </action>
   <action name="speed_dashboard">
    <property name="text">
-    <string>speed_dashboard</string>
+    <string>速度仪表盘</string>
    </property>
   </action>
  </widget>

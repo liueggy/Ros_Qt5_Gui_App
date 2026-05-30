@@ -293,7 +293,7 @@ class SpeedCtrlWidget : public QWidget {
 
     QTabWidget *tabWidget = new QTabWidget;
 
-    tabWidget->addTab(cmdCtrlWidget, "CmdCtrl");
+    tabWidget->addTab(cmdCtrlWidget, "命令控制");
     verticalLayout_speed_ctrl->addWidget(tabWidget);
 
     QWidget *widget_joyStick = new QWidget();
@@ -309,7 +309,7 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_joyStick->addStretch();
     widget_joyStick->setLayout(horizontalLayout_joyStick);
 
-    tabWidget->addTab(widget_joyStick, "JoyStickCtrl");
+    tabWidget->addTab(widget_joyStick, "摇杆控制");
 
     QHBoxLayout *horizontalLayout_20 = new QHBoxLayout();
     horizontalLayout_20->setObjectName(
