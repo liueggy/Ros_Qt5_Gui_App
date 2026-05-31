@@ -34,13 +34,13 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(RobotShapedConfig, shaped_points
 
 
 struct RosbridgeConfig {
-  std::string ip{"127.0.0.1"};
+  std::string ip{"192.168.31.50"};
   std::string port{"9090"};
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(RosbridgeConfig, ip, port);
 
 struct ChannelConfig {
-  std::string channel_type{"auto"};
+  std::string channel_type{"rosbridge"};
   RosbridgeConfig rosbridge_config;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ChannelConfig, channel_type, rosbridge_config);

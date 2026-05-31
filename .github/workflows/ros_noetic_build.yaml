@@ -1,11 +1,7 @@
 name: ROS1:Noetic(20.04)
 
 on:
-  push:
-    branches:
-      - master
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write

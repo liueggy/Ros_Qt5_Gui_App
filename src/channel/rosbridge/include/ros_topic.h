@@ -82,6 +82,10 @@ namespace rosbridge2cpp{
 		return topic_name_;
 	}
 
+	void SetThrottleRate(int throttle_rate) {
+		throttle_rate_ = throttle_rate;
+	}
+
 	private:
 		ROSBridge &ros_;
 		std::string topic_name_;

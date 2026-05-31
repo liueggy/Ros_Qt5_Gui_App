@@ -30,7 +30,7 @@ RosNode::RosNode(/* args */) {
   if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
     Config::ConfigManager::Instance()->GetRootConfig().images.push_back(
         Config::ImageDisplayConfig{.location = "front",
-                                   .topic = "/camera/rgb/image_raw",
+                                   .topic = "/camera/front/image_raw",
                                    .enable = true});
 
   }

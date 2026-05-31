@@ -79,10 +79,10 @@ RosbridgeComm::RosbridgeComm() {
   // 设置默认通道配置
   auto &config = Config::ConfigManager::Instance()->GetRootConfig();
   if (config.channel_config.channel_type.empty()) {
-    config.channel_config.channel_type = "auto";
+    config.channel_config.channel_type = "rosbridge";
   }
   if (config.channel_config.rosbridge_config.ip.empty()) {
-    config.channel_config.rosbridge_config.ip = "127.0.0.1";
+    config.channel_config.rosbridge_config.ip = "192.168.31.50";
   }
   if (config.channel_config.rosbridge_config.port.empty()) {
     config.channel_config.rosbridge_config.port = "9090";
@@ -106,7 +106,7 @@ RosbridgeComm::RosbridgeComm() {
 bool RosbridgeComm::Start() {
   // 从配置读取ROSBridge服务器地址和端口
   auto &config = Config::ConfigManager::Instance()->GetRootConfig();
-  rosbridge_ip_ = config.channel_config.rosbridge_config.ip.empty() ? "127.0.0.1" : config.channel_config.rosbridge_config.ip;
+  rosbridge_ip_ = config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
   rosbridge_port_ = std::stoi(config.channel_config.rosbridge_config.port.empty() ? "9090" : config.channel_config.rosbridge_config.port);
   
   connection_failed_ = false;
@@ -254,6 +254,7 @@ void RosbridgeComm::ConnectAsync() {
     if (!one_image_display.enable) continue;
     LOG_INFO("image location:" << one_image_display.location << " topic:" << one_image_display.topic);
     auto image_topic = std::make_unique<ROSTopic>(*ros_bridge_, one_image_display.topic, "sensor_msgs/Image", 1);
+    image_topic->SetThrottleRate(100);
     std::string location = one_image_display.location;
     callback_handles_[one_image_display.topic] = image_topic->Subscribe(
         [this, location](const ROSBridgePublishMsg &msg) { ImageCallback(msg, location); });

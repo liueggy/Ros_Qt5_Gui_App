@@ -228,7 +228,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   rosbridge_ip_label_->setFixedWidth(88);
   rosbridge_ip_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
   rosbridge_ip_edit_ = new QLineEdit(card);
-  rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("127.0.0.1"));
+  rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("192.168.31.50"));
   rosbridge_ip_edit_->setStyleSheet(LineEditStyle());
   connect(rosbridge_ip_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
@@ -710,7 +710,7 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string> &channel
 
   auto &config = Config::ConfigManager::Instance()->GetRootConfig();
   std::string channel_type =
-      config.channel_config.channel_type.empty() ? "auto" : config.channel_config.channel_type;
+      config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   int index = channel_type_combo_->findData(QString::fromStdString(channel_type));
   if (index >= 0) {
     channel_type_combo_->setCurrentIndex(index);
@@ -1091,7 +1091,7 @@ void DisplayConfigWidget::LoadConfig() {
   is_loading_config_ = true;
 
   std::string channel_type =
-      config.channel_config.channel_type.empty() ? "auto" : config.channel_config.channel_type;
+      config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   channel_type_combo_->blockSignals(true);
   int index = channel_type_combo_->findData(QString::fromStdString(channel_type));
   if (index >= 0) {
@@ -1102,7 +1102,7 @@ void DisplayConfigWidget::LoadConfig() {
   channel_type_combo_->blockSignals(false);
 
   std::string rosbridge_ip =
-      config.channel_config.rosbridge_config.ip.empty() ? "127.0.0.1" : config.channel_config.rosbridge_config.ip;
+      config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
   rosbridge_ip_edit_->blockSignals(true);
   rosbridge_ip_edit_->setText(QString::fromStdString(rosbridge_ip));
   rosbridge_ip_edit_->blockSignals(false);
