@@ -173,7 +173,7 @@ bool rclcomm::Start() {
                   return;
                 }
               }
-              PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, cv::Mat>(one_image_display.location, conversion_mat_)));
+              PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(one_image_display.location, std::make_shared<cv::Mat>(conversion_mat_))));
             }));
   }
 
