@@ -14,8 +14,36 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <cctype>
+#include <vector>
 
 namespace {
+std::vector<uint8_t> DecodeBase64(const char *input, size_t length) {
+  static const std::string chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::vector<uint8_t> output;
+  int val = 0;
+  int valb = -8;
+
+  for (size_t i = 0; i < length; ++i) {
+    unsigned char c = static_cast<unsigned char>(input[i]);
+    if (std::isspace(c)) continue;
+    if (c == '=') break;
+
+    size_t index = chars.find(static_cast<char>(c));
+    if (index == std::string::npos) break;
+
+    val = (val << 6) + static_cast<int>(index);
+    valb += 6;
+    if (valb >= 0) {
+      output.push_back(static_cast<uint8_t>((val >> valb) & 0xFF));
+      valb -= 8;
+    }
+  }
+
+  return output;
+}
+
 std::string NormalizeFrameId(const std::string &frame_id) {
   if (!frame_id.empty() && frame_id[0] == '/') {
     return frame_id.substr(1);
@@ -1083,67 +1111,69 @@ void RosbridgeComm::TopologyMapCallback(const ROSBridgePublishMsg &msg) {
  */
 void RosbridgeComm::ImageCallback(const ROSBridgePublishMsg &msg, const std::string &location) {
   if (msg.msg_json_.IsNull()) return;
-  
+
   const auto &msg_json = msg.msg_json_;
   if (!msg_json.HasMember("encoding") || !msg_json.HasMember("data")) return;
-  
+
   std::string encoding = msg_json["encoding"].GetString();
   const auto &data = msg_json["data"];
-  
+  int width = msg_json.HasMember("width") ? msg_json["width"].GetInt() : 0;
+  int height = msg_json.HasMember("height") ? msg_json["height"].GetInt() : 0;
+
+  if (width <= 0 || height <= 0) {
+    LOG_ERROR("Invalid image size: " << width << "x" << height);
+    return;
+  }
+
   cv::Mat conversion_mat_;
-  
+  std::vector<uint8_t> image_data;
+
   if (data.IsArray()) {
-    // 提取图像数据
-    std::vector<uint8_t> image_data;
+    image_data.reserve(data.Size());
     for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
       image_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
     }
-    
-    int width = msg_json.HasMember("width") ? msg_json["width"].GetInt() : 0;
-    int height = msg_json.HasMember("height") ? msg_json["height"].GetInt() : 0;
-    
-    // 根据编码格式处理图像
-    if (encoding == "rgb8" || encoding == "RGB8") {
-      // RGB8格式，直接使用
-      cv::Mat img(height, width, CV_8UC3, image_data.data());
-      conversion_mat_ = img.clone();
-    } else if (encoding == "8UC1" || encoding == "mono8") {
-      // 灰度图，转换为RGB
-      cv::Mat img(height, width, CV_8UC1, image_data.data());
-      cv::cvtColor(img, conversion_mat_, CV_GRAY2RGB);
-    } else if (encoding == "16UC1" || encoding == "32FC1") {
-      // 16位或32位深度图，需要归一化
-      double min = 0;
-      double max = 10;
-      
-      if (encoding == "16UC1") {
-        // 16位深度图处理
-        std::vector<uint16_t> image_data_16;
-        for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
-          image_data_16.push_back(static_cast<uint16_t>(data[i].GetInt()));
-        }
-        cv::Mat img(height, width, CV_16UC1, image_data_16.data());
-        max *= 1000;  // 16位深度值范围调整
-        cv::Mat img_scaled_8u;
-        cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-        cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
-      } else {
-        // 32位浮点深度图处理
-        std::vector<float> image_data_32;
-        for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
-          image_data_32.push_back(static_cast<float>(data[i].GetDouble()));
-        }
-        cv::Mat img(height, width, CV_32FC1, image_data_32.data());
-        cv::Mat img_scaled_8u;
-        cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-        cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
-      }
-    } else {
-      LOG_ERROR("Unsupported image encoding: " << encoding);
-      return;
-    }
+  } else if (data.IsString()) {
+    image_data = DecodeBase64(data.GetString(), data.GetStringLength());
+  } else {
+    LOG_ERROR("Unsupported image data type");
+    return;
   }
-  
+
+  if (image_data.empty()) {
+    LOG_ERROR("Empty image data");
+    return;
+  }
+
+  if (encoding == "rgb8" || encoding == "RGB8") {
+    cv::Mat img(height, width, CV_8UC3, image_data.data());
+    conversion_mat_ = img.clone();
+  } else if (encoding == "bgr8" || encoding == "BGR8" || encoding == "CV_8UC3") {
+    cv::Mat img(height, width, CV_8UC3, image_data.data());
+    cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
+  } else if (encoding == "8UC1" || encoding == "mono8") {
+    cv::Mat img(height, width, CV_8UC1, image_data.data());
+    cv::cvtColor(img, conversion_mat_, CV_GRAY2RGB);
+  } else if (encoding == "16UC1") {
+    cv::Mat img(height, width, CV_16UC1, image_data.data());
+    double min = 0;
+    double max = 10000;
+    cv::Mat img_scaled_8u;
+    cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+    cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+  } else if (encoding == "32FC1") {
+    cv::Mat img(height, width, CV_32FC1, image_data.data());
+    double min = 0;
+    double max = 10;
+    cv::Mat img_scaled_8u;
+    cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+    cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+  } else {
+    LOG_ERROR("Unsupported image encoding: " << encoding);
+    return;
+  }
+
+  if (conversion_mat_.empty()) return;
   PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(location, std::make_shared<cv::Mat>(conversion_mat_))));
 }
 
