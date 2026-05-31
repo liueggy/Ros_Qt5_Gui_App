@@ -878,7 +878,7 @@ void MainWindow::setupUi() {
     image_frame_map_[one_image.location] = new RatioLayoutedFrame();
     ads::CDockWidget *dock_widget = new ads::CDockWidget(std::string("image/" + one_image.location).c_str());
     dock_widget->setWidget(image_frame_map_[one_image.location]);
-
+    dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea, dock_widget, center_docker_area_);
     dock_widget->toggleView(false);
     ui->menuView->addAction(dock_widget->toggleViewAction());
   }
