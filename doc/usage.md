@@ -220,7 +220,7 @@ roslaunch rosbridge_server rosbridge_websocket.launch
   "images": [
     {
       "location": "front",
-      "topic": "/camera/rgb/image_raw",
+      "topic": "/camera/front/image_raw",
       "enable": true
     },
     {
