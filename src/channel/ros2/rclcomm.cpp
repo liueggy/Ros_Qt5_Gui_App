@@ -35,7 +35,7 @@ rclcomm::rclcomm() {
   if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
     Config::ConfigManager::Instance()->GetRootConfig().images.push_back(
         Config::ImageDisplayConfig{.location = "front",
-                                   .topic = "/camera/front/image_raw",
+                                   .topic = "/camera/front/image/compressed",
                                    .enable = true});
   }
   Config::ConfigManager::Instance()->StoreConfig();
@@ -123,58 +123,63 @@ bool rclcomm::Start() {
       rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local());
   for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
     LOG_INFO("image location:" << one_image_display.location << "topic:" << one_image_display.topic);
-    image_subscriber_list_.emplace_back(
-        node->create_subscription<sensor_msgs::msg::Image>(
-            one_image_display.topic, 1, [this, one_image_display](const sensor_msgs::msg::Image::SharedPtr msg) {
-              cv::Mat conversion_mat_;
-              try {
-                // 深拷贝转换为opencv类型
-                cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(
-                    msg, sensor_msgs::image_encodings::RGB8);
-                conversion_mat_ = cv_ptr->image;
-              } catch (cv_bridge::Exception &e) {
+    std::string location = one_image_display.location;
+    bool is_compressed = (one_image_display.topic.find("compressed") != std::string::npos);
+
+    if (is_compressed) {
+      // ── CompressedImage 订阅 ──
+      image_subscriber_list_.emplace_back(
+          node->create_subscription<sensor_msgs::msg::CompressedImage>(
+              one_image_display.topic, 1, [this, location](const sensor_msgs::msg::CompressedImage::SharedPtr msg) {
+                cv::Mat img = cv::imdecode(cv::Mat(msg->data), cv::IMREAD_COLOR);
+                if (img.empty()) {
+                  LOG_ERROR("Failed to decode compressed image");
+                  return;
+                }
+                cv::Mat conversion_mat_;
+                cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
+                PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(location, std::make_shared<cv::Mat>(conversion_mat_))));
+              }));
+    } else {
+      // ── Image 订阅（原有逻辑） ──
+      image_subscriber_list_.emplace_back(
+          node->create_subscription<sensor_msgs::msg::Image>(
+              one_image_display.topic, 1, [this, location](const sensor_msgs::msg::Image::SharedPtr msg) {
+                cv::Mat conversion_mat_;
                 try {
-                  cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(msg);
-                  if (msg->encoding == "CV_8UC3") {
-                    // assuming it is rgb
-                    conversion_mat_ = cv_ptr->image;
-                  } else if (msg->encoding == "8UC1") {
-                    // convert gray to rgb
-                    cv::cvtColor(cv_ptr->image, conversion_mat_, CV_GRAY2RGB);
-                  } else if (msg->encoding == "16UC1" ||
-                             msg->encoding == "32FC1") {
-                    double min = 0;
-                    double max = 10;
-                    if (msg->encoding == "16UC1") max *= 1000;
-                    // if (ui_.dynamic_range_check_box->isChecked()) {
-                    //   // dynamically adjust range based on min/max in image
-                    //   cv::minMaxLoc(cv_ptr->image, &min, &max);
-                    //   if (min == max) {
-                    //     // completely homogeneous images are displayed in gray
-                    //     min = 0;
-                    //     max = 2;
-                    //   }
-                    // }
-                    cv::Mat img_scaled_8u;
-                    cv::Mat(cv_ptr->image - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-                    cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
-                  } else {
+                  cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(
+                      msg, sensor_msgs::image_encodings::RGB8);
+                  conversion_mat_ = cv_ptr->image;
+                } catch (cv_bridge::Exception &e) {
+                  try {
+                    cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(msg);
+                    if (msg->encoding == "CV_8UC3") {
+                      conversion_mat_ = cv_ptr->image;
+                    } else if (msg->encoding == "8UC1") {
+                      cv::cvtColor(cv_ptr->image, conversion_mat_, CV_GRAY2RGB);
+                    } else if (msg->encoding == "16UC1" || msg->encoding == "32FC1") {
+                      double min = 0;
+                      double max = 10;
+                      if (msg->encoding == "16UC1") max *= 1000;
+                      cv::Mat img_scaled_8u;
+                      cv::Mat(cv_ptr->image - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+                      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+                    } else {
+                      LOG_ERROR("image from " << msg->encoding
+                                              << " to 'rgb8' an exception was thrown (%s)"
+                                              << e.what());
+                      return;
+                    }
+                  } catch (cv_bridge::Exception &e) {
                     LOG_ERROR("image from " << msg->encoding
                                             << " to 'rgb8' an exception was thrown (%s)"
                                             << e.what());
                     return;
                   }
-                } catch (cv_bridge::Exception &e) {
-                  LOG_ERROR(
-                      "image from "
-                      << msg->encoding
-                      << " to 'rgb8' an exception was thrown (%s)" << e.what());
-
-                  return;
                 }
-              }
-              PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(one_image_display.location, std::make_shared<cv::Mat>(conversion_mat_))));
-            }));
+                PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(location, std::make_shared<cv::Mat>(conversion_mat_))));
+              }));
+    }
   }
 
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock(), std::chrono::seconds(10));

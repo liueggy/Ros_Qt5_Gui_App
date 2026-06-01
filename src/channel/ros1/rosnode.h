@@ -10,6 +10,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/BatteryState.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/image_encodings.h>  //图像编码格式
 #include <diagnostic_msgs/DiagnosticArray.h>

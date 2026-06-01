@@ -10,6 +10,7 @@
 #ifndef RCLCOMM_H
 #define RCLCOMM_H
 #include "sensor_msgs/msg/image.hpp"
+#include "sensor_msgs/msg/compressed_image.hpp"
 
 #include <cv_bridge/cv_bridge.h>
 #include <rclcpp/rclcpp.hpp>
@@ -93,7 +94,7 @@ class rclcomm : public VirtualChannelNode {
       topology_map_subscriber_;
   rclcpp::Publisher<topology_msgs::msg::TopologyMap>::SharedPtr
       topology_map_update_publisher_;
-  std::vector<rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr> image_subscriber_list_;
+  std::vector<rclcpp::SubscriptionBase::SharedPtr> image_subscriber_list_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> transform_listener_;
   std::shared_ptr<rclcpp::Node> node;

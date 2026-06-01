@@ -92,7 +92,7 @@ RosbridgeComm::RosbridgeComm() {
   if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
     Config::ImageDisplayConfig default_image_config;
     default_image_config.location = "front";
-    default_image_config.topic = "/camera/front/image_raw";
+    default_image_config.topic = "/camera/front/image/compressed";
     default_image_config.enable = true;
     Config::ConfigManager::Instance()->GetRootConfig().images.push_back(default_image_config);
   }
@@ -253,7 +253,10 @@ void RosbridgeComm::ConnectAsync() {
   for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
     if (!one_image_display.enable) continue;
     LOG_INFO("image location:" << one_image_display.location << " topic:" << one_image_display.topic);
-    auto image_topic = std::make_unique<ROSTopic>(*ros_bridge_, one_image_display.topic, "sensor_msgs/Image", 1);
+    std::string msg_type = (one_image_display.topic.find("compressed") != std::string::npos)
+                              ? "sensor_msgs/CompressedImage"
+                              : "sensor_msgs/Image";
+    auto image_topic = std::make_unique<ROSTopic>(*ros_bridge_, one_image_display.topic, msg_type, 1);
     image_topic->SetThrottleRate(100);
     std::string location = one_image_display.location;
     callback_handles_[one_image_display.topic] = image_topic->Subscribe(
@@ -1114,63 +1117,92 @@ void RosbridgeComm::ImageCallback(const ROSBridgePublishMsg &msg, const std::str
   if (msg.msg_json_.IsNull()) return;
 
   const auto &msg_json = msg.msg_json_;
-  if (!msg_json.HasMember("encoding") || !msg_json.HasMember("data")) return;
-
-  std::string encoding = msg_json["encoding"].GetString();
-  const auto &data = msg_json["data"];
-  int width = msg_json.HasMember("width") ? msg_json["width"].GetInt() : 0;
-  int height = msg_json.HasMember("height") ? msg_json["height"].GetInt() : 0;
-
-  if (width <= 0 || height <= 0) {
-    LOG_ERROR("Invalid image size: " << width << "x" << height);
-    return;
-  }
+  if (!msg_json.HasMember("data")) return;
 
   cv::Mat conversion_mat_;
-  std::vector<uint8_t> image_data;
 
-  if (data.IsArray()) {
-    image_data.reserve(data.Size());
-    for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
-      image_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
+  // ── sensor_msgs/CompressedImage（JPEG/PNG 压缩数据）──
+  if (msg_json.HasMember("format") && !msg_json.HasMember("encoding")) {
+    const auto &data = msg_json["data"];
+    std::vector<uint8_t> compressed_data;
+    if (data.IsArray()) {
+      compressed_data.reserve(data.Size());
+      for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
+        compressed_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
+      }
+    } else if (data.IsString()) {
+      compressed_data = DecodeBase64(data.GetString(), data.GetStringLength());
     }
-  } else if (data.IsString()) {
-    image_data = DecodeBase64(data.GetString(), data.GetStringLength());
-  } else {
-    LOG_ERROR("Unsupported image data type");
-    return;
+    if (compressed_data.empty()) {
+      LOG_ERROR("Empty compressed image data");
+      return;
+    }
+    conversion_mat_ = cv::imdecode(compressed_data, cv::IMREAD_COLOR);
+    if (conversion_mat_.empty()) {
+      LOG_ERROR("Failed to decode compressed image");
+      return;
+    }
+    // imdecode 输出 BGR，转为 RGB
+    cv::cvtColor(conversion_mat_, conversion_mat_, CV_BGR2RGB);
   }
+  // ── sensor_msgs/Image（原始像素数据）──
+  else if (msg_json.HasMember("encoding")) {
+    std::string encoding = msg_json["encoding"].GetString();
+    const auto &data = msg_json["data"];
+    int width = msg_json.HasMember("width") ? msg_json["width"].GetInt() : 0;
+    int height = msg_json.HasMember("height") ? msg_json["height"].GetInt() : 0;
 
-  if (image_data.empty()) {
-    LOG_ERROR("Empty image data");
-    return;
-  }
+    if (width <= 0 || height <= 0) {
+      LOG_ERROR("Invalid image size: " << width << "x" << height);
+      return;
+    }
 
-  if (encoding == "rgb8" || encoding == "RGB8") {
-    cv::Mat img(height, width, CV_8UC3, image_data.data());
-    conversion_mat_ = img.clone();
-  } else if (encoding == "bgr8" || encoding == "BGR8" || encoding == "CV_8UC3") {
-    cv::Mat img(height, width, CV_8UC3, image_data.data());
-    cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
-  } else if (encoding == "8UC1" || encoding == "mono8") {
-    cv::Mat img(height, width, CV_8UC1, image_data.data());
-    cv::cvtColor(img, conversion_mat_, CV_GRAY2RGB);
-  } else if (encoding == "16UC1") {
-    cv::Mat img(height, width, CV_16UC1, image_data.data());
-    double min = 0;
-    double max = 10000;
-    cv::Mat img_scaled_8u;
-    cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-    cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
-  } else if (encoding == "32FC1") {
-    cv::Mat img(height, width, CV_32FC1, image_data.data());
-    double min = 0;
-    double max = 10;
-    cv::Mat img_scaled_8u;
-    cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-    cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+    std::vector<uint8_t> image_data;
+    if (data.IsArray()) {
+      image_data.reserve(data.Size());
+      for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
+        image_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
+      }
+    } else if (data.IsString()) {
+      image_data = DecodeBase64(data.GetString(), data.GetStringLength());
+    } else {
+      LOG_ERROR("Unsupported image data type");
+      return;
+    }
+
+    if (image_data.empty()) {
+      LOG_ERROR("Empty image data");
+      return;
+    }
+
+    if (encoding == "rgb8" || encoding == "RGB8") {
+      cv::Mat img(height, width, CV_8UC3, image_data.data());
+      conversion_mat_ = img.clone();
+    } else if (encoding == "bgr8" || encoding == "BGR8" || encoding == "CV_8UC3") {
+      cv::Mat img(height, width, CV_8UC3, image_data.data());
+      cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
+    } else if (encoding == "8UC1" || encoding == "mono8") {
+      cv::Mat img(height, width, CV_8UC1, image_data.data());
+      cv::cvtColor(img, conversion_mat_, CV_GRAY2RGB);
+    } else if (encoding == "16UC1") {
+      cv::Mat img(height, width, CV_16UC1, image_data.data());
+      double min = 0;
+      double max = 10000;
+      cv::Mat img_scaled_8u;
+      cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+    } else if (encoding == "32FC1") {
+      cv::Mat img(height, width, CV_32FC1, image_data.data());
+      double min = 0;
+      double max = 10;
+      cv::Mat img_scaled_8u;
+      cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
+      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+    } else {
+      LOG_ERROR("Unsupported image encoding: " << encoding);
+      return;
+    }
   } else {
-    LOG_ERROR("Unsupported image encoding: " << encoding);
     return;
   }
 
