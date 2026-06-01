@@ -973,7 +973,7 @@ void MainWindow::setupUi() {
   });
 
   
-  connect(edit_map_btn, &QToolButton::clicked, [this, tools_edit_map_widget, edit_map_btn]() {
+  connect(edit_map_btn, &QToolButton::clicked, [this, tools_edit_map_widget, edit_map_btn, normal_cursor_btn]() {
     if (edit_map_btn->text() == "编辑地图") {
       display_manager_->SetEditMapMode(Display::MapEditMode::kMoveCursor);
       edit_map_btn->setText("结束编辑");
