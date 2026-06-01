@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QSet>
+#include <QString>
 #include <QWidget>
 #include "msg/diagnostic_snapshot.h"
 
@@ -7,6 +9,7 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QTreeWidget;
+class QTreeWidgetItem;
 class QButtonGroup;
 
 class DiagnosticDockWidget : public QWidget {
@@ -20,12 +23,16 @@ class DiagnosticDockWidget : public QWidget {
  private:
   void RebuildUi();
   void UpdateSummary();
+  void SaveExpandedState();
+  void RestoreExpandedState();
+  static QString ItemKey(QTreeWidgetItem *item);
   static QString FormatTimeMs(int64_t ms);
   QString LevelDisplayName(int level) const;
   static QColor LevelColor(int level);
 
   basic::DiagnosticSnapshot snapshot_;
   QString search_lower_;
+  QSet<QString> expanded_items_;
   int filter_level_{-1};
 
   QLabel *summary_ok_{nullptr};

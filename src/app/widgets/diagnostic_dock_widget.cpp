@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTreeWidget>
+#include <QTreeWidgetItem>
 #include <QVBoxLayout>
 #include <algorithm>
 
@@ -270,9 +271,54 @@ QColor DiagnosticDockWidget::LevelColor(int level) {
 }
 
 void DiagnosticDockWidget::SetSnapshot(const basic::DiagnosticSnapshot &snapshot) {
+  SaveExpandedState();
   snapshot_ = snapshot;
   UpdateSummary();
   RebuildUi();
+}
+
+QString DiagnosticDockWidget::ItemKey(QTreeWidgetItem *item) {
+  if (!item) {
+    return QString();
+  }
+  QStringList parts;
+  for (auto *current = item; current; current = current->parent()) {
+    parts.prepend(current->text(0));
+  }
+  return parts.join(QStringLiteral("/"));
+}
+
+void DiagnosticDockWidget::SaveExpandedState() {
+  if (!tree_) {
+    return;
+  }
+  expanded_items_.clear();
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    auto *hw_item = tree_->topLevelItem(i);
+    if (hw_item->isExpanded()) {
+      expanded_items_.insert(ItemKey(hw_item));
+    }
+    for (int j = 0; j < hw_item->childCount(); ++j) {
+      auto *comp_item = hw_item->child(j);
+      if (comp_item->isExpanded()) {
+        expanded_items_.insert(ItemKey(comp_item));
+      }
+    }
+  }
+}
+
+void DiagnosticDockWidget::RestoreExpandedState() {
+  if (!tree_) {
+    return;
+  }
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    auto *hw_item = tree_->topLevelItem(i);
+    hw_item->setExpanded(expanded_items_.contains(ItemKey(hw_item)));
+    for (int j = 0; j < hw_item->childCount(); ++j) {
+      auto *comp_item = hw_item->child(j);
+      comp_item->setExpanded(expanded_items_.contains(ItemKey(comp_item)));
+    }
+  }
 }
 
 void DiagnosticDockWidget::UpdateSummary() {
@@ -383,6 +429,10 @@ void DiagnosticDockWidget::RebuildUi() {
       }
     }
   }
-  tree_->expandToDepth(0);
+  if (expanded_items_.isEmpty()) {
+    tree_->expandToDepth(0);
+  } else {
+    RestoreExpandedState();
+  }
 }
 
