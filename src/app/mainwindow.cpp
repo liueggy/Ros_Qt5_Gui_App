@@ -977,11 +977,14 @@ void MainWindow::setupUi() {
     if (edit_map_btn->text() == "编辑地图") {
       display_manager_->SetEditMapMode(Display::MapEditMode::kMoveCursor);
       edit_map_btn->setText("结束编辑");
+      normal_cursor_btn->setChecked(true);
       tools_edit_map_widget->show();
     } else {
       display_manager_->SetEditMapMode(Display::MapEditMode::kStopEdit);
       edit_map_btn->setText("编辑地图");
       tools_edit_map_widget->hide();
+      // 重置工具栏按钮到鼠标模式
+      normal_cursor_btn->setChecked(true);
       // 隐藏添加机器人位置按钮
       Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
       if (view_manager) {
