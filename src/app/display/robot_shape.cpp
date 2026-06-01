@@ -101,4 +101,18 @@ void RobotShape::drawFrame(QPainter *painter) {
   painter->drawPath(path_);
   painter->restore();
 }
+bool RobotShape::SetDisplayConfig(const std::string &config_name,
+                                 const std::any &config_data) {
+  if (config_name == "Color") {
+    Color color;
+    GetAnyData(Color, config_data, color);
+    color_ = QColor(color[0], color[1], color[2]);
+  } else if (config_name == "Opacity") {
+    GetAnyData(float, config_data, opacity_);
+  } else {
+    return false;
+  }
+  update();
+  return true;
+}
 }  // namespace Display

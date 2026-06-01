@@ -49,6 +49,7 @@ DisplayManager::DisplayManager() {
 
   SetDisplayConfig(DISPLAY_GLOBAL_PATH + "/Color", Color(0, 0, 255));
   SetDisplayConfig(DISPLAY_LOCAL_PATH + "/Color", Color(0, 255, 0));
+  SetDisplayConfig(DISPLAY_ROBOT_FOOTPRINT + "/Color", Color(30, 144, 255));
 
   // connection
 
