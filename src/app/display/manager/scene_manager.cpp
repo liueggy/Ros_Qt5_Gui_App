@@ -234,8 +234,9 @@ void SceneManager::AddPointAtRobotPosition() {
   
   // 添加到拓扑地图
   topology_map_.AddPoint(point_info);
-  
-  LOG_INFO("Add nav point at robot position: " << name << " at world pose(" 
+  emit signalTopologyMapUpdate(topology_map_);
+
+  LOG_INFO("Add nav point at robot position: " << name << " at world pose("
            << robot_pose.x << ", " << robot_pose.y << ", " << robot_pose.theta 
            << ") -> map pose(" << map_pose.x << ", " << map_pose.y << ", " << map_pose.theta << ")");
   LOG_INFO("Total points: " << topology_map_.points.size());
@@ -303,10 +304,10 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
       goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
       goal_point->UpdateData(map_pose);
       topology_map_.AddPoint(point_info);
+      emit signalTopologyMapUpdate(topology_map_);
 
-      
-      LOG_INFO("Add nav point: " << name << " at scene pose(" 
-               << scene_pose.x << ", " << scene_pose.y << ", " << scene_pose.theta 
+      LOG_INFO("Add nav point: " << name << " at scene pose("
+               << scene_pose.x << ", " << scene_pose.y << ", " << scene_pose.theta
                << ") -> world pose(" << world_pose.x << ", " << world_pose.y << ", " << world_pose.theta
                << ") -> map pose(" << map_pose.x << ", " << map_pose.y << ", " << map_pose.theta << ")");
       LOG_INFO("Total points: " << topology_map_.points.size());
