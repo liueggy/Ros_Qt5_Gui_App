@@ -744,6 +744,7 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
               PushCommand(std::move(command));
               
               topology_map_.RemovePoint(point_name);
+              emit signalTopologyMapUpdate(topology_map_);
               curr_handle_display_ = nullptr;
               FactoryDisplay::Instance()->RemoveDisplay(display);
               nav_goal_widget_->disconnect();
@@ -781,6 +782,7 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
                 }
               }
        
+              emit signalTopologyMapUpdate(topology_map_);
               nav_goal_widget_->hide();
               LOG_INFO("Successfully updated point name: " << old_name << " -> " << new_name.toStdString());
             } else if (flag == NavGoalWidget::HandleResult::kCancel) {
