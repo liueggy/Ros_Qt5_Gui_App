@@ -921,7 +921,9 @@ void MainWindow::setupUi() {
       // 保存占用栅格地图
       auto occ_map = display_manager_->GetOccupancyMap();
       occ_map.Save(fileName.toStdString());
-      
+      // 让 Qt 立即使用编辑后的地图
+      display_manager_->UpdateOCCMap(occ_map);
+
       // 保存拓扑地图
       auto topology_map = display_manager_->GetTopologyMap();
 
@@ -950,7 +952,9 @@ void MainWindow::setupUi() {
     // 保存占用栅格地图
     auto occ_map = display_manager_->GetOccupancyMap();
     occ_map.Save(map_path_);
-    
+    // 让 Qt 立即使用编辑后的地图
+    display_manager_->UpdateOCCMap(occ_map);
+
     // 保存拓扑地图
     auto topology_map = display_manager_->GetTopologyMap();
 
