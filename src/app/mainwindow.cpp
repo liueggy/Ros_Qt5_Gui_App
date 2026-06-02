@@ -34,6 +34,7 @@
 #include "widgets/speed_ctrl.h"
 #include "widgets/display_config_widget.h"
 #include "widgets/diagnostic_dock_widget.h"
+#include "widgets/command_center_widget.h"
 #include "msg/diagnostic_snapshot.h"
 #include "display/manager/view_manager.h"
 #include <QTimer>
@@ -871,6 +872,17 @@ void MainWindow::setupUi() {
       SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo &)),
       nav_goal_table_view_,
       SLOT(UpdateSelectPoint(const TopologyMap::PointInfo &)));
+
+  //////////////////////////////////////////////////////Eggy 命令中心
+  command_center_widget_ = new CommandCenterWidget();
+  command_center_dock_ = new ads::CDockWidget("命令中心");
+  command_center_dock_->setWidget(command_center_widget_);
+  command_center_dock_->setMinimumSizeHintMode(CDockWidget::MinimumSizeHintFromDockWidget);
+  command_center_dock_->setMinimumSize(360, 260);
+  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+                               command_center_dock_, center_docker_area_);
+  command_center_dock_->toggleView(false);
+  ui->menuView->addAction(command_center_dock_->toggleViewAction());
 
   //////////////////////////////////////////////////////图片
   for (auto one_image : Config::ConfigManager::Instance()->GetRootConfig().images) {

@@ -72,6 +72,9 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP, "/map/topology")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE, "/map/topology/update")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DIAGNOSTIC, "/diagnostics")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_REQUEST, "/eggy/command/request")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE, "/eggy/command/response")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_STATUS, "/eggy/command/status")
   
   // 设置默认键值配置
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
@@ -248,6 +251,19 @@ void RosbridgeComm::ConnectAsync() {
   callback_handles_[GET_TOPIC_NAME(MSG_ID_DIAGNOSTIC)] = diagnostic_topic->Subscribe(
       [this](const ROSBridgePublishMsg &msg) { DiagnosticCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_DIAGNOSTIC)] = std::move(diagnostic_topic);
+
+  // Eggy 命令中心反馈订阅
+  auto command_response_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE), "std_msgs/String", 10);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE)] = command_response_topic->Subscribe(
+      [this](const ROSBridgePublishMsg &msg) { CommandResponseCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE)] = std::move(command_response_topic);
+
+  auto command_status_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS), "std_msgs/String", 1);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = command_status_topic->Subscribe(
+      [this](const ROSBridgePublishMsg &msg) { CommandStatusCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
   
   // 图像话题订阅（动态配置）
   for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
@@ -297,6 +313,11 @@ void RosbridgeComm::ConnectAsync() {
   auto topology_map_update_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE), "topology_msgs/TopologyMap", 1);
   topology_map_update_publisher->Advertise();
   publishers_[GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE)] = std::move(topology_map_update_publisher);
+
+  // Eggy 命令中心请求发布者
+  auto command_request_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST), "std_msgs/String", 10);
+  command_request_publisher->Advertise();
+  publishers_[GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST)] = std::move(command_request_publisher);
   
   // ========== 订阅内部消息总线 ==========
   
@@ -318,6 +339,11 @@ void RosbridgeComm::ConnectAsync() {
   SUBSCRIBE(MSG_ID_TOPOLOGY_MAP_UPDATE, [this](const TopologyMap& topology_map) {
     LOG_INFO("recv topology map update:" << topology_map.map_name);
     PubTopologyMapUpdate(topology_map);
+  });
+
+  SUBSCRIBE(MSG_ID_COMMAND_REQUEST, [this](const std::string& json_request) {
+    LOG_INFO("recv eggy command request:" << json_request);
+    PubCommandRequest(json_request);
   });
   
   init_flag_ = true;
@@ -948,6 +974,20 @@ void RosbridgeComm::DiagnosticCallback(const ROSBridgePublishMsg &msg) {
   PUBLISH(MSG_ID_DIAGNOSTIC, snapshot);
 }
 
+void RosbridgeComm::CommandResponseCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &msg_json = msg.msg_json_;
+  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
+  PUBLISH(MSG_ID_COMMAND_RESPONSE, std::string(msg_json["data"].GetString()));
+}
+
+void RosbridgeComm::CommandStatusCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &msg_json = msg.msg_json_;
+  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
+  PUBLISH(MSG_ID_COMMAND_STATUS, std::string(msg_json["data"].GetString()));
+}
+
 /**
  * @brief 里程计回调函数
  * @param msg ROSBridge消息
@@ -1348,6 +1388,21 @@ void RosbridgeComm::PubRobotSpeed(const basic::RobotSpeed &speed) {
   
   // 发布消息
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED));
+  if (it != publishers_.end()) {
+    it->second->Publish(msg);
+  }
+}
+
+/**
+ * @brief 发布 Eggy 命令中心 JSON 请求
+ */
+void RosbridgeComm::PubCommandRequest(const std::string &json_request) {
+  rapidjson::Document msg;
+  msg.SetObject();
+  auto &allocator = msg.GetAllocator();
+  msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
+
+  auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
   }

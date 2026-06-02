@@ -47,6 +47,7 @@ QT_END_NAMESPACE
 
 class DiagnosticDockWidget;
 class DisplayConfigWidget;
+class CommandCenterWidget;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -92,6 +93,8 @@ class MainWindow : public QMainWindow {
   ads::CDockWidget *settings_dock_{nullptr};
   DiagnosticDockWidget *diagnostic_dock_widget_{nullptr};
   ads::CDockWidget *diagnostic_dock_{nullptr};
+  CommandCenterWidget *command_center_widget_{nullptr};
+  ads::CDockWidget *command_center_dock_{nullptr};
   
  signals:
   void OnRecvChannelData(const MsgId &id, const std::any &data);
