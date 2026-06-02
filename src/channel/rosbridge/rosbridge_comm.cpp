@@ -91,13 +91,24 @@ RosbridgeComm::RosbridgeComm() {
     config.channel_config.rosbridge_config.port = "9090";
   }
   
-  // 设置默认图像配置
-  if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
+  // 设置默认图像配置：确保 front 摄像头始终自动填充压缩图像话题
+  bool has_front_camera = false;
+  for (auto &image_config : config.images) {
+    if (image_config.location == "front") {
+      has_front_camera = true;
+      if (image_config.topic.empty()) {
+        image_config.topic = "/camera/front/image/compressed";
+      }
+      image_config.enable = true;
+      break;
+    }
+  }
+  if (!has_front_camera) {
     Config::ImageDisplayConfig default_image_config;
     default_image_config.location = "front";
     default_image_config.topic = "/camera/front/image/compressed";
     default_image_config.enable = true;
-    Config::ConfigManager::Instance()->GetRootConfig().images.push_back(default_image_config);
+    config.images.push_back(default_image_config);
   }
   Config::ConfigManager::Instance()->StoreConfig();
 }

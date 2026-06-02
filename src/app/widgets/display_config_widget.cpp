@@ -996,6 +996,34 @@ void DisplayConfigWidget::AutoSaveConfig() {
 void DisplayConfigWidget::LoadConfig() {
   auto &config = Config::ConfigManager::Instance()->GetRootConfig();
 
+  bool has_front_camera = false;
+  bool image_config_changed = false;
+  for (auto &image_config : config.images) {
+    if (image_config.location == "front") {
+      has_front_camera = true;
+      if (image_config.topic.empty()) {
+        image_config.topic = "/camera/front/image/compressed";
+        image_config_changed = true;
+      }
+      if (!image_config.enable) {
+        image_config.enable = true;
+        image_config_changed = true;
+      }
+      break;
+    }
+  }
+  if (!has_front_camera) {
+    Config::ImageDisplayConfig default_image_config;
+    default_image_config.location = "front";
+    default_image_config.topic = "/camera/front/image/compressed";
+    default_image_config.enable = true;
+    config.images.push_back(default_image_config);
+    image_config_changed = true;
+  }
+  if (image_config_changed) {
+    Config::ConfigManager::Instance()->StoreConfig();
+  }
+
   for (auto &display_config : config.display_config) {
     auto toggle_it = display_toggle_buttons_.find(display_config.display_name);
     if (toggle_it != display_toggle_buttons_.end()) {

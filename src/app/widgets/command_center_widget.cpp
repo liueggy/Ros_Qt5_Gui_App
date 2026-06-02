@@ -86,7 +86,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   outer->addWidget(scroll);
 
   auto *title = new QLabel(tr("Eggy 命令中心 / 模块调试"), this);
-  title->setStyleSheet("font-size:15px;font-weight:600;");
+  title->setStyleSheet("font-size:15px;font-weight:600;color:#202124;");
+  setStyleSheet(QStringLiteral(
+      "QGroupBox { border:1px solid rgba(0,0,0,0.10); border-radius:10px; margin-top:10px; padding:10px; font-weight:600; color:#202124; }"
+      "QGroupBox::title { subcontrol-origin: margin; left:12px; padding:0 6px; background:white; }"
+      "QPushButton { border:1px solid #dadce0; border-radius:8px; padding:7px 12px; background:#ffffff; color:#202124; font-weight:500; }"
+      "QPushButton:hover { background:#e8f0fe; border-color:#8ab4f8; color:#174ea6; }"
+      "QComboBox, QLineEdit { border:1px solid #dadce0; border-radius:8px; padding:6px 8px; background:#ffffff; }"
+      "QPlainTextEdit { border:1px solid #dadce0; border-radius:8px; background:#fafafa; padding:8px; font-family:Consolas, Menlo, monospace; }"));
   root->addWidget(title);
 
   auto *preset_row = new QHBoxLayout;
