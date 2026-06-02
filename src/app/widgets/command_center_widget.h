@@ -28,6 +28,8 @@ class CommandCenterWidget : public QWidget {
   void SaveCurrentProfile();
   void LoadSavedProfile();
   void RestoreDefaultProfile();
+  void UseLocalMapForNav();
+  void ExitNavMode();
   void OnParamPresetChanged(int index);
   void ClearLog();
 

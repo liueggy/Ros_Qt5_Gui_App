@@ -3,6 +3,8 @@
 #include <QComboBox>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
+#include <QDir>
 #include <QHBoxLayout>
 #include <QFormLayout>
 #include <QGroupBox>
@@ -146,16 +148,22 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   auto *save_profile_btn = new QPushButton(tr("保存当前组合"), profile_group);
   auto *load_profile_btn = new QPushButton(tr("加载组合"), profile_group);
   auto *restore_default_btn = new QPushButton(tr("恢复默认"), profile_group);
+  auto *use_local_map_btn = new QPushButton(tr("使用本地地图导航"), profile_group);
+  auto *exit_nav_btn = new QPushButton(tr("退出导航模式"), profile_group);
   profile_layout->addWidget(profile_combo_, 1);
   profile_layout->addWidget(apply_profile_btn);
   profile_layout->addWidget(save_profile_btn);
   profile_layout->addWidget(load_profile_btn);
   profile_layout->addWidget(restore_default_btn);
+  profile_layout->addWidget(use_local_map_btn);
+  profile_layout->addWidget(exit_nav_btn);
   root->addWidget(profile_group);
   connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
   connect(save_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::SaveCurrentProfile);
   connect(load_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::LoadSavedProfile);
   connect(restore_default_btn, &QPushButton::clicked, this, &CommandCenterWidget::RestoreDefaultProfile);
+  connect(use_local_map_btn, &QPushButton::clicked, this, &CommandCenterWidget::UseLocalMapForNav);
+  connect(exit_nav_btn, &QPushButton::clicked, this, &CommandCenterWidget::ExitNavMode);
 
   auto *param_group = new QGroupBox(tr("实车调参（优先 dynamic_reconfigure，适合边跑边调）"), this);
   auto *param_layout = new QFormLayout(param_group);
@@ -531,6 +539,63 @@ void CommandCenterWidget::RestoreDefaultProfile() {
   profile_combo_->setCurrentIndex(0);
   AppendLog(tr("INFO"), tr("恢复默认低速稳定档参数。"));
   ApplySpeedProfile();
+}
+
+void CommandCenterWidget::UseLocalMapForNav() {
+  const QString yamlPath = QFileDialog::getOpenFileName(this, tr("选择本地地图 YAML"), QString(), tr("地图文件 (*.yaml)"));
+  if (yamlPath.isEmpty()) return;
+
+  QFileInfo yamlInfo(yamlPath);
+  QFile yamlFile(yamlPath);
+  if (!yamlFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    AppendLog(tr("ERROR"), tr("无法打开 YAML 文件：%1").arg(yamlPath));
+    return;
+  }
+  const QString yamlText = QString::fromUtf8(yamlFile.readAll());
+  yamlFile.close();
+
+  QString imageName;
+  for (const QString &line : yamlText.split('\n')) {
+    const QString trimmed = line.trimmed();
+    if (trimmed.startsWith("image:")) {
+      imageName = trimmed.mid(6).trimmed();
+      break;
+    }
+  }
+  if (imageName.isEmpty()) {
+    AppendLog(tr("ERROR"), tr("YAML 中未找到 image 字段。"));
+    return;
+  }
+
+  const QString pgmPath = QDir(yamlInfo.absoluteFilePath()).absoluteFilePath(imageName);
+  QFileInfo pgmInfo(pgmPath);
+  if (!pgmInfo.exists()) {
+    AppendLog(tr("ERROR"), tr("PGM 文件不存在：%1").arg(pgmPath));
+    return;
+  }
+
+  QFile pgmFile(pgmPath);
+  if (!pgmFile.open(QIODevice::ReadOnly)) {
+    AppendLog(tr("ERROR"), tr("无法打开 PGM 文件：%1").arg(pgmPath));
+    return;
+  }
+  const QByteArray pgmData = pgmFile.readAll();
+  pgmFile.close();
+
+  QJsonObject params;
+  params["map_name"] = yamlInfo.completeBaseName();
+  params["yaml_b64"] = QString::fromUtf8(yamlText.toUtf8().toBase64());
+  params["pgm_b64"] = QString::fromUtf8(pgmData.toBase64());
+  params["activate"] = true;
+  PublishJson(MakeRequestJson("upload_map", "navigation", QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+  AppendLog(tr("INFO"), tr("已发送本地地图到小车并请求切到 AMCL 导航模式。\nYAML: %1\nPGM: %2").arg(yamlPath, pgmPath));
+}
+
+void CommandCenterWidget::ExitNavMode() {
+  QJsonObject params;
+  params["mode"] = "mapping";
+  PublishJson(MakeRequestJson("switch_nav_mode", "mapping", QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+  AppendLog(tr("INFO"), tr("已请求退出导航模式，切回 gmapping 建图模式。"));
 }
 
 void CommandCenterWidget::ClearLog() {
