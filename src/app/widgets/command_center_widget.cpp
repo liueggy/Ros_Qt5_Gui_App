@@ -567,7 +567,7 @@ void CommandCenterWidget::UseLocalMapForNav() {
     return;
   }
 
-  const QString pgmPath = QDir(yamlInfo.absoluteFilePath()).absoluteFilePath(imageName);
+  const QString pgmPath = QDir::cleanPath(QDir(yamlInfo.absolutePath()).absoluteFilePath(imageName));
   QFileInfo pgmInfo(pgmPath);
   if (!pgmInfo.exists()) {
     AppendLog(tr("ERROR"), tr("PGM 文件不存在：%1").arg(pgmPath));
