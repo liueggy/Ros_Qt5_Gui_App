@@ -115,7 +115,7 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   emit signalTopologyMapUpdate(topology_map_);
 }
 void SceneManager::SetToolRange(double range) {
-  double clamped_range = qMax(0.1, qMin(50.0, range));  // 限制范围在 0.1 到 50 米
+  double clamped_range = qMax(0.5, qMin(50.0, range));
   pen_range_ = clamped_range;
   pen_range_ = clamped_range;
   if (current_mode_ == MapEditMode::kErase) {
@@ -606,15 +606,14 @@ void SceneManager::keyPressEvent(QKeyEvent *event) {
 void SceneManager::setEraseCursor() {
   auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   double scale_value = map_ptr->GetScaleValue();
-  QPixmap pixmap(pen_range_ * 2 * scale_value, pen_range_ * 2 * scale_value);
-  // 使用 QPainter 绘制一个红色正方形
+  int size_px = qMax(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
+  QPixmap pixmap(size_px, size_px);
   pixmap.fill(Qt::transparent);
   QPainter painter(&pixmap);
-  painter.setPen(Qt::NoPen);
-  painter.setBrush(QColor(255, 0, 0, 50));
-  painter.drawRect(0, 0, pixmap.width(), pixmap.height());
-
-  // 将 QPixmap 设置为鼠标样式
+  painter.setRenderHint(QPainter::Antialiasing, false);
+  painter.setPen(QPen(QColor(220, 50, 50, 220), 2));
+  painter.setBrush(QColor(255, 80, 80, 80));
+  painter.drawRect(1, 1, size_px - 3, size_px - 3);
   eraser_cursor_ = QCursor(pixmap, pixmap.width() / 2, pixmap.height() / 2);
   view_ptr_->setCursor(eraser_cursor_);
 }
@@ -622,15 +621,14 @@ void SceneManager::setEraseCursor() {
 void SceneManager::setPenCursor() {
   auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   double scale_value = map_ptr->GetScaleValue();
-  QPixmap pixmap(pen_range_ * 2 * scale_value, pen_range_ * 2 * scale_value);
-  // 使用 QPainter 绘制一个蓝色正方形
+  int size_px = qMax(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
+  QPixmap pixmap(size_px, size_px);
   pixmap.fill(Qt::transparent);
   QPainter painter(&pixmap);
-  painter.setPen(Qt::NoPen);
-  painter.setBrush(QColor(0, 0, 255, 50));
-  painter.drawRect(0, 0, pixmap.width(), pixmap.height());
-
-  // 将 QPixmap 设置为鼠标样式
+  painter.setRenderHint(QPainter::Antialiasing, false);
+  painter.setPen(QPen(QColor(40, 120, 220, 220), 2));
+  painter.setBrush(QColor(80, 150, 255, 80));
+  painter.drawRect(1, 1, size_px - 3, size_px - 3);
   pen_cursor_ = QCursor(pixmap, pixmap.width() / 2, pixmap.height() / 2);
   view_ptr_->setCursor(pen_cursor_);
 }
