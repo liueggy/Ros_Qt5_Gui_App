@@ -32,6 +32,7 @@ jobs:
 
       - name: Build (Release, no signing)
         run: |
+          set -o pipefail
           xcodebuild \
             -project EggyCar.xcodeproj \
             -scheme EggyCar \
@@ -43,7 +44,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS="" \
             ENABLE_BITCODE=NO \
-            clean build 2>&1 | tail -50
+            clean build 2>&1 | tee xcodebuild.log
 
       - name: Find app and create IPA
         run: |
