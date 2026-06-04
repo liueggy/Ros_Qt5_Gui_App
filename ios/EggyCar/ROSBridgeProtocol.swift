@@ -152,8 +152,10 @@ enum ROSMessageDecoder {
               let ranges = data["ranges"]?.array
         else { return nil }
         let rangeValues = ranges.compactMap { $0.double }
+        let rangeMax = data["range_max"]?.double ?? 12.0
         return LaserScan(angleMin: angleMin, angleMax: angleMax,
-                         angleIncrement: angleIncrement, ranges: rangeValues)
+                         angleIncrement: angleIncrement, ranges: rangeValues,
+                         rangeMax: rangeMax)
     }
 
     static func decodePath(_ data: [String: AnyCodable]) -> [Pose2D] {

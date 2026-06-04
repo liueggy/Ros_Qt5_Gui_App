@@ -1,143 +1,189 @@
-// MapCanvasView.swift — 地图 Canvas 渲染
+// MapCanvasView.swift — 地图 Canvas 渲染 (修正版)
 import SwiftUI
+
+private let kRobotRadius: CGFloat = 12
+private let kArrowLength: CGFloat = 22
+private let kDotSize: CGFloat = 2.5
 
 struct MapCanvasView: View {
     @ObservedObject var topics: TopicManager
 
     var body: some View {
         Canvas { context, size in
-            // 1. 占据栅格地图
-            if let map = topics.map {
-                drawMap(context, size: size, map: map)
+            guard let map = topics.map else {
+                context.fill(Path(CGRect(origin: .zero, size: size)),
+                             with: .color(.black))
+                return
             }
+            let s = size.width / CGFloat(map.metersWidth)  // pixels per meter
+
+            // 1. 占据栅格地图
+            drawMap(context, size: size, map: map)
+
             // 2. 代价地图
             if let gm = topics.globalCostmap {
-                drawCostmap(context, size: size, map: gm, color: .blue, opacity: 0.15)
+                drawCostmap(context, size: size, map: gm,
+                            color: .blue, opacity: 0.15)
             }
             if let lm = topics.localCostmap {
-                drawCostmap(context, size: size, map: lm, color: .orange, opacity: 0.2)
+                drawCostmap(context, size: size, map: lm,
+                            color: .orange, opacity: 0.2)
             }
-            // 3. 全局路径
-            if !topics.globalPath.isEmpty {
-                drawPath(context, size: size, path: topics.globalPath, color: .green, width: 3)
-            }
-            // 4. 局部路径
-            if !topics.localPath.isEmpty {
-                drawPath(context, size: size, path: topics.localPath, color: .yellow, width: 2)
-            }
-            // 5. 激光扫描
+
+            // 机器人画布坐标
+            let cx = map.toPixelX(x: topics.robotPose.x)
+            let cy = map.toPixelY(y: topics.robotPose.y, canvasH: size.height)
+            let theta = topics.robotPose.theta
+
+            // 3. 激光扫描 (相对机器人绘制, 防止帧不对齐)
             if let scan = topics.laserScan {
-                drawLaser(context, size: size, scan: scan, pose: topics.robotPose)
+                drawLaser(context, size: size, scan: scan,
+                          cx: cx, cy: cy, theta: theta, s: s, map: map)
             }
+
+            // 4. 全局路径
+            if !topics.globalPath.isEmpty {
+                drawPath(context, size: size, path: topics.globalPath, map: map,
+                         color: .green, width: 3)
+            }
+
+            // 5. 局部路径
+            if !topics.localPath.isEmpty {
+                drawPath(context, size: size, path: topics.localPath, map: map,
+                         color: .yellow, width: 2)
+            }
+
             // 6. 机器人足迹
             if !topics.footprint.points.isEmpty {
-                drawFootprint(context, size: size, footprint: topics.footprint)
+                drawFootprint(context, size: size, footprint: topics.footprint, map: map)
             }
-            // 7. 机器人位姿
-            drawRobot(context, size: size, pose: topics.robotPose)
+
+            // 7. 机器人 (最后画, 叠加在最上层)
+            drawRobot(context, cx: cx, cy: cy, theta: theta, s: s)
         }
-        .background(Color.black)
+        .background(Color(red: 0.15, green: 0.15, blue: 0.15))
     }
 
-    // MARK: - 绘制方法
-
+    // MARK: - 占据栅格地图
     private func drawMap(_ ctx: GraphicsContext, size: CGSize, map: OccupancyGrid) {
-        let res = map.resolution
-        let pw = size.width / CGFloat(map.width)
-        let ph = size.height / CGFloat(map.height)
-
         for y in 0..<map.height {
             for x in 0..<map.width {
-                let val = map.data[y * map.width + x]
+                let v = map.data[y * map.width + x]
                 let color: Color
-                if val == -1 { color = Color(red: 0.5, green: 0.5, blue: 0.5) }
-                else if val > 50 { color = .black }
-                else { color = .white }
-
-                let rect = CGRect(x: CGFloat(x) * pw, y: CGFloat(y) * ph,
-                                  width: pw + 0.5, height: ph + 0.5)
+                switch v {
+                case -1: color = Color(red: 0.4, green: 0.4, blue: 0.4)  // 未知
+                case 0...30: color = Color(red: 0.95, green: 0.95, blue: 0.95) // 空闲
+                default: color = Color(red: 0.1, green: 0.1, blue: 0.1)  // 占据
+                }
+                let rect = CGRect(x: CGFloat(x), y: CGFloat(y), width: 1, height: 1)
                 ctx.fill(Path(rect), with: .color(color))
             }
         }
     }
 
+    // MARK: - 代价地图
     private func drawCostmap(_ ctx: GraphicsContext, size: CGSize, map: OccupancyGrid,
                              color: Color, opacity: Double) {
-        let pw = size.width / CGFloat(map.width)
-        let ph = size.height / CGFloat(map.height)
-
         for y in 0..<map.height {
             for x in 0..<map.width {
-                let val = map.data[y * map.width + x]
-                if val <= 0 || val == -1 { continue }
-                let alpha = Double(val) / 100.0 * opacity
-                let rect = CGRect(x: CGFloat(x) * pw, y: CGFloat(y) * ph,
-                                  width: pw + 0.5, height: ph + 0.5)
-                ctx.fill(Path(rect), with: .color(color.opacity(alpha)))
+                let v = map.data[y * map.width + x]
+                if v <= 0 || v == -1 { continue }
+                let a = Double(v) / 100.0 * opacity
+                let rect = CGRect(x: CGFloat(x), y: CGFloat(y), width: 1, height: 1)
+                ctx.fill(Path(rect), with: .color(color.opacity(a)))
             }
         }
     }
 
-    private func drawPath(_ ctx: GraphicsContext, size: CGSize, path: [Pose2D],
+    // MARK: - 路径
+    private func drawPath(_ ctx: GraphicsContext, size: CGSize,
+                          path: [Pose2D], map: OccupancyGrid,
                           color: Color, width: CGFloat) {
-        guard path.count > 1, let map = topics.map else { return }
+        guard path.count > 1 else { return }
         var p = Path()
-        let s = size.width / (CGFloat(map.width) * CGFloat(map.resolution))
         for (i, pt) in path.enumerated() {
-            let sx = CGFloat(pt.x - map.originX) * s
-            let sy = size.height - CGFloat(pt.y - map.originY) * s
+            let sx = map.toPixelX(x: pt.x)
+            let sy = map.toPixelY(y: pt.y, canvasH: size.height)
             if i == 0 { p.move(to: CGPoint(x: sx, y: sy)) }
             else { p.addLine(to: CGPoint(x: sx, y: sy)) }
         }
         ctx.stroke(p, with: .color(color), lineWidth: width)
     }
 
-    private func drawLaser(_ ctx: GraphicsContext, size: CGSize, scan: LaserScan, pose: Pose2D) {
-        guard let map = topics.map else { return }
-        let s = size.width / (CGFloat(map.width) * CGFloat(map.resolution))
-        let cx = CGFloat(pose.x - map.originX) * s
-        let cy = size.height - CGFloat(pose.y - map.originY) * s
-
+    // MARK: - 激光扫描 (相对机器人)
+    private func drawLaser(_ ctx: GraphicsContext, size: CGSize,
+                           scan: LaserScan,
+                           cx: CGFloat, cy: CGFloat, theta: Double,
+                           s: CGFloat, map: OccupancyGrid) {
         var angle = scan.angleMin
-        for range in scan.ranges {
-            if range.isFinite && range > 0.1 && range < 20 {
-                let lx = cx + CGFloat(range) * cos(Double(angle) + pose.theta) * s
-                let ly = cy - CGFloat(range) * sin(Double(angle) + pose.theta) * s
-                let dot = Path(ellipseIn: CGRect(x: lx - 1.5, y: ly - 1.5, width: 3, height: 3))
-                ctx.fill(dot, with: .color(.red.opacity(0.6)))
+        let increments = scan.ranges.count
+        var points = [CGPoint]()
+        for i in 0..<min(increments, 2000) {
+            let r = scan.ranges[i]
+            if r.isFinite && r > 0.1 && r < scan.rangeMax * 0.95 {
+                let dx = CGFloat(r) * CGFloat(cos(angle + theta))
+                let dy = CGFloat(r) * CGFloat(-sin(angle + theta))
+                let lx = cx + dx * s
+                let ly = cy + dy * s
+                points.append(CGPoint(x: lx, y: ly))
             }
             angle += scan.angleIncrement
         }
+        // 批量绘制点 (性能优化)
+        for pt in points {
+            let dot = Path(ellipseIn: CGRect(x: pt.x - kDotSize/2, y: pt.y - kDotSize/2,
+                                              width: kDotSize, height: kDotSize))
+            ctx.fill(dot, with: .color(.red.opacity(0.55)))
+        }
     }
 
-    private func drawRobot(_ ctx: GraphicsContext, size: CGSize, pose: Pose2D) {
-        guard let map = topics.map else { return }
-        let s = size.width / (CGFloat(map.width) * CGFloat(map.resolution))
-        let cx = CGFloat(pose.x - map.originX) * s
-        let cy = size.height - CGFloat(pose.y - map.originY) * s
-        let r: CGFloat = 10
+    // MARK: - 机器人 (更好看的样式)
+    private func drawRobot(_ ctx: GraphicsContext,
+                           cx: CGFloat, cy: CGFloat, theta: Double, s: CGFloat) {
+        let r = kRobotRadius
+        // 机体圆 (半透明渐变效果)
+        let body = Path(ellipseIn: CGRect(x: cx - r, y: cy - r,
+                                           width: r * 2, height: r * 2))
+        ctx.fill(body, with: .color(.cyan.opacity(0.85)))
+        ctx.stroke(body, with: .color(.white.opacity(0.5)), lineWidth: 1.5)
 
-        // 机器人圆
-        let circle = Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2))
-        ctx.fill(circle, with: .color(.cyan.opacity(0.8)))
-
-        // 朝向箭头
-        let arrowLen: CGFloat = 20
-        let ax = cx + arrowLen * CGFloat(cos(pose.theta))
-        let ay = cy - arrowLen * CGFloat(sin(pose.theta))
+        // 方向箭头
+        let ax = cx + kArrowLength * CGFloat(cos(theta))
+        let ay = cy + kArrowLength * CGFloat(-sin(theta))
         var arrow = Path()
         arrow.move(to: CGPoint(x: cx, y: cy))
         arrow.addLine(to: CGPoint(x: ax, y: ay))
-        ctx.stroke(arrow, with: .color(.red), lineWidth: 2.5)
+        ctx.stroke(arrow, with: .color(.red), lineWidth: 3)
+
+        // 箭头三角形
+        let tipLen: CGFloat = 6
+        let tipAngle: Double = 0.4
+        let backwardTheta = theta + Double.pi
+        var arrowHead = Path()
+        let t1x = ax + tipLen * CGFloat(cos(backwardTheta + tipAngle))
+        let t1y = ay + tipLen * CGFloat(-sin(backwardTheta + tipAngle))
+        let t2x = ax + tipLen * CGFloat(cos(backwardTheta - tipAngle))
+        let t2y = ay + tipLen * CGFloat(-sin(backwardTheta - tipAngle))
+        arrowHead.move(to: CGPoint(x: ax, y: ay))
+        arrowHead.addLine(to: CGPoint(x: t1x, y: t1y))
+        arrowHead.addLine(to: CGPoint(x: t2x, y: t2y))
+        arrowHead.closeSubpath()
+        ctx.fill(arrowHead, with: .color(.red))
+
+        // 中心点
+        ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.5, y: cy - 2.5,
+                                         width: 5, height: 5)),
+                 with: .color(.white))
     }
 
-    private func drawFootprint(_ ctx: GraphicsContext, size: CGSize, footprint: PolygonStamped) {
-        guard let map = topics.map, footprint.points.count >= 3 else { return }
-        let s = size.width / (CGFloat(map.width) * CGFloat(map.resolution))
+    // MARK: - 机器人足迹
+    private func drawFootprint(_ ctx: GraphicsContext, size: CGSize,
+                                footprint: PolygonStamped, map: OccupancyGrid) {
+        guard footprint.points.count >= 3 else { return }
         var p = Path()
         for (i, pt) in footprint.points.enumerated() {
-            let sx = CGFloat(pt.x - map.originX) * s
-            let sy = size.height - CGFloat(pt.y - map.originY) * s
+            let sx = map.toPixelX(x: pt.x)
+            let sy = map.toPixelY(y: pt.y, canvasH: size.height)
             if i == 0 { p.move(to: CGPoint(x: sx, y: sy)) }
             else { p.addLine(to: CGPoint(x: sx, y: sy)) }
         }

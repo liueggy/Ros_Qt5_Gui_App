@@ -1,4 +1,4 @@
-// AppState.swift — 全局状态容器
+// AppState.swift — 全局状态容器 (含重连订阅)
 import Foundation
 import Combine
 import SwiftUI
@@ -11,7 +11,6 @@ final class AppState: ObservableObject {
     @Published var showConnectionSheet = false
 
     init() {
-        // Auto-show connection sheet on first launch
         let launched = UserDefaults.standard.bool(forKey: "hasLaunched")
         if !launched {
             showConnectionSheet = true
@@ -23,12 +22,23 @@ final class AppState: ObservableObject {
         client.connect(config: config) { [weak self] text in
             self?.topics.handleMessage(text)
         }
-        // Delay subscription until connected
+        // 连接后延时订阅话题
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             self?.topics.subscribeAll()
         }
         UserDefaults.standard.set(config.host, forKey: "rosbridge_host")
         UserDefaults.standard.set(config.port, forKey: "rosbridge_port")
+    }
+
+    /// 手动重连 (取消旧订阅 → 断开 → 重连 → 重新订阅)
+    func manualReconnect() {
+        topics.unsubscribeAll()
+        client.reconnect { [weak self] in
+            // 重连成功后重新订阅
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                self?.topics.subscribeAll()
+            }
+        }
     }
 
     func disconnect() {
