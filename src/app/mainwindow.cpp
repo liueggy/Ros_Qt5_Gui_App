@@ -1243,7 +1243,8 @@ void MainWindow::updateOdomInfo(RobotState state) {
   //           myscene->render(&painter);   //关键函数
 }
 void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
-  battery_bar_->setValue(percent);
+  // ROS BatteryState.percentage is 0.0-1.0; QProgressBar needs 0-100
+  battery_bar_->setValue(static_cast<int>(percent * 100));
   label_power_->setText(QString::number(voltage, 'f', 2) + "V");
 }
 
