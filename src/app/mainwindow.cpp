@@ -213,7 +213,7 @@ void MainWindow::setupUi() {
       break;
     }
   }
-  QFont uiFont(selectedFontFamily, 10);
+  QFont uiFont(selectedFontFamily, 12);
   uiFont.setStyleStrategy(QFont::PreferAntialias);
   this->setFont(uiFont);
   
@@ -330,11 +330,11 @@ void MainWindow::setupUi() {
       border-radius: 6px;
       background-color: #ffffff;
       color: #333333;
-      padding: 6px 10px;
+      padding: 8px 14px;
       font-weight: 500;
-      font-size: 11px;
-      min-height: 40px;
-      max-height: 40px;
+      font-size: 13px;
+      min-height: 48px;
+      max-height: 48px;
     }
     QToolButton:hover {
       background-color: #f5f5f5;
@@ -357,7 +357,7 @@ void MainWindow::setupUi() {
   view_icon.addFile(QString::fromUtf8(":/images/list_view.svg"),
                     QSize(32, 32), QIcon::Normal, QIcon::Off);
   view_menu_btn->setIcon(view_icon);
-  view_menu_btn->setIconSize(QSize(20, 20));
+  view_menu_btn->setIconSize(QSize(22, 22));
   view_menu_btn->setPopupMode(QToolButton::InstantPopup);
   view_menu_btn->setMenu(ui->menuView);
   view_menu_btn->setStyleSheet(modernToolButtonStyle);
@@ -376,7 +376,7 @@ void MainWindow::setupUi() {
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   reloc_btn->setIcon(icon4);
   reloc_btn->setText("重定位");
-  reloc_btn->setIconSize(QSize(20, 20));
+  reloc_btn->setIconSize(QSize(22, 22));
   horizontalLayout_tools->addWidget(reloc_btn);
   
   QIcon icon5;
@@ -385,7 +385,7 @@ void MainWindow::setupUi() {
   QToolButton *edit_map_btn = new QToolButton();
   edit_map_btn->setIcon(icon5);
   edit_map_btn->setText("编辑地图");
-  edit_map_btn->setIconSize(QSize(20, 20));
+  edit_map_btn->setIconSize(QSize(22, 22));
   edit_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   edit_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(edit_map_btn);
@@ -396,7 +396,7 @@ void MainWindow::setupUi() {
   QToolButton *open_map_btn = new QToolButton();
   open_map_btn->setIcon(icon6);
   open_map_btn->setText("打开地图");
-  open_map_btn->setIconSize(QSize(20, 20));
+  open_map_btn->setIconSize(QSize(22, 22));
   open_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   open_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(open_map_btn);
@@ -408,7 +408,7 @@ void MainWindow::setupUi() {
   QToolButton *save_map_btn = new QToolButton();
   save_map_btn->setIcon(icon8);
   save_map_btn->setText("保存地图");
-  save_map_btn->setIconSize(QSize(20, 20));
+  save_map_btn->setIconSize(QSize(22, 22));
   save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(save_map_btn);
@@ -419,7 +419,7 @@ void MainWindow::setupUi() {
   QToolButton *re_save_map_btn = new QToolButton();
   re_save_map_btn->setIcon(icon7);
   re_save_map_btn->setText("另存为");
-  re_save_map_btn->setIconSize(QSize(20, 20));
+  re_save_map_btn->setIconSize(QSize(22, 22));
   re_save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   re_save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(re_save_map_btn);
@@ -432,7 +432,7 @@ void MainWindow::setupUi() {
   ///////////////////////////////////////////////////////////////////电池电量 - 现代化设计
   battery_bar_ = new QProgressBar();
   battery_bar_->setObjectName(QString::fromUtf8("battery_bar_"));
-  battery_bar_->setMaximumSize(QSize(120, 24));
+  battery_bar_->setMaximumSize(QSize(130, 28));
   battery_bar_->setAutoFillBackground(true);
   battery_bar_->setStyleSheet(R"(
     QProgressBar#battery_bar_ {
@@ -441,8 +441,8 @@ void MainWindow::setupUi() {
       background-color: #f5f5f5;
       text-align: center;
       color: #333333;
-      font-weight: 500;
-      font-size: 11px;
+      font-weight: 600;
+      font-size: 13px;
     }
     
     QProgressBar::chunk {
@@ -465,13 +465,13 @@ void MainWindow::setupUi() {
 
   label_power_ = new QLabel();
   label_power_->setObjectName(QString::fromUtf8("label_power_"));
-  label_power_->setMinimumSize(QSize(50, 24));
-  label_power_->setMaximumSize(QSize(50, 24));
+  label_power_->setMinimumSize(QSize(60, 28));
+  label_power_->setMaximumSize(QSize(60, 28));
   label_power_->setStyleSheet(R"(
     QLabel {
       color: #333333;
-      font-weight: 500;
-      font-size: 11px;
+      font-weight: 600;
+      font-size: 13px;
       padding: 4px;
     }
   )");
@@ -484,18 +484,18 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(dht_icon);
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
-  label_dht11_temp_->setMinimumSize(QSize(60, 24));
-  label_dht11_temp_->setMaximumSize(QSize(60, 24));
+  label_dht11_temp_->setMinimumSize(QSize(70, 28));
+  label_dht11_temp_->setMaximumSize(QSize(70, 28));
   label_dht11_temp_->setStyleSheet(R"(
-    QLabel { color: #e53935; font-weight: 600; font-size: 12px; padding: 2px; }
+    QLabel { color: #e53935; font-weight: 600; font-size: 13px; padding: 2px; }
   )");
   horizontalLayout_tools->addWidget(label_dht11_temp_);
 
   label_dht11_humi_ = new QLabel(QStringLiteral("--.- %"), this);
-  label_dht11_humi_->setMinimumSize(QSize(55, 24));
-  label_dht11_humi_->setMaximumSize(QSize(55, 24));
+  label_dht11_humi_->setMinimumSize(QSize(65, 28));
+  label_dht11_humi_->setMaximumSize(QSize(65, 28));
   label_dht11_humi_->setStyleSheet(R"(
-    QLabel { color: #1e88e5; font-weight: 600; font-size: 12px; padding: 2px; }
+    QLabel { color: #1e88e5; font-weight: 600; font-size: 13px; padding: 2px; }
   )");
   horizontalLayout_tools->addWidget(label_dht11_humi_);
 
