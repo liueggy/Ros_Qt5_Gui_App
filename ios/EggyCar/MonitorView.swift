@@ -44,7 +44,7 @@ struct MonitorView: View {
                    Date().timeIntervalSince(vc.timestamp) < 60 {
                     LabeledContent("功能", value: vc.funcId)
                     LabeledContent("命令", value: vc.cmdId)
-                    LabeledContent("时间", value: vc.timestamp, style: .time)
+                    LabeledContent("时间", value: vc.timestamp.formatted(date: .omitted, time: .standard))
                 } else {
                     Text("暂无语音命令").foregroundStyle(.secondary)
                 }
