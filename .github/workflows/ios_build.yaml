@@ -48,12 +48,15 @@ jobs:
       - name: Find app and create IPA
         run: |
           set -e
-          echo "=== Looking for .app ==="
-          find build -name "EggyCar.app" -type d || true
+          echo "=== Build products ==="
+          find build -name "*.app" -type d 2>/dev/null || true
+          echo "=== All dirs in build ==="
+          find build -maxdepth 4 -type d 2>/dev/null | head -30 || true
+          echo "=== Schemes ==="
+          xcodebuild -project EggyCar.xcodeproj -list 2>/dev/null || true
           APP_PATH=$(find build -name "EggyCar.app" -type d | head -1)
           if [ -z "$APP_PATH" ]; then
-            echo "::error::App not found in build/"
-            find build -type d -maxdepth 5
+            echo "::error::App not found. Check build output above."
             exit 1
           fi
           echo "Found: $APP_PATH"
