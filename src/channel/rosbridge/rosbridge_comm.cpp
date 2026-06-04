@@ -75,6 +75,9 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_REQUEST, "/eggy/command/request")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE, "/eggy/command/response")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_STATUS, "/eggy/command/status")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_TEMP, "/stm32/dht11/temperature")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_HUMI, "/stm32/dht11/humidity")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_VOICE_COMMAND, "/stm32/voice_command")
   
   // 设置默认键值配置
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
@@ -275,6 +278,26 @@ void RosbridgeComm::ConnectAsync() {
   callback_handles_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = command_status_topic->Subscribe(
       [this](const ROSBridgePublishMsg &msg) { CommandStatusCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
+  
+  // DHT11 温湿度话题订阅
+  auto dht11_temp_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_DHT11_TEMP), "std_msgs/Float32", 1);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_DHT11_TEMP)] = dht11_temp_topic->Subscribe(
+      [this](const ROSBridgePublishMsg &msg) { Dht11TempCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_DHT11_TEMP)] = std::move(dht11_temp_topic);
+
+  auto dht11_humi_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_DHT11_HUMI), "std_msgs/Float32", 1);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_DHT11_HUMI)] = dht11_humi_topic->Subscribe(
+      [this](const ROSBridgePublishMsg &msg) { Dht11HumiCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_DHT11_HUMI)] = std::move(dht11_humi_topic);
+
+  // 语音命令话题订阅
+  auto voice_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_VOICE_COMMAND), "std_msgs/String", 10);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_VOICE_COMMAND)] = voice_topic->Subscribe(
+      [this](const ROSBridgePublishMsg &msg) { VoiceCommandCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_VOICE_COMMAND)] = std::move(voice_topic);
   
   // 图像话题订阅（动态配置）
   for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
@@ -858,6 +881,42 @@ void RosbridgeComm::BatteryCallback(const ROSBridgePublishMsg &msg) {
     map["voltage"] = std::to_string(msg_json["voltage"].GetDouble());
   }
   PUBLISH(MSG_ID_BATTERY_STATE, map);
+}
+
+/**
+ * @brief DHT11 温度回调
+ */
+void RosbridgeComm::Dht11TempCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &j = msg.msg_json_;
+  if (j.HasMember("data")) {
+    double temp = j["data"].GetDouble();
+    PUBLISH(MSG_ID_DHT11_TEMP, temp);
+  }
+}
+
+/**
+ * @brief DHT11 湿度回调
+ */
+void RosbridgeComm::Dht11HumiCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &j = msg.msg_json_;
+  if (j.HasMember("data")) {
+    double humi = j["data"].GetDouble();
+    PUBLISH(MSG_ID_DHT11_HUMI, humi);
+  }
+}
+
+/**
+ * @brief 语音命令回调
+ */
+void RosbridgeComm::VoiceCommandCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &j = msg.msg_json_;
+  if (j.HasMember("data")) {
+    std::string data = j["data"].GetString();
+    PUBLISH(MSG_ID_VOICE_COMMAND, data);
+  }
 }
 
 namespace {

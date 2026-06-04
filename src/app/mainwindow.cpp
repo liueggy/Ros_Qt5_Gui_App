@@ -155,6 +155,28 @@ void MainWindow::registerChannel() {
       diagnostic_dock_widget_->SetSnapshot(snap);
     }
   });
+
+  SUBSCRIBE(MSG_ID_DHT11_TEMP, [this](const double &temp) {
+    if (label_dht11_temp_) {
+      label_dht11_temp_->setText(QString::number(temp, 'f', 1) + " °C");
+    }
+  });
+
+  SUBSCRIBE(MSG_ID_DHT11_HUMI, [this](const double &humi) {
+    if (label_dht11_humi_) {
+      label_dht11_humi_->setText(QString::number(humi, 'f', 1) + " %");
+    }
+  });
+
+  SUBSCRIBE(MSG_ID_VOICE_COMMAND, [this](const std::string &json_str) {
+    if (label_voice_cmd_) {
+      // 解析 {"func":"00","cmd":"04"} 显示为友好文本
+      QString display = QString::fromStdString(json_str);
+      label_voice_cmd_->setText("\U0001F50A " + display);
+      label_voice_cmd_->setVisible(true);
+      voice_clear_timer_->start(5000);  // 5秒后自动隐藏
+    }
+  });
 }
 
 
@@ -454,6 +476,46 @@ void MainWindow::setupUi() {
     }
   )");
   horizontalLayout_tools->addWidget(label_power_);
+
+  // 温湿度显示
+  horizontalLayout_tools->addSpacing(16);
+  QLabel *dht_icon = new QLabel(QStringLiteral("\U0001F321"), this);
+  dht_icon->setStyleSheet("font-size: 14px; padding: 2px;");
+  horizontalLayout_tools->addWidget(dht_icon);
+
+  label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
+  label_dht11_temp_->setMinimumSize(QSize(60, 24));
+  label_dht11_temp_->setMaximumSize(QSize(60, 24));
+  label_dht11_temp_->setStyleSheet(R"(
+    QLabel { color: #e53935; font-weight: 600; font-size: 12px; padding: 2px; }
+  )");
+  horizontalLayout_tools->addWidget(label_dht11_temp_);
+
+  label_dht11_humi_ = new QLabel(QStringLiteral("--.- %"), this);
+  label_dht11_humi_->setMinimumSize(QSize(55, 24));
+  label_dht11_humi_->setMaximumSize(QSize(55, 24));
+  label_dht11_humi_->setStyleSheet(R"(
+    QLabel { color: #1e88e5; font-weight: 600; font-size: 12px; padding: 2px; }
+  )");
+  horizontalLayout_tools->addWidget(label_dht11_humi_);
+
+  // 语音命令提示
+  horizontalLayout_tools->addSpacing(8);
+  label_voice_cmd_ = new QLabel(this);
+  label_voice_cmd_->setMinimumSize(QSize(0, 24));
+  label_voice_cmd_->setMaximumSize(QSize(220, 24));
+  label_voice_cmd_->setStyleSheet(R"(
+    QLabel { color: #ff8f00; font-weight: 600; font-size: 11px; padding: 2px 6px;
+             background: #fff8e1; border: 1px solid #ffe082; border-radius: 4px; }
+  )");
+  label_voice_cmd_->setVisible(false);
+  horizontalLayout_tools->addWidget(label_voice_cmd_);
+
+  voice_clear_timer_ = new QTimer(this);
+  voice_clear_timer_->setSingleShot(true);
+  connect(voice_clear_timer_, &QTimer::timeout, [this]() {
+    label_voice_cmd_->setVisible(false);
+  });
 
   horizontalLayout_tools->addSpacing(12);
   QPushButton *min_btn = new QPushButton(QStringLiteral("-"), this);

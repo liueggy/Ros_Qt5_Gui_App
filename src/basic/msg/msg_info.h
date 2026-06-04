@@ -10,7 +10,9 @@
                   OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, ) \
                   OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )        \
                   OneValue(kCommandRequest, ) OneValue(kCommandResponse, )      \
-                  OneValue(kCommandStatus, )
+                  OneValue(kCommandStatus, )                                    \
+                  OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
+                  OneValue(kVoiceCommand, )
 
 DECLARE_ENUM(MsgId, SOME_ENUM)
 DEFINE_ENUM(MsgId, SOME_ENUM)
@@ -36,6 +38,9 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_COMMAND_REQUEST ToString(MsgId::kCommandRequest)
 #define MSG_ID_COMMAND_RESPONSE ToString(MsgId::kCommandResponse)
 #define MSG_ID_COMMAND_STATUS ToString(MsgId::kCommandStatus)
+#define MSG_ID_DHT11_TEMP ToString(MsgId::kDht11Temp)
+#define MSG_ID_DHT11_HUMI ToString(MsgId::kDht11Humi)
+#define MSG_ID_VOICE_COMMAND ToString(MsgId::kVoiceCommand)
 
 #define DISPLAY_ROBOT ToString(MsgId::kRobotPose)
 #define DISPLAY_MAP ToString(MsgId::kOccupancyMap)

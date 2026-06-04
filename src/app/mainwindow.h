@@ -23,6 +23,7 @@
 #include <QWidgetAction>
 #include <QPoint>
 #include <QEvent>
+#include <QTimer>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "DockAreaWidget.h"
 #include "DockManager.h"
@@ -95,6 +96,10 @@ class MainWindow : public QMainWindow {
   ads::CDockWidget *diagnostic_dock_{nullptr};
   CommandCenterWidget *command_center_widget_{nullptr};
   ads::CDockWidget *command_center_dock_{nullptr};
+  QLabel *label_dht11_temp_{nullptr};
+  QLabel *label_dht11_humi_{nullptr};
+  QLabel *label_voice_cmd_{nullptr};
+  QTimer *voice_clear_timer_{nullptr};
   
  signals:
   void OnRecvChannelData(const MsgId &id, const std::any &data);

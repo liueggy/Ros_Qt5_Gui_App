@@ -60,6 +60,9 @@ class RosbridgeComm : public VirtualChannelNode {
   void DiagnosticCallback(const ROSBridgePublishMsg &msg);
   void CommandResponseCallback(const ROSBridgePublishMsg &msg);
   void CommandStatusCallback(const ROSBridgePublishMsg &msg);
+  void Dht11TempCallback(const ROSBridgePublishMsg &msg);
+  void Dht11HumiCallback(const ROSBridgePublishMsg &msg);
+  void VoiceCommandCallback(const ROSBridgePublishMsg &msg);
   void ImageCallback(const ROSBridgePublishMsg &msg, const std::string &location);
   void TfCallback(const ROSBridgePublishMsg &msg);
 
