@@ -1,0 +1,100 @@
+name: iOS: Build & Release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios_build.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Show environment
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build (Release, no signing)
+        run: |
+          xcodebuild \
+            -project EggyCar.xcodeproj \
+            -scheme EggyCar \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            ENABLE_BITCODE=NO \
+            clean build 2>&1 | tail -50
+
+      - name: Create unsigned IPA
+        run: |
+          set -e
+          APP_PATH="build/Build/Products/Release-iphoneos/EggyCar.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::App not found at $APP_PATH"
+            exit 1
+          fi
+          mkdir -p Payload
+          cp -r "$APP_PATH" Payload/
+          zip -r -y EggyCar-unsigned.ipa Payload
+          rm -rf Payload
+          ls -lh EggyCar-unsigned.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EggyCar-unsigned
+          path: ios/EggyCar-unsigned.ipa
+          retention-days: 30
+
+      - name: Get version
+        id: version
+        run: |
+          VER=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" EggyCar/Info.plist 2>/dev/null || echo "1.0.0")
+          echo "ver=$VER" >> $GITHUB_OUTPUT
+
+      - name: Upload to Release
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-v${{ steps.version.outputs.ver }}-build${{ github.run_number }}
+          name: "EggyCar iOS v${{ steps.version.outputs.ver }} (Build ${{ github.run_number }})"
+          body: |
+            ## EggyCar iOS App
+
+            **未签名 IPA** — 下载后用 AltStore / TrollStore / 自签工具安装。
+
+            ### 安装方法
+            1. 下载 `EggyCar-unsigned.ipa`
+            2. 使用 [AltStore](https://altstore.io/) 或 [Sideloadly](https://sideloadly.io/) 签名安装
+            3. 或使用 `ios-deploy --bundle EggyCar.app` 直接安装到已连接的设备
+
+            ### 功能
+            - 🗺️ 地图显示 + 机器人位姿 + 激光扫描 + 路径 + 代价地图
+            - 🎮 虚拟摇杆 + 速度控制
+            - 📊 电池/温湿度/诊断/语音通知
+            - ⚙️ ROSBridge 连接配置
+          files: ios/EggyCar-unsigned.ipa
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
