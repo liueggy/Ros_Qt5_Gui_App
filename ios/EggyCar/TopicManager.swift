@@ -84,8 +84,10 @@ final class TopicManager: ObservableObject {
 
         case "/odom":
             if let result = ROSMessageDecoder.decodeOdom(msgDict) {
-                robotPose = result.pose
-                odom = (result.pose, RobotSpeed(vx: result.twist.vx, vy: result.twist.vy, wz: result.twist.wz))
+                let pose = Pose2D(x: result.pose.x, y: result.pose.y, theta: result.pose.theta)
+                let speed = RobotSpeed(vx: result.twist.vx, vy: result.twist.vy, wz: result.twist.wz)
+                robotPose = pose
+                odom = (pose, speed)
             }
 
         case "/scan":

@@ -131,9 +131,10 @@ enum ROSMessageDecoder {
     static func decodeOdom(_ data: [String: AnyCodable]) -> (pose: (x: Double, y: Double, theta: Double),
                                                               twist: (vx: Double, vy: Double, wz: Double))? {
         guard let poseData = data["pose"],
+              let poseDict = poseData.dict,
               let twistData = data["twist"] else { return nil }
 
-        guard let poseResult = decodePose(poseData) else { return nil }
+        guard let poseResult = decodePose(poseDict) else { return nil }
 
         let linear = twistData["linear"]
         let angular = twistData["angular"]
