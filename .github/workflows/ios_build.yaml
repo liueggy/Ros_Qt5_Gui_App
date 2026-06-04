@@ -45,14 +45,18 @@ jobs:
             ENABLE_BITCODE=NO \
             clean build 2>&1 | tail -50
 
-      - name: Create unsigned IPA
+      - name: Find app and create IPA
         run: |
           set -e
-          APP_PATH="build/Build/Products/Release-iphoneos/EggyCar.app"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "::error::App not found at $APP_PATH"
+          echo "=== Looking for .app ==="
+          find build -name "EggyCar.app" -type d || true
+          APP_PATH=$(find build -name "EggyCar.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::App not found in build/"
+            find build -type d -maxdepth 5
             exit 1
           fi
+          echo "Found: $APP_PATH"
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r -y EggyCar-unsigned.ipa Payload
