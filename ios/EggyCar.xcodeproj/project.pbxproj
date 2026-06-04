@@ -5,86 +5,90 @@
 	};
 	objectVersion = 56;
 	objects = {
+
 /* Begin PBXBuildFile section */
-		D1A1A371DC9C4BBD905518BC /* EggyCarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB36A9DCD9B5410A9B5D9464 /* EggyCarApp.swift */; };
-		DC285583BD1647AC8B87CFD4 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A13F65CC328B4334B1B23CC2 /* AppState.swift */; };
-		06FD5D5BAF6F4E8C8B9373B2 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54FD8641927143F2BD35924D /* Models.swift */; };
-		CA9C3ED0AA7D41EAA33F3359 /* ROSBridgeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF2BE2D743C4C0B93655382 /* ROSBridgeProtocol.swift */; };
-		8EA82DB693A24166B95B79B6 /* ROSBridgeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E5DA72F7344F8C8851D86A /* ROSBridgeClient.swift */; };
-		2605E74286C54F9BB27BFD5B /* TopicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B40330ED59E641C980C81B4D /* TopicManager.swift */; };
-		12EAAF92A52C4457B89FB806 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C828EB62765C4A14945A0469 /* MainTabView.swift */; };
-		AEA5F50DF3C54E08873617D4 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0368C5E3403407FB10D583B /* MapView.swift */; };
-		73C1DCF3FD014BFBB148433C /* MapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7D61D1CA944E188555BDA7 /* MapCanvasView.swift */; };
-		D645A343FEDB42BBB454B02A /* ControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147006FEC6F549F09BA96036 /* ControlView.swift */; };
-		8A66DD9548DD47D39DEA4C0F /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F83EA2E020F443D5B4FCCAA7 /* JoystickView.swift */; };
-		DF55D1FF3F1C420BB291EF7C /* MonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25645BDEF617477B8A8D0A8C /* MonitorView.swift */; };
-		164BFD96C97F4C9D8C8088B9 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0609E77BE749A3AF2E8795 /* StatusBarView.swift */; };
-		34FAC7D3D5B54B9C947E8369 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3478F3E1B5B4567BD723C42 /* SettingsView.swift */; };
-		4F4E927FE16C46ED9C84872E /* ConnectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09205C7C8E3348F7B3A5869C /* ConnectionSheet.swift */; };
-		0E3E7CC85797405E82FA66BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C9CA0CE37DD748729DA48985 /* Assets.xcassets */; };
+		AFC41AC6033D41CA8630E1C3 /* EggyCarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6F6C83C132B479EAAD46FA8 /* EggyCarApp.swift */; };
+		E48F1F36906F49CCBAAAE60A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF4EE40B1D64B13A5AF51B9 /* AppState.swift */; };
+		3022DBE1F3E94B979B14E649 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F25C69D8503A4ECA87DB445F /* Models.swift */; };
+		7D64E2F14AA2481D8360FAB1 /* ROSBridgeProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADA21BE4665E462AA19BFFAD /* ROSBridgeProtocol.swift */; };
+		2943C8D3550B4CFE885001E2 /* ROSBridgeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDE315AB652455789CBB5FC /* ROSBridgeClient.swift */; };
+		065B77610C094959873AACC0 /* TopicManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60BD413BA1544D31A31127CE /* TopicManager.swift */; };
+		576B60772C194C04B352A7F8 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7281FC7C0A814ABA80A34BB3 /* MainTabView.swift */; };
+		0581A2D615D545AE8DB33C6A /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23E466D7C9BD4407B0E44E95 /* MapView.swift */; };
+		58255BEF56A142879988A205 /* MapCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B47D3E399CE46D6A890ED04 /* MapCanvasView.swift */; };
+		0119C9DF205448D7BDC046F7 /* ControlView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12F8CA2240004FFDA6E1A228 /* ControlView.swift */; };
+		5EFE064BAC894B6C9D137059 /* JoystickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BED1275C45F4669AE0CC537 /* JoystickView.swift */; };
+		3E4723DDB9F54484849CE153 /* MonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CF4FF960CB4BA28DD28C40 /* MonitorView.swift */; };
+		AE720D8101004946B38E29FC /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31AA4C8FB38B460B823AAD25 /* StatusBarView.swift */; };
+		EF100C01F24F4C7CBC644B2C /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D30A66557FD46ECA06ADAD1 /* SettingsView.swift */; };
+		E48E07E72F0B4900B420E3C3 /* ConnectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0DF28C4929404FAC535DA9 /* ConnectionSheet.swift */; };
+		97E1CE364EBF45FB8678CA5F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6D8174CB8D684A3BB96BBD6E /* Assets.xcassets */; };
 /* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		EB36A9DCD9B5410A9B5D9464 /* EggyCarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EggyCarApp.swift"; sourceTree = "<group>"; };
-		A13F65CC328B4334B1B23CC2 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState.swift"; sourceTree = "<group>"; };
-		54FD8641927143F2BD35924D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models.swift"; sourceTree = "<group>"; };
-		3FF2BE2D743C4C0B93655382 /* ROSBridgeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ROSBridgeProtocol.swift"; sourceTree = "<group>"; };
-		A8E5DA72F7344F8C8851D86A /* ROSBridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ROSBridgeClient.swift"; sourceTree = "<group>"; };
-		B40330ED59E641C980C81B4D /* TopicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TopicManager.swift"; sourceTree = "<group>"; };
-		C828EB62765C4A14945A0469 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainTabView.swift"; sourceTree = "<group>"; };
-		D0368C5E3403407FB10D583B /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MapView.swift"; sourceTree = "<group>"; };
-		BC7D61D1CA944E188555BDA7 /* MapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MapCanvasView.swift"; sourceTree = "<group>"; };
-		147006FEC6F549F09BA96036 /* ControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ControlView.swift"; sourceTree = "<group>"; };
-		F83EA2E020F443D5B4FCCAA7 /* JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JoystickView.swift"; sourceTree = "<group>"; };
-		25645BDEF617477B8A8D0A8C /* MonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MonitorView.swift"; sourceTree = "<group>"; };
-		DA0609E77BE749A3AF2E8795 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StatusBarView.swift"; sourceTree = "<group>"; };
-		F3478F3E1B5B4567BD723C42 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
-		09205C7C8E3348F7B3A5869C /* ConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ConnectionSheet.swift"; sourceTree = "<group>"; };
-		C9CA0CE37DD748729DA48985 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		69BD58FB66E44D0AAC0A1CA3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7C22C37EC59E495FB3E3EA5F /* EggyCar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EggyCar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F6F6C83C132B479EAAD46FA8 /* EggyCarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EggyCarApp.swift; sourceTree = "<group>"; };
+		2BF4EE40B1D64B13A5AF51B9 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		F25C69D8503A4ECA87DB445F /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		ADA21BE4665E462AA19BFFAD /* ROSBridgeProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ROSBridgeProtocol.swift; sourceTree = "<group>"; };
+		9EDE315AB652455789CBB5FC /* ROSBridgeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ROSBridgeClient.swift; sourceTree = "<group>"; };
+		60BD413BA1544D31A31127CE /* TopicManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopicManager.swift; sourceTree = "<group>"; };
+		7281FC7C0A814ABA80A34BB3 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		23E466D7C9BD4407B0E44E95 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
+		3B47D3E399CE46D6A890ED04 /* MapCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapCanvasView.swift; sourceTree = "<group>"; };
+		12F8CA2240004FFDA6E1A228 /* ControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlView.swift; sourceTree = "<group>"; };
+		4BED1275C45F4669AE0CC537 /* JoystickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoystickView.swift; sourceTree = "<group>"; };
+		83CF4FF960CB4BA28DD28C40 /* MonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorView.swift; sourceTree = "<group>"; };
+		31AA4C8FB38B460B823AAD25 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		5D30A66557FD46ECA06ADAD1 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		9C0DF28C4929404FAC535DA9 /* ConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionSheet.swift; sourceTree = "<group>"; };
+		6D8174CB8D684A3BB96BBD6E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8002FD4246924E268D385605 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B29255DF56A94662B32DB712 /* EggyCar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EggyCar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
 /* Begin PBXGroup section */
-		9D58FFB9FE03464D9A64F57A = {
+		449E4C3DF487497A85CC0384 = {
 			isa = PBXGroup;
 			children = (
-				84099E5D514E44898D44E07D /* EggyCar */,
-				7C22C37EC59E495FB3E3EA5F /* EggyCar.app */,
+				F111856E41DA452EA92BDB17 /* EggyCar */,
+				B29255DF56A94662B32DB712 /* EggyCar.app */,
 			);
 			sourceTree = "<group>";
 		};
-		84099E5D514E44898D44E07D /* EggyCar */ = {
+		F111856E41DA452EA92BDB17 /* EggyCar */ = {
 			isa = PBXGroup;
 			children = (
-				EB36A9DCD9B5410A9B5D9464 /* EggyCarApp.swift */,
-				A13F65CC328B4334B1B23CC2 /* AppState.swift */,
-				54FD8641927143F2BD35924D /* Models.swift */,
-				3FF2BE2D743C4C0B93655382 /* ROSBridgeProtocol.swift */,
-				A8E5DA72F7344F8C8851D86A /* ROSBridgeClient.swift */,
-				B40330ED59E641C980C81B4D /* TopicManager.swift */,
-				C828EB62765C4A14945A0469 /* MainTabView.swift */,
-				D0368C5E3403407FB10D583B /* MapView.swift */,
-				BC7D61D1CA944E188555BDA7 /* MapCanvasView.swift */,
-				147006FEC6F549F09BA96036 /* ControlView.swift */,
-				F83EA2E020F443D5B4FCCAA7 /* JoystickView.swift */,
-				25645BDEF617477B8A8D0A8C /* MonitorView.swift */,
-				DA0609E77BE749A3AF2E8795 /* StatusBarView.swift */,
-				F3478F3E1B5B4567BD723C42 /* SettingsView.swift */,
-				09205C7C8E3348F7B3A5869C /* ConnectionSheet.swift */,
-				C9CA0CE37DD748729DA48985 /* Assets.xcassets */,
-				69BD58FB66E44D0AAC0A1CA3 /* Info.plist */,
+				F6F6C83C132B479EAAD46FA8 /* EggyCarApp.swift */,
+				2BF4EE40B1D64B13A5AF51B9 /* AppState.swift */,
+				F25C69D8503A4ECA87DB445F /* Models.swift */,
+				ADA21BE4665E462AA19BFFAD /* ROSBridgeProtocol.swift */,
+				9EDE315AB652455789CBB5FC /* ROSBridgeClient.swift */,
+				60BD413BA1544D31A31127CE /* TopicManager.swift */,
+				7281FC7C0A814ABA80A34BB3 /* MainTabView.swift */,
+				23E466D7C9BD4407B0E44E95 /* MapView.swift */,
+				3B47D3E399CE46D6A890ED04 /* MapCanvasView.swift */,
+				12F8CA2240004FFDA6E1A228 /* ControlView.swift */,
+				4BED1275C45F4669AE0CC537 /* JoystickView.swift */,
+				83CF4FF960CB4BA28DD28C40 /* MonitorView.swift */,
+				31AA4C8FB38B460B823AAD25 /* StatusBarView.swift */,
+				5D30A66557FD46ECA06ADAD1 /* SettingsView.swift */,
+				9C0DF28C4929404FAC535DA9 /* ConnectionSheet.swift */,
+				6D8174CB8D684A3BB96BBD6E /* Assets.xcassets */,
+				8002FD4246924E268D385605 /* Info.plist */,
 			);
 			path = EggyCar;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
 /* Begin PBXNativeTarget section */
-		18825071E4484523B2BF17BE /* EggyCar */ = {
+		0489253D2258479391B312BF /* EggyCar */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = CE7386300DAF4AA9A2BF96C5;
+			buildConfigurationList = DB44780937B2435090F06B6F;
 			buildPhases = (
-				39C8F08B3F1943D380F65EAD /* Sources */,
-				92C331DACAD743D0811C8D60 /* Frameworks */,
-				A10A08F400414594AB1D6072 /* Resources */,
+				2FC995208717433182AF968A /* Sources */,
+				EE8C4AA9B1034411AA175EE1 /* Frameworks */,
+				0C083A6A585E4537B30120A4 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -92,56 +96,62 @@
 			);
 			name = EggyCar;
 			productName = EggyCar;
-			productReference = 7C22C37EC59E495FB3E3EA5F;
+			productReference = B29255DF56A94662B32DB712;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
+
 /* Begin PBXProject section */
-		E8AF6D6B1BC04B95BDEFD2F0 /* Project object */ = {
+		9828861DA1E84B1090989AEB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 			};
-			buildConfigurationList = 5E2C4A45D0E4466598C175DC;
+			buildConfigurationList = 55FE0E8AE99C450FB73C3AEE;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
-			mainGroup = 9D58FFB9FE03464D9A64F57A;
-			productRefGroup = 84099E5D514E44898D44E07D;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 449E4C3DF487497A85CC0384;
+			productRefGroup = F111856E41DA452EA92BDB17;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				18825071E4484523B2BF17BE,
+				0489253D2258479391B312BF,
 			);
 		};
 /* End PBXProject section */
+
 /* Begin PBXSourcesBuildPhase section */
-		39C8F08B3F1943D380F65EAD /* Sources */ = {
+		2FC995208717433182AF968A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D1A1A371DC9C4BBD905518BC /* EggyCarApp.swift in Sources */,
-				DC285583BD1647AC8B87CFD4 /* AppState.swift in Sources */,
-				06FD5D5BAF6F4E8C8B9373B2 /* Models.swift in Sources */,
-				CA9C3ED0AA7D41EAA33F3359 /* ROSBridgeProtocol.swift in Sources */,
-				8EA82DB693A24166B95B79B6 /* ROSBridgeClient.swift in Sources */,
-				2605E74286C54F9BB27BFD5B /* TopicManager.swift in Sources */,
-				12EAAF92A52C4457B89FB806 /* MainTabView.swift in Sources */,
-				AEA5F50DF3C54E08873617D4 /* MapView.swift in Sources */,
-				73C1DCF3FD014BFBB148433C /* MapCanvasView.swift in Sources */,
-				D645A343FEDB42BBB454B02A /* ControlView.swift in Sources */,
-				8A66DD9548DD47D39DEA4C0F /* JoystickView.swift in Sources */,
-				DF55D1FF3F1C420BB291EF7C /* MonitorView.swift in Sources */,
-				164BFD96C97F4C9D8C8088B9 /* StatusBarView.swift in Sources */,
-				34FAC7D3D5B54B9C947E8369 /* SettingsView.swift in Sources */,
-				4F4E927FE16C46ED9C84872E /* ConnectionSheet.swift in Sources */,
+				AFC41AC6033D41CA8630E1C3 /* EggyCarApp.swift in Sources */,
+				E48F1F36906F49CCBAAAE60A /* AppState.swift in Sources */,
+				3022DBE1F3E94B979B14E649 /* Models.swift in Sources */,
+				7D64E2F14AA2481D8360FAB1 /* ROSBridgeProtocol.swift in Sources */,
+				2943C8D3550B4CFE885001E2 /* ROSBridgeClient.swift in Sources */,
+				065B77610C094959873AACC0 /* TopicManager.swift in Sources */,
+				576B60772C194C04B352A7F8 /* MainTabView.swift in Sources */,
+				0581A2D615D545AE8DB33C6A /* MapView.swift in Sources */,
+				58255BEF56A142879988A205 /* MapCanvasView.swift in Sources */,
+				0119C9DF205448D7BDC046F7 /* ControlView.swift in Sources */,
+				5EFE064BAC894B6C9D137059 /* JoystickView.swift in Sources */,
+				3E4723DDB9F54484849CE153 /* MonitorView.swift in Sources */,
+				AE720D8101004946B38E29FC /* StatusBarView.swift in Sources */,
+				EF100C01F24F4C7CBC644B2C /* SettingsView.swift in Sources */,
+				E48E07E72F0B4900B420E3C3 /* ConnectionSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
 /* Begin PBXFrameworksBuildPhase section */
-		92C331DACAD743D0811C8D60 /* Frameworks */ = {
+		EE8C4AA9B1034411AA175EE1 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -149,18 +159,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXResourcesBuildPhase section */
-		A10A08F400414594AB1D6072 /* Resources */ = {
+		0C083A6A585E4537B30120A4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0E3E7CC85797405E82FA66BD /* Assets.xcassets in Resources */,
+				97E1CE364EBF45FB8678CA5F /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
 /* Begin XCBuildConfiguration section */
-		33719EC8FF4A439DAE80E5AB /* Debug */ = {
+		6B04FC8E525B473F93AECB15 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -180,7 +192,7 @@
 			};
 			name = Debug;
 		};
-		F4E54E6AC83948F79D7422EE /* Release */ = {
+		C0EF62279FC543C9B9AD0621 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -200,7 +212,7 @@
 			};
 			name = Release;
 		};
-		97A142C596154D7BAFC282D5 /* Debug */ = {
+		F24FC4FF48BE4A078E60A0F1 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -218,12 +230,12 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
-		08ABDF592101486480C0F249 /* Release */ = {
+		A6C9A0C4C4874431ABFC9E4E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -243,26 +255,27 @@
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
+
 /* Begin XCConfigurationList section */
-		CE7386300DAF4AA9A2BF96C5 /* Build configuration list for PBXNativeTarget "EggyCar" */ = {
+		DB44780937B2435090F06B6F /* Build configuration list for PBXNativeTarget "EggyCar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				33719EC8FF4A439DAE80E5AB /* Debug */,
-				F4E54E6AC83948F79D7422EE /* Release */,
+				6B04FC8E525B473F93AECB15 /* Debug */,
+				C0EF62279FC543C9B9AD0621 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5E2C4A45D0E4466598C175DC /* Build configuration list for PBXProject "EggyCar" */ = {
+		55FE0E8AE99C450FB73C3AEE /* Build configuration list for PBXProject "EggyCar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				97A142C596154D7BAFC282D5 /* Debug */,
-				08ABDF592101486480C0F249 /* Release */,
+				F24FC4FF48BE4A078E60A0F1 /* Debug */,
+				A6C9A0C4C4874431ABFC9E4E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = E8AF6D6B1BC04B95BDEFD2F0;
+	rootObject = 9828861DA1E84B1090989AEB;
 }
