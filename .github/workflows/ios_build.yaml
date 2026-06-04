@@ -1,4 +1,4 @@
-name: iOS: Build & Release
+name: "iOS: Build & Release"
 
 on:
   push:
