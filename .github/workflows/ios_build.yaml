@@ -46,6 +46,26 @@ jobs:
             ENABLE_BITCODE=NO \
             clean build 2>&1 | tee xcodebuild.log
 
+      - name: Generate app bundle metadata for sideload signers
+        run: |
+          APP_PATH=$(find build/Build/Products/Release-iphoneos -name 'EggyCar.app' -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::App not found for metadata patch"
+            find build -name "*.app" -type d 2>/dev/null || true
+            exit 1
+          fi
+          PLIST="$APP_PATH/Info.plist"
+          set_plist() {
+            /usr/libexec/PlistBuddy -c "Set :$1 $2" "$PLIST" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :$1 $3 $2" "$PLIST"
+          }
+          set_plist CFBundleExecutable EggyCar string
+          set_plist CFBundleIdentifier com.eggy.robot.client string
+          set_plist CFBundleName EggyCar string
+          set_plist CFBundleDisplayName EggyCar string
+          set_plist CFBundlePackageType APPL string
+          set_plist LSRequiresIPhoneOS true bool
+          plutil -lint "$PLIST"
+
       - name: Find app and create IPA
         run: |
           set -e
@@ -97,6 +117,8 @@ jobs:
             3. 或使用 `ios-deploy --bundle EggyCar.app` 直接安装到已连接的设备
 
             ### 功能
+            - Bundle ID：com.eggy.robot.client
+            - 最低 iOS：16.0
             - 🗺️ 地图显示 + 机器人位姿 + 激光扫描 + 路径 + 代价地图
             - 🎮 虚拟摇杆 + 速度控制
             - 📊 电池/温湿度/诊断/语音通知
