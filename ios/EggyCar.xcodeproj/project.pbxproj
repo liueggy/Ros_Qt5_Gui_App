@@ -292,7 +292,5 @@
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 1A076554B922464AB11B40BD;
-	};
 	rootObject = 7FBB03E205DA456181D1F58C;
 }
