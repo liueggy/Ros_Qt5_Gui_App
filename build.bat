@@ -15,26 +15,33 @@ set "PREFERRED_VCPKG_ROOT=C:\Users\chengyangkj\vcpkg"
 set "SELECTED_VCPKG_ROOT="
 
 if exist "%PREFERRED_VCPKG_ROOT%\vcpkg.exe" (
-  if defined VCPKG_ROOT (
-    echo [INFO] Override existing VCPKG_ROOT.
-  )
   echo [INFO] Use preferred vcpkg path: "%PREFERRED_VCPKG_ROOT%"
   set "SELECTED_VCPKG_ROOT=%PREFERRED_VCPKG_ROOT%"
-) else if defined VCPKG_ROOT if exist "%VCPKG_ROOT%\vcpkg.exe" (
-  echo [INFO] Use VCPKG_ROOT from environment: "%VCPKG_ROOT%"
-  set "SELECTED_VCPKG_ROOT=%VCPKG_ROOT%"
-) else if exist "%USERPROFILE%\vcpkg\vcpkg.exe" (
-  echo [INFO] Use vcpkg from user profile: "%USERPROFILE%\vcpkg"
-  set "SELECTED_VCPKG_ROOT=%USERPROFILE%\vcpkg"
-) else (
-  echo [ERROR] No usable vcpkg root found.
-  echo [ERROR] Checked:
-  echo [ERROR]   1. "%PREFERRED_VCPKG_ROOT%"
-  echo [ERROR]   2. VCPKG_ROOT environment variable
-  echo [ERROR]   3. "%USERPROFILE%\vcpkg"
-  exit /b 1
+  goto VcpkgRootSelected
 )
 
+if defined VCPKG_ROOT (
+  if exist "%VCPKG_ROOT%\vcpkg.exe" (
+    echo [INFO] Use VCPKG_ROOT from environment: "%VCPKG_ROOT%"
+    set "SELECTED_VCPKG_ROOT=%VCPKG_ROOT%"
+    goto VcpkgRootSelected
+  )
+)
+
+if exist "%USERPROFILE%\vcpkg\vcpkg.exe" (
+  echo [INFO] Use vcpkg from user profile: "%USERPROFILE%\vcpkg"
+  set "SELECTED_VCPKG_ROOT=%USERPROFILE%\vcpkg"
+  goto VcpkgRootSelected
+)
+
+echo [ERROR] No usable vcpkg root found.
+echo [ERROR] Checked:
+echo [ERROR]   1. "%PREFERRED_VCPKG_ROOT%"
+echo [ERROR]   2. VCPKG_ROOT environment variable
+echo [ERROR]   3. "%USERPROFILE%\vcpkg"
+exit /b 1
+
+:VcpkgRootSelected
 set "VCPKG_ROOT=%SELECTED_VCPKG_ROOT%"
 
 call :IsVcpkgWritable "%VCPKG_ROOT%"

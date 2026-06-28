@@ -41,6 +41,7 @@
 #include <QPainter>
 #include <QRect>
 #include <QSize>
+#include <QString>
 
 
 /**
@@ -64,6 +65,10 @@ public:
   QImage getImageCopy() const;
 
   void setImage(const QImage& image);
+
+  void setPlaceholderText(const QString& text);
+
+  void clearImage();
 
   QRect getAspectRatioCorrectPaintArea();
 
@@ -105,6 +110,7 @@ private:
 
   QImage qimage_;
   mutable QMutex qimage_mutex_;
+  QString placeholder_text_{QStringLiteral("等待图像数据")};
 
   bool smoothImage_;
 };
