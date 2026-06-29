@@ -24,7 +24,6 @@ env:
   VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
   CMAKE_GENERATOR: Ninja
   SCCACHE_DIR: ${{ github.workspace }}\.sccache
-  CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
 
 jobs:
