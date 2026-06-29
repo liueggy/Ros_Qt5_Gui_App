@@ -1,0 +1,228 @@
+name: Windows:Publish Binary Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch that stores unpacked Windows binaries'
+        required: true
+        default: 'windows-latest-bin'
+
+concurrency:
+  group: windows-publish-bin-${{ github.event.inputs.target_branch }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
+  CMAKE_GENERATOR: Ninja
+  SCCACHE_DIR: ${{ github.workspace }}\.sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
+
+jobs:
+  build-and-publish-bin:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.7
+
+      - name: Cache sccache objects
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ runner.os }}-${{ github.ref_name }}-
+            sccache-${{ runner.os }}-
+
+      - name: Setup vcpkg
+        uses: friendlyanon/setup-vcpkg@v1
+        with:
+          committish: '2024.12.16'
+          cache: true
+
+      - name: Cache vcpkg installed packages
+        uses: actions/cache@v4
+        id: vcpkg-cache
+        with:
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-installed-${{ runner.os }}-x64-windows-vcpkg2024.12.16-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            vcpkg-installed-${{ runner.os }}-x64-windows-vcpkg2024.12.16-
+            vcpkg-installed-${{ runner.os }}-x64-windows-
+
+      - name: Build via project script
+        env:
+          VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+        run: |
+          if "${{ steps.vcpkg-cache.outputs.cache-hit }}"=="true" (
+            build.bat ci
+          ) else (
+            build.bat
+          )
+
+      - name: Show sccache statistics
+        shell: pwsh
+        run: |
+          sccache --show-stats
+
+      - name: Test
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Prepare binary branch payload
+        shell: pwsh
+        env:
+          TARGET_BRANCH: ${{ github.event.inputs.target_branch }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE '_binary_branch_payload'
+          $binDir = Join-Path $env:GITHUB_WORKSPACE 'build/install/bin'
+          if (!(Test-Path $binDir)) {
+            throw "Build output directory not found: $binDir"
+          }
+
+          Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $publishDir | Out-Null
+          Copy-Item "$binDir/*" $publishDir -Recurse -Force
+
+          $repo = $env:GITHUB_REPOSITORY
+          $commit = $env:GITHUB_SHA
+          $shortCommit = $commit.Substring(0, 7)
+          $runUrl = "https://github.com/$repo/actions/runs/$env:GITHUB_RUN_ID"
+          $buildTime = Get-Date -Format 'yyyy-MM-dd HH:mm:ss K'
+
+          @"
+          Ros_Qt5_Gui_App Windows latest binary branch
+
+          Source commit: $commit
+          Short commit : $shortCommit
+          Source branch: $env:GITHUB_REF_NAME
+          Workflow run : $runUrl
+          Build time   : $buildTime
+          Target branch: $env:TARGET_BRANCH
+          "@ | Set-Content -Path (Join-Path $publishDir 'BUILD_INFO.txt') -Encoding UTF8
+
+          @"
+          # Ros_Qt5_Gui_App Windows Latest Binaries
+
+          这是 GitHub Actions 自动生成的 Windows 可运行目录，来源于源码分支 `$env:GITHUB_REF_NAME`。
+
+          ## 第一次使用
+
+          ```bat
+          git clone --depth=1 --branch $env:TARGET_BRANCH https://github.com/$repo.git RosQt5Latest
+          cd RosQt5Latest
+          update_and_run.bat
+          ```
+
+          ## 以后更新并运行
+
+          双击：
+
+          ```bat
+          update_and_run.bat
+          ```
+
+          或命令行执行：
+
+          ```bat
+          git fetch --depth=1 origin $env:TARGET_BRANCH
+          git reset --hard origin/$env:TARGET_BRANCH
+          run.bat
+          ```
+
+          ## 构建信息
+
+          见 `BUILD_INFO.txt`。
+          "@ | Set-Content -Path (Join-Path $publishDir 'README.md') -Encoding UTF8
+
+          @"
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          if not exist "ros_qt5_gui_app.exe" (
+            echo [ERROR] ros_qt5_gui_app.exe not found in %CD%
+            pause
+            exit /b 1
+          )
+          start "" "ros_qt5_gui_app.exe"
+          "@ | Set-Content -Path (Join-Path $publishDir 'run.bat') -Encoding ASCII
+
+          @"
+          @echo off
+          setlocal
+          cd /d "%~dp0"
+          echo [INFO] Updating Ros_Qt5_Gui_App Windows binaries...
+          git fetch --depth=1 origin $env:TARGET_BRANCH
+          if errorlevel 1 (
+            echo [ERROR] git fetch failed.
+            pause
+            exit /b 1
+          )
+          git reset --hard origin/$env:TARGET_BRANCH
+          if errorlevel 1 (
+            echo [ERROR] git reset failed.
+            pause
+            exit /b 1
+          )
+          call run.bat
+          "@ | Set-Content -Path (Join-Path $publishDir 'update_and_run.bat') -Encoding ASCII
+
+      - name: Publish unpacked binaries branch
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ github.event.inputs.target_branch }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE '_binary_branch_payload'
+          Set-Location $publishDir
+
+          git init
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B $env:TARGET_BRANCH
+          git add -A
+
+          if (git diff --cached --quiet) {
+            Write-Host 'No binary changes to publish.'
+            exit 0
+          }
+
+          $shortCommit = $env:GITHUB_SHA.Substring(0, 7)
+          git commit -m "publish Windows binaries from $shortCommit"
+          $repo = $env:GITHUB_REPOSITORY
+          git push --force "https://x-access-token:$env:GH_TOKEN@github.com/$repo.git" "HEAD:$env:TARGET_BRANCH"
+
+      - name: Summary
+        shell: pwsh
+        env:
+          TARGET_BRANCH: ${{ github.event.inputs.target_branch }}
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          @"
+          ## Windows binary branch published
+
+          - Branch: `$env:TARGET_BRANCH`
+          - Source commit: `$env:GITHUB_SHA`
+          - Pull once:
+            ```bat
+            git clone --depth=1 --branch $env:TARGET_BRANCH https://github.com/$repo.git RosQt5Latest
+            cd RosQt5Latest
+            update_and_run.bat
+            ```
+          - Update later:
+            ```bat
+            cd RosQt5Latest
+            update_and_run.bat
+            ```
+          "@ | Add-Content -Path $env:GITHUB_STEP_SUMMARY
