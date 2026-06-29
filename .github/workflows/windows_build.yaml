@@ -6,6 +6,7 @@ on:
       - master
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -63,12 +64,49 @@ jobs:
           name: ros_qt5_gui_app_windows_x64
           path: build/install/bin/ros_qt5_gui_app_windows_x64.zip
 
-      - name: Upload to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: build/install/bin/ros_qt5_gui_app_windows_x64.zip
+      - name: Publish latest Windows package to Release
+        if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: qt-windows-latest
+          RELEASE_TITLE: Ros Qt5 GUI App Windows x64 Latest
+          PACKAGE_PATH: build/install/bin/ros_qt5_gui_app_windows_x64.zip
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = $env:GITHUB_REPOSITORY
+          $tag = $env:RELEASE_TAG
+          $title = $env:RELEASE_TITLE
+          $package = $env:PACKAGE_PATH
+          $commit = $env:GITHUB_SHA
+          $shortCommit = $commit.Substring(0, 7)
+          $runUrl = "https://github.com/$repo/actions/runs/$env:GITHUB_RUN_ID"
+          $body = @"
+          自动更新的 Windows x64 最新构建包。
+
+          - 分支：$env:GITHUB_REF_NAME
+          - Commit：$shortCommit
+          - 构建编号：$env:GITHUB_RUN_NUMBER
+          - 构建时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')
+          - Actions：$runUrl
+
+          下载下面的 `ros_qt5_gui_app_windows_x64.zip` 即可。
+          "@
+
+          git tag -f $tag $commit
+          git push origin "refs/tags/$tag" --force
+
+          if (gh release view $tag --repo $repo *> $null) {
+            gh release edit $tag --repo $repo --title $title --notes $body --latest
+          } else {
+            gh release create $tag --repo $repo --title $title --notes $body --latest
+          }
+
+          $assets = gh release view $tag --repo $repo --json assets --jq '.assets[].name'
+          foreach ($asset in $assets) {
+            if ($asset) {
+              gh release delete-asset $tag $asset --repo $repo --yes
+            }
+          }
+
+          gh release upload $tag $package --repo $repo --clobber
