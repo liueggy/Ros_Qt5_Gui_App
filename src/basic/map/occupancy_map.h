@@ -194,8 +194,8 @@ class OccupancyMap {
   int width() { return cols; }
   int height() { return rows; }
   //宽map坐标系下的长度
-  int widthMap() { return cols * map_config.resolution; }
-  int heightMap() { return rows * map_config.resolution; }
+  int widthMap() { return static_cast<int>(cols * map_config.resolution); }
+  int heightMap() { return static_cast<int>(rows * map_config.resolution); }
   /**
    * @description: 输入栅格地图的行与列号，返回该位置的全局坐标
    * @param {int&} c 列号
@@ -217,8 +217,8 @@ class OccupancyMap {
    * @return {*}
    */
   void xy2idx(const double &x, const double &y, int &c, int &r) {
-    c = round(x - map_config.origin[0]) / map_config.resolution;
-    r = round(y - map_config.origin[1]) / map_config.resolution;
+    c = static_cast<int>(std::lround((x - map_config.origin[0]) / map_config.resolution));
+    r = static_cast<int>(std::lround((y - map_config.origin[1]) / map_config.resolution));
   }
   /**
    * @description:输入全局坐标，判断是否在栅格地图内
@@ -227,8 +227,8 @@ class OccupancyMap {
    * @return {*}
    */
   bool inMap(const double &x, const double &y) {
-    int c_idx = round((x - map_config.origin[0]) / map_config.resolution);
-    int r_idx = round((y - map_config.origin[1]) / map_config.resolution);
+    int c_idx = static_cast<int>(std::lround((x - map_config.origin[0]) / map_config.resolution));
+    int r_idx = static_cast<int>(std::lround((y - map_config.origin[1]) / map_config.resolution));
     return (c_idx >= 0 && r_idx >= 0 && c_idx < cols && r_idx < rows);
   }
   /**
@@ -348,8 +348,8 @@ class OccupancyMap {
 
     fprintf(out, "P5\n# CREATOR: map_saver.cpp %.3f m/pix\n%d %d\n255\n",
             map_config.resolution, width(), height());
-    for (unsigned int y = 0; y < height(); y++) {
-      for (unsigned int x = 0; x < width(); x++) {
+    for (int y = 0; y < height(); y++) {
+      for (int x = 0; x < width(); x++) {
         // unsigned int i = x + (height() - y - 1) * map->info.width;
         if (map_data(y, x) >= 0 && map_data(y, x) <= map_config.free_thresh) {  // [0,free)
           fputc(254, out);

@@ -177,7 +177,7 @@ void ChannelManager::CloseChannel() {
   channel_ptr_ = nullptr;
 }
 VirtualChannelNode *ChannelManager::GetChannel() {
-  [[unlikely]] if (channel_ptr_ == nullptr) {
+  if (channel_ptr_ == nullptr) {
     LOG_ERROR("error channel is nullptr exit!");
     exit(1);
   }

@@ -23,7 +23,7 @@ permissions:
 env:
   VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
   SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: sccache
+  CMAKE_GENERATOR: Ninja
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
 

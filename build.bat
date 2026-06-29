@@ -45,6 +45,7 @@ if errorlevel 1 (
 )
 
 call :TrySetupVsDevEnv
+if errorlevel 1 exit /b 1
 
 set "VCPKG_ROOT=%SELECTED_VCPKG_ROOT%"
 echo [INFO] Re-apply selected vcpkg path after VS env setup: "%VCPKG_ROOT%"
@@ -69,9 +70,12 @@ if errorlevel 1 exit /b 1
 
 :Configure
 echo [2/4] Configure CMake...
-cmake -B "%BUILD_DIR%" -S . ^
+cmake -Wno-dev -Wno-deprecated -B "%BUILD_DIR%" -S . ^
   -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
   -DVCPKG_INSTALLED_DIR="%INSTALL_ROOT%" ^
+  -DCMAKE_POLICY_DEFAULT_CMP0074=NEW ^
+  -DCMAKE_POLICY_DEFAULT_CMP0167=NEW ^
+  -DCMAKE_WARN_DEPRECATED=OFF ^
   -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%" ^
   -DCMAKE_PREFIX_PATH="%VCPKG_ROOT%\installed\%TRIPLET%" ^
   -DQt5_DIR="%VCPKG_ROOT%\installed\%TRIPLET%\share\cmake\Qt5" ^
@@ -100,42 +104,42 @@ exit /b 0
 :TrySetupVsDevEnv
 where cl >nul 2>nul
 if not errorlevel 1 (
-  where nmake >nul 2>nul
-  if not errorlevel 1 (
-    echo [INFO] MSVC build tools already available in current shell.
-    exit /b 0
-  )
+  echo [INFO] MSVC compiler already available in current shell.
+  exit /b 0
 )
 
-set "VS_DEV_CMD=C:\Program Files\Microsoft Visual Studio\18\Community\Common7\Tools\VsDevCmd.bat"
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%VSWHERE%" set "VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe"
+if not exist "%VSWHERE%" (
+  echo [ERROR] vswhere.exe not found. Please install Visual Studio Build Tools.
+  exit /b 1
+)
+
+set "VS_DEV_CMD="
+for /f "usebackq tokens=*" %%i in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find Common7\Tools\VsDevCmd.bat`) do set "VS_DEV_CMD=%%i"
+
+if not defined VS_DEV_CMD (
+  echo [ERROR] Visual Studio C++ developer environment was not found.
+  echo [ERROR] Please install the Desktop development with C++ workload.
+  exit /b 1
+)
+
 if not exist "%VS_DEV_CMD%" (
-  echo [WARNING] VS developer environment script not found:
-  echo [WARNING]   "%VS_DEV_CMD%"
-  echo [WARNING] Please install Visual Studio C++ tools or update VS_DEV_CMD path in build.bat.
-  exit /b 0
+  echo [ERROR] VS developer environment script does not exist: "%VS_DEV_CMD%"
+  exit /b 1
 )
 
-echo [INFO] Try loading VS developer environment...
-call "%VS_DEV_CMD%" -arch=x64 >nul 2>nul
+echo [INFO] Load VS developer environment: "%VS_DEV_CMD%"
+call "%VS_DEV_CMD%" -arch=x64 -host_arch=x64 >nul
 if errorlevel 1 (
-  echo [WARNING] Failed to load VS developer environment from:
-  echo [WARNING]   "%VS_DEV_CMD%"
-  echo [WARNING] Please open a Developer Command Prompt or update VS_DEV_CMD path in build.bat.
-  exit /b 0
+  echo [ERROR] Failed to load VS developer environment from: "%VS_DEV_CMD%"
+  exit /b 1
 )
 
 where cl >nul 2>nul
 if errorlevel 1 (
-  echo [WARNING] VS developer environment loaded, but cl was not found in PATH.
-  echo [WARNING] Please verify Visual Studio C++ workload and local setup.
-  exit /b 0
-)
-
-where nmake >nul 2>nul
-if errorlevel 1 (
-  echo [WARNING] VS developer environment loaded, but nmake was not found in PATH.
-  echo [WARNING] Please verify Visual Studio C++ workload and local setup.
-  exit /b 0
+  echo [ERROR] VS developer environment loaded, but cl was not found in PATH.
+  exit /b 1
 )
 
 echo [INFO] VS developer environment is ready.
