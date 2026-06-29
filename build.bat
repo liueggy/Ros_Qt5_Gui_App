@@ -6,6 +6,7 @@ cd /d "%SCRIPT_DIR%"
 
 set "BUILD_MODE=full"
 if /I "%~1"=="make" set "BUILD_MODE=make"
+if /I "%~1"=="ci" set "BUILD_MODE=ci"
 
 set "BUILD_DIR=build"
 set "INSTALL_DIR=%BUILD_DIR%\install"
@@ -56,12 +57,17 @@ if /I "%BUILD_MODE%"=="make" (
   echo [INFO] mode=make: skip vcpkg install and cmake configure
   goto AfterConfigure
 )
+if /I "%BUILD_MODE%"=="ci" (
+  echo [INFO] mode=ci: dependencies were restored by GitHub Actions
+  goto Configure
+)
 
 echo [1/4] Install vcpkg dependencies...
 set "VCPKG_DISABLE_METRICS=1"
 "%VCPKG_ROOT%\vcpkg.exe" install --triplet %TRIPLET% --x-install-root="%INSTALL_ROOT%"
 if errorlevel 1 exit /b 1
 
+:Configure
 echo [2/4] Configure CMake...
 cmake -B "%BUILD_DIR%" -S . ^
   -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
