@@ -71,6 +71,7 @@ if errorlevel 1 exit /b 1
 echo [2/4] Configure CMake...
 cmake -B "%BUILD_DIR%" -S . ^
   -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
+  -DVCPKG_INSTALLED_DIR="%INSTALL_ROOT%" ^
   -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%" ^
   -DCMAKE_PREFIX_PATH="%VCPKG_ROOT%\installed\%TRIPLET%" ^
   -DQt5_DIR="%VCPKG_ROOT%\installed\%TRIPLET%\share\cmake\Qt5" ^
