@@ -56,18 +56,15 @@ jobs:
             vcpkg-installed-${{ runner.os }}-x64-windows-vcpkg2024.12.16-
             vcpkg-installed-${{ runner.os }}-x64-windows-
 
-      - name: Install Dependencies via Manifest
-        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
-        env:
-          VCPKG_DISABLE_METRICS: 1
-        run: |
-          "%VCPKG_ROOT%\vcpkg.exe" install --triplet x64-windows --x-install-root="%VCPKG_ROOT%\installed"
-
       - name: Build via project script
         env:
           VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
         run: |
-          build.bat ci
+          if "${{ steps.vcpkg-cache.outputs.cache-hit }}"=="true" (
+            build.bat ci
+          ) else (
+            build.bat
+          )
 
       - name: Show sccache statistics
         shell: pwsh
