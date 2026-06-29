@@ -22,8 +22,8 @@ permissions:
 
 env:
   VCPKG_BINARY_SOURCES: clear;x-gha,readwrite
-  SCCACHE_GHA_ENABLED: "true"
   CMAKE_GENERATOR: Ninja
+  SCCACHE_DIR: ${{ github.workspace }}\.sccache
   CMAKE_C_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
 
@@ -39,6 +39,15 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.7
+
+      - name: Cache sccache objects
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCCACHE_DIR }}
+          key: sccache-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          restore-keys: |
+            sccache-${{ runner.os }}-${{ github.ref_name }}-
+            sccache-${{ runner.os }}-
 
       - name: Setup vcpkg
         uses: friendlyanon/setup-vcpkg@v1
