@@ -34,7 +34,6 @@
 
 #include <assert.h>
 #include <QMouseEvent>
-#include <QMutexLocker>
 
 
 
@@ -64,17 +63,6 @@ void RatioLayoutedFrame::setImage(const QImage& image)  //, QMutex* image_mutex)
   qimage_ = image.copy();
   setAspectRatio(qimage_.width(), qimage_.height());
   qimage_mutex_.unlock();
-  emit delayed_update();
-}
-
-void RatioLayoutedFrame::setPlaceholderText(const QString& text) {
-  placeholder_text_ = text;
-  emit delayed_update();
-}
-
-void RatioLayoutedFrame::clearImage() {
-  QMutexLocker locker(&qimage_mutex_);
-  qimage_ = QImage();
   emit delayed_update();
 }
 
@@ -166,14 +154,12 @@ void RatioLayoutedFrame::paintEvent(QPaintEvent* event) {
       }
     }
   } else {
-    painter.fillRect(frameRect(), QColor(QStringLiteral("#f4f7fb")));
-    painter.setPen(QColor(QStringLiteral("#64748b")));
-    QFont placeholder_font = painter.font();
-    placeholder_font.setPointSize(11);
-    placeholder_font.setWeight(QFont::DemiBold);
-    painter.setFont(placeholder_font);
-    painter.drawText(frameRect(), Qt::AlignCenter,
-                     QStringLiteral("相机画面\n") + placeholder_text_);
+    // default image with gradient
+    QLinearGradient gradient(0, 0, frameRect().width(), frameRect().height());
+    gradient.setColorAt(0, Qt::white);
+    gradient.setColorAt(1, Qt::black);
+    painter.setBrush(gradient);
+    painter.drawRect(0, 0, frameRect().width() + 1, frameRect().height() + 1);
   }
   qimage_mutex_.unlock();
 }

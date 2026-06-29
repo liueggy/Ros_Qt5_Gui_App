@@ -36,13 +36,9 @@
 #include "widgets/nav_goal_table_view.h"
 #include "widgets/set_pose_widget.h"
 #include "widgets/speed_ctrl.h"
-#include "widgets/status_chip.h"
 #include "widgets/ratio_layouted_frame.h"
 #include "core/framework/framework.h"
-#include <atomic>
-#include <map>
 #include <memory>
-#include <mutex>
 #include <vector>
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -53,7 +49,6 @@ QT_END_NAMESPACE
 class DiagnosticDockWidget;
 class DisplayConfigWidget;
 class CommandCenterWidget;
-class QMenu;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -90,7 +85,6 @@ class MainWindow : public QMainWindow {
   QProgressBar *battery_bar_;
   QLabel *label_power_;
   ads::CDockAreaWidget *center_docker_area_;
-  ads::CDockAreaWidget *diagnostic_dock_area_{nullptr};
   QWidget *custom_title_bar_{nullptr};
   bool dragging_window_{false};
   QPoint drag_position_;
@@ -106,28 +100,6 @@ class MainWindow : public QMainWindow {
   QLabel *label_dht11_humi_{nullptr};
   QLabel *label_voice_cmd_{nullptr};
   QTimer *voice_clear_timer_{nullptr};
-  QTimer *status_refresh_timer_{nullptr};
-  QTimer *image_refresh_timer_{nullptr};
-  StatusChip *rosbridge_status_chip_{nullptr};
-  StatusChip *base_status_chip_{nullptr};
-  StatusChip *camera_status_chip_{nullptr};
-  StatusChip *lidar_status_chip_{nullptr};
-  StatusChip *alert_status_chip_{nullptr};
-  QLabel *system_notice_banner_{nullptr};
-  std::atomic<qint64> last_odom_message_ms_{0};
-  std::atomic<qint64> last_camera_message_ms_{0};
-  std::atomic<qint64> last_lidar_message_ms_{0};
-  std::atomic<qint64> last_diagnostic_message_ms_{0};
-  std::atomic<int> diagnostic_error_count_{0};
-  std::atomic<int> diagnostic_warning_count_{0};
-  qint64 status_monitor_started_ms_{0};
-  bool channel_opened_{false};
-  QMenu *control_view_menu_{nullptr};
-  QMenu *task_view_menu_{nullptr};
-  QMenu *diagnostic_view_menu_{nullptr};
-  QMenu *settings_view_menu_{nullptr};
-  std::mutex pending_images_mutex_;
-  std::map<std::string, std::shared_ptr<cv::Mat>> pending_images_;
   
  signals:
   void OnRecvChannelData(const MsgId &id, const std::any &data);
@@ -140,15 +112,5 @@ class MainWindow : public QMainWindow {
   void registerChannel();
   void SaveState();
   bool LoadMap(const std::string& file_path);
-  void RefreshStatusBar();
-  void ConfigureApplicationAppearance();
-  void ConfigureDockBehavior();
-  void UpdateSystemNotice(qint64 now_ms, bool connection_failed);
-  void SetupDockMenus();
-  void SetupOperationalDocks();
-  void SetupTaskDocks();
-  void SetupImageDocks();
-  void SetupImageRefreshPipeline();
-  void FlushPendingImages();
 };
 #endif  // MAINWINDOW_H
