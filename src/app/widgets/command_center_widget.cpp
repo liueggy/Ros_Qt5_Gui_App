@@ -24,10 +24,11 @@
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
 #include "widgets/diagnostic_dock_widget.h"
+#include "widgets/ui_style.h"
 
 namespace {
 
-QJsonObject MakeDynItem(const QString &ns, const QString &name, double value) {
+QJsonObject MakeDynItem(const QString& ns, const QString& name, double value) {
   QJsonObject item;
   item["namespace"] = ns;
   item["name"] = name;
@@ -35,7 +36,7 @@ QJsonObject MakeDynItem(const QString &ns, const QString &name, double value) {
   return item;
 }
 
-QJsonArray BuildSpeedProfileItems(const QString &profile) {
+QJsonArray BuildSpeedProfileItems(const QString& profile) {
   double max_vel_x = 0.45;
   double max_vel_y = 0.0;
   double max_vel_theta = 1.0;
@@ -66,7 +67,7 @@ QJsonArray BuildSpeedProfileItems(const QString &profile) {
   return items;
 }
 
-QJsonValue ParseJsonValue(const QString &text) {
+QJsonValue ParseJsonValue(const QString& text) {
   QJsonParseError err;
   QJsonDocument value_doc = QJsonDocument::fromJson(text.toUtf8(), &err);
   if (err.error == QJsonParseError::NoError && !value_doc.isNull()) {
@@ -91,40 +92,34 @@ QJsonValue ParseJsonValue(const QString &text) {
 
 }  // namespace
 
-CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
-  auto *outer = new QVBoxLayout(this);
+CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
+  auto* outer = new QVBoxLayout(this);
   outer->setContentsMargins(0, 0, 0, 0);
 
-  auto *scroll = new QScrollArea(this);
+  auto* scroll = new QScrollArea(this);
   scroll->setWidgetResizable(true);
-  auto *body = new QWidget(scroll);
-  auto *root = new QVBoxLayout(body);
+  auto* body = new QWidget(scroll);
+  auto* root = new QVBoxLayout(body);
   root->setContentsMargins(12, 12, 12, 12);
   root->setSpacing(10);
   scroll->setWidget(body);
   outer->addWidget(scroll);
 
-  setStyleSheet(QStringLiteral(
-      "QGroupBox { border:1px solid rgba(0,0,0,0.10); border-radius:8px; margin-top:10px; padding:10px; "
-      "font-weight:600; color:#202124; }"
-      "QGroupBox::title { subcontrol-origin: margin; left:12px; padding:0 6px; background:white; }"
-      "QPushButton { border:1px solid #dadce0; border-radius:6px; padding:7px 12px; background:#ffffff; "
-      "color:#202124; font-weight:500; }"
-      "QPushButton:hover { background:#e8f0fe; border-color:#8ab4f8; color:#174ea6; }"
-      "QComboBox, QLineEdit { border:1px solid #dadce0; border-radius:6px; padding:6px 8px; background:#ffffff; }"
-      "QPlainTextEdit { border:1px solid #dadce0; border-radius:6px; background:#fafafa; padding:8px; "
-      "font-family:Consolas, Menlo, monospace; }"));
+  setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  auto *title = new QLabel(tr("运维面板"), this);
-  title->setStyleSheet(QStringLiteral("font-size:16px;font-weight:700;color:#202124;"));
+  auto* title = new QLabel(tr("运维面板"), this);
+  title->setObjectName(QStringLiteral("pageTitle"));
+  title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
 
-  auto *camera_group = new QGroupBox(tr("摄像头"), this);
-  auto *camera_layout = new QHBoxLayout(camera_group);
-  auto *camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
-  auto *camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
+  auto* camera_group = new QGroupBox(tr("摄像头"), this);
+  auto* camera_layout = new QHBoxLayout(camera_group);
+  auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
+  auto* camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
+  camera_start_btn->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  camera_stop_btn->setStyleSheet(UiStyle::DangerButtonStyleSheet());
   camera_state_label_ = new QLabel(tr("状态等待刷新"), camera_group);
-  camera_state_label_->setStyleSheet(QStringLiteral("color:#5f6368;font-weight:500;"));
+  camera_state_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("font-weight:600;"));
   camera_layout->addWidget(camera_start_btn);
   camera_layout->addWidget(camera_stop_btn);
   camera_layout->addStretch();
@@ -134,21 +129,21 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   connect(camera_start_btn, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
   connect(camera_stop_btn, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
 
-  auto *speed_group = new QGroupBox(tr("速度参数"), this);
-  auto *speed_layout = new QVBoxLayout(speed_group);
+  auto* speed_group = new QGroupBox(tr("速度参数"), this);
+  auto* speed_layout = new QVBoxLayout(speed_group);
 
-  auto *profile_row = new QHBoxLayout();
+  auto* profile_row = new QHBoxLayout();
   profile_combo_ = new QComboBox(speed_group);
   profile_combo_->addItem(tr("低速稳定"), "stable");
   profile_combo_->addItem(tr("均衡巡航"), "balanced");
   profile_combo_->addItem(tr("快速测试"), "fast");
-  auto *apply_profile_btn = new QPushButton(tr("应用档位"), speed_group);
+  auto* apply_profile_btn = new QPushButton(tr("应用档位"), speed_group);
   profile_row->addWidget(profile_combo_, 1);
   profile_row->addWidget(apply_profile_btn);
   speed_layout->addLayout(profile_row);
   connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
 
-  auto *param_layout = new QFormLayout();
+  auto* param_layout = new QFormLayout();
   speed_param_combo_ = new QComboBox(speed_group);
   speed_param_combo_->addItem(tr("最大前进速度 max_vel_x"), "dyn|/move_base/TebLocalPlannerROS|max_vel_x|0.45");
   speed_param_combo_->addItem(tr("最大角速度 max_vel_theta"), "dyn|/move_base/TebLocalPlannerROS|max_vel_theta|1.0");
@@ -160,9 +155,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   param_layout->addRow(tr("值"), speed_value_edit_);
   speed_layout->addLayout(param_layout);
 
-  auto *param_btn_row = new QHBoxLayout();
-  auto *read_param_btn = new QPushButton(tr("读取"), speed_group);
-  auto *write_param_btn = new QPushButton(tr("写入"), speed_group);
+  auto* param_btn_row = new QHBoxLayout();
+  auto* read_param_btn = new QPushButton(tr("读取"), speed_group);
+  auto* write_param_btn = new QPushButton(tr("写入"), speed_group);
   param_btn_row->addWidget(read_param_btn);
   param_btn_row->addWidget(write_param_btn);
   param_btn_row->addStretch();
@@ -177,11 +172,11 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   connect(read_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::ReadSelectedSpeedParam);
   connect(write_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::WriteSelectedSpeedParam);
 
-  auto *status_group = new QGroupBox(tr("状态"), this);
-  auto *status_layout = new QVBoxLayout(status_group);
-  auto *status_btn_row = new QHBoxLayout();
-  auto *refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
-  auto *clear_btn = new QPushButton(tr("清空日志"), status_group);
+  auto* status_group = new QGroupBox(tr("状态"), this);
+  auto* status_layout = new QVBoxLayout(status_group);
+  auto* status_btn_row = new QHBoxLayout();
+  auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
+  auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
   status_btn_row->addWidget(refresh_status_btn);
   status_btn_row->addWidget(clear_btn);
   status_btn_row->addStretch();
@@ -199,28 +194,28 @@ CommandCenterWidget::CommandCenterWidget(QWidget *parent) : QWidget(parent) {
   connect(refresh_status_btn, &QPushButton::clicked, this, &CommandCenterWidget::SendStatusRequest);
   connect(clear_btn, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
 
-  auto *diagnostic_group = new QGroupBox(tr("诊断"), this);
-  auto *diagnostic_layout = new QVBoxLayout(diagnostic_group);
+  auto* diagnostic_group = new QGroupBox(tr("诊断"), this);
+  auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
   diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
   diagnostic_layout->addWidget(diagnostic_widget_);
   root->addWidget(diagnostic_group, 1);
 
-  SUBSCRIBE(MSG_ID_COMMAND_RESPONSE, [this](const std::string &json) {
+  SUBSCRIBE(MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { AppendResponse(json); }, Qt::QueuedConnection);
   });
-  SUBSCRIBE(MSG_ID_COMMAND_STATUS, [this](const std::string &json) {
+  SUBSCRIBE(MSG_ID_COMMAND_STATUS, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { UpdateStatus(json); }, Qt::QueuedConnection);
   });
 }
 
-void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot &snapshot) {
+void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot) {
   if (diagnostic_widget_) {
     diagnostic_widget_->SetSnapshot(snapshot);
   }
 }
 
-QString CommandCenterWidget::MakeRequestJson(const QString &command, const QString &target,
-                                             const QString &paramsJson) const {
+QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
+                                             const QString& paramsJson) const {
   QJsonParseError err;
   QJsonDocument params_doc = QJsonDocument::fromJson(paramsJson.toUtf8(), &err);
   QJsonObject params;
@@ -238,7 +233,7 @@ QString CommandCenterWidget::MakeRequestJson(const QString &command, const QStri
   return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
 
-QString CommandCenterWidget::SpeedParamPayloadToJson(const QString &command) const {
+QString CommandCenterWidget::SpeedParamPayloadToJson(const QString& command) const {
   const QStringList parts = speed_param_combo_->currentData().toString().split('|');
   QJsonObject params;
   params["namespace"] = parts.value(1);
@@ -255,12 +250,12 @@ QString CommandCenterWidget::SpeedParamPayloadToJson(const QString &command) con
                          QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact)));
 }
 
-void CommandCenterWidget::PublishJson(const QString &json) {
+void CommandCenterWidget::PublishJson(const QString& json) {
   PUBLISH(MSG_ID_COMMAND_REQUEST, json.toStdString());
   AppendLog(tr("发送"), json);
 }
 
-void CommandCenterWidget::AppendLog(const QString &prefix, const QString &text) {
+void CommandCenterWidget::AppendLog(const QString& prefix, const QString& text) {
   if (!log_edit_) {
     return;
   }
@@ -268,7 +263,7 @@ void CommandCenterWidget::AppendLog(const QString &prefix, const QString &text) 
   log_edit_->appendPlainText(QString("[%1] %2\n%3\n").arg(ts, prefix, text));
 }
 
-void CommandCenterWidget::AppendResponse(const std::string &json) {
+void CommandCenterWidget::AppendResponse(const std::string& json) {
   QJsonParseError err;
   QJsonDocument doc = QJsonDocument::fromJson(QString::fromStdString(json).toUtf8(), &err);
   if (err.error == QJsonParseError::NoError && doc.isObject()) {
@@ -289,7 +284,7 @@ void CommandCenterWidget::AppendResponse(const std::string &json) {
   AppendLog(tr("反馈"), QString::fromStdString(json));
 }
 
-void CommandCenterWidget::UpdateStatus(const std::string &json) {
+void CommandCenterWidget::UpdateStatus(const std::string& json) {
   QJsonParseError err;
   QJsonDocument doc = QJsonDocument::fromJson(QString::fromStdString(json).toUtf8(), &err);
   if (err.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -299,7 +294,7 @@ void CommandCenterWidget::UpdateStatus(const std::string &json) {
 
   const QJsonObject obj = doc.object();
   const QJsonObject nodes = obj.value("nodes").toObject();
-  auto ok = [this, &nodes](const QString &name) { return nodes.value(name).toBool(false) ? tr("在线") : tr("离线"); };
+  auto ok = [this, &nodes](const QString& name) { return nodes.value(name).toBool(false) ? tr("在线") : tr("离线"); };
   const QJsonObject camera = obj.value("camera").toObject();
   const bool camera_running = camera.value("running").toBool(false);
   SetCameraStateText(camera_running ? tr("摄像头在线") : tr("摄像头离线"));
@@ -323,7 +318,7 @@ void CommandCenterWidget::UpdateStatus(const std::string &json) {
   status_edit_->setPlainText(text);
 }
 
-void CommandCenterWidget::SetCameraStateText(const QString &text) {
+void CommandCenterWidget::SetCameraStateText(const QString& text) {
   if (camera_state_label_) {
     camera_state_label_->setText(text);
   }

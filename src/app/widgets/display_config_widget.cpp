@@ -1,10 +1,4 @@
 #include "display_config_widget.h"
-#include "display/manager/display_factory.h"
-#include "display/manager/display_manager.h"
-#include "display/virtual_display.h"
-#include "config/config_manager.h"
-#include "msg/msg_info.h"
-#include "logger/logger.h"
 #include <QAbstractItemView>
 #include <QFileDialog>
 #include <QFrame>
@@ -15,19 +9,23 @@
 #include <QSizePolicy>
 #include <QSpacerItem>
 #include <algorithm>
+#include "config/config_manager.h"
+#include "display/manager/display_factory.h"
+#include "display/manager/display_manager.h"
+#include "display/virtual_display.h"
+#include "logger/logger.h"
+#include "msg/msg_info.h"
+#include "widgets/ui_style.h"
 
 namespace {
 
 QString LineEditStyle() {
-  return QStringLiteral(
-      "QLineEdit { border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:8px 10px; "
-      "background:#fafafa; font-size:13px; }"
-      "QLineEdit:focus { border-color:#1a73e8; background:#fff; }");
+  return UiStyle::InputStyleSheet();
 }
 
 }  // namespace
 
-DisplayConfigWidget::DisplayConfigWidget(QWidget *parent)
+DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   setMinimumWidth(280);
@@ -38,85 +36,39 @@ DisplayConfigWidget::DisplayConfigWidget(QWidget *parent)
 DisplayConfigWidget::~DisplayConfigWidget() {}
 
 void DisplayConfigWidget::ApplyGlobalStyle() {
-  setStyleSheet(R"(
-    DisplayConfigWidget {
-      background-color: #eef1f6;
-    }
-    DisplayConfigWidget QLabel#pageTitle {
-      font-size: 20px;
-      font-weight: 600;
-      color: #202124;
-      padding-bottom: 4px;
-    }
-    DisplayConfigWidget QLabel#pageSubtitle {
-      font-size: 13px;
-      color: #5f6368;
-      padding-bottom: 12px;
-    }
-    DisplayConfigWidget QListWidget#settingsNav {
-      background-color: #e8eaed;
-      border: none;
-      border-radius: 12px;
-      padding: 8px 6px;
-      outline: none;
-    }
-    DisplayConfigWidget QListWidget#settingsNav::item {
-      color: #3c4043;
-      padding: 12px 14px;
-      border-radius: 8px;
-      margin: 2px 0;
-      border: none;
-    }
-    DisplayConfigWidget QListWidget#settingsNav::item:hover {
-      background-color: rgba(255,255,255,0.7);
-    }
-    DisplayConfigWidget QListWidget#settingsNav::item:selected {
-      background-color: #ffffff;
-      color: #1a73e8;
-      font-weight: 600;
-    }
-    DisplayConfigWidget QScrollArea {
-      border: none;
-      background: transparent;
-    }
-    DisplayConfigWidget QToolTip {
-      background: #fff;
-      color: #202124;
-      border: 1px solid rgba(0,0,0,0.12);
-      padding: 6px 8px;
-      border-radius: 4px;
-    }
-  )");
+  setStyleSheet(QStringLiteral(
+                    "DisplayConfigWidget { background-color:#eef1f6; }"
+                    "DisplayConfigWidget QLabel#pageTitle { font-size:%1px; font-weight:700; color:#202124; padding-bottom:4px; }"
+                    "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#5f6368; padding-bottom:12px; }"
+                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#e8eaed; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#3c4043; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:rgba(255,255,255,0.7); }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#1a73e8; font-weight:600; }"
+                    "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
+                    "DisplayConfigWidget QToolTip { background:#fff; color:#202124; border:1px solid rgba(0,0,0,0.12); padding:6px 8px; border-radius:4px; }")
+                    .arg(UiStyle::FontTitlePx())
+                    .arg(UiStyle::FontSmallPx()));
 }
 
-QFrame *DisplayConfigWidget::CreateSettingsCard(QWidget *parent) {
-  QFrame *card = new QFrame(parent);
+QFrame* DisplayConfigWidget::CreateSettingsCard(QWidget* parent) {
+  QFrame* card = new QFrame(parent);
   card->setObjectName(QStringLiteral("settingsCard"));
-  card->setStyleSheet(R"(
-    QFrame#settingsCard {
-      background-color: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.06);
-      border-radius: 12px;
-    }
-  )");
+  card->setStyleSheet(UiStyle::CardStyleSheet());
   return card;
 }
 
-QLabel *DisplayConfigWidget::AddSectionHeader(QVBoxLayout *layout, const QString &title) {
-  QLabel *lbl = new QLabel(title);
-  lbl->setStyleSheet(
-      QStringLiteral("QLabel { color: #5f6368; font-size: 12px; font-weight: 600; "
-                     "letter-spacing: 0.3px; padding: 16px 4px 6px 4px; }"));
+QLabel* DisplayConfigWidget::AddSectionHeader(QVBoxLayout* layout, const QString& title) {
+  QLabel* lbl = new QLabel(title);
+  lbl->setStyleSheet(UiStyle::SectionLabelStyleSheet());
   layout->addWidget(lbl);
   return lbl;
 }
 
-QLabel *DisplayConfigWidget::AddHintLabel(QVBoxLayout *layout, const QString &text) {
-  QLabel *lbl = new QLabel(text);
+QLabel* DisplayConfigWidget::AddHintLabel(QVBoxLayout* layout, const QString& text) {
+  QLabel* lbl = new QLabel(text);
   lbl->setObjectName(QStringLiteral("pageSubtitle"));
   lbl->setWordWrap(true);
-  lbl->setStyleSheet(
-      QStringLiteral("QLabel { font-size: 12px; color: #80868b; line-height: 1.45; padding: 0 2px 14px 2px; }"));
+  lbl->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:0 2px 14px 2px;"));
   layout->addWidget(lbl);
   return lbl;
 }
@@ -128,11 +80,10 @@ void DisplayConfigWidget::InitUI() {
   setAutoFillBackground(true);
 
   title_label_ = new QLabel(tr("设置"), this);
-  title_label_->setStyleSheet(
-      QStringLiteral("QLabel { font-size: 22px; font-weight: 700; color: #202124; padding: 4px 2px 14px 2px; }"));
+  title_label_->setStyleSheet(UiStyle::TitleLabelStyleSheet() + QStringLiteral("padding:4px 2px 14px 2px;"));
   main_layout_->addWidget(title_label_);
 
-  QHBoxLayout *body = new QHBoxLayout();
+  QHBoxLayout* body = new QHBoxLayout();
   body->setSpacing(16);
   body->setContentsMargins(0, 0, 0, 0);
 
@@ -145,7 +96,7 @@ void DisplayConfigWidget::InitUI() {
   nav_list_->setFocusPolicy(Qt::StrongFocus);
   const QStringList navTitles = {tr("通道"), tr("显示与话题"), tr("摄像头"),
                                  tr("机器人外形"), tr("默认地图"), tr("键值对")};
-  for (const QString &t : navTitles) {
+  for (const QString& t : navTitles) {
     nav_list_->addItem(t);
   }
 
@@ -167,13 +118,13 @@ void DisplayConfigWidget::InitUI() {
   main_layout_->addLayout(body, 1);
 }
 
-QWidget *DisplayConfigWidget::CreateChannelPage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateChannelPage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("通道"));
+  QLabel* page_title = new QLabel(tr("通道"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
@@ -182,27 +133,23 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
 
   connection_section_label_ = AddSectionHeader(root, tr("连接"));
 
-  QFrame *card = CreateSettingsCard(page);
-  QVBoxLayout *card_layout = new QVBoxLayout(card);
+  QFrame* card = CreateSettingsCard(page);
+  QVBoxLayout* card_layout = new QVBoxLayout(card);
   card_layout->setContentsMargins(16, 14, 16, 16);
   card_layout->setSpacing(14);
 
-  QHBoxLayout *type_layout = new QHBoxLayout();
+  QHBoxLayout* type_layout = new QHBoxLayout();
   channel_type_label_ = new QLabel(tr("通道类型"));
   channel_type_label_->setFixedWidth(88);
-  channel_type_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  channel_type_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   channel_type_combo_ = new QComboBox(card);
   channel_type_combo_->setMinimumHeight(36);
-  channel_type_combo_->setStyleSheet(
-      QStringLiteral("QComboBox { border:1px solid #dadce0; border-radius:8px; padding:6px 12px; "
-                     "background:#fff; min-height:22px; font-size:13px; }"
-                     "QComboBox:hover { border-color:#1a73e8; }"
-                     "QComboBox::drop-down { border:none; width:28px; }"));
+  channel_type_combo_->setStyleSheet(UiStyle::InputStyleSheet());
   connect(channel_type_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
     if (is_loading_config_) {
       return;
     }
-    auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     std::string channel_type = channel_type_combo_->itemData(index).toString().toStdString();
     QString old_channel_type = QString::fromStdString(config.channel_config.channel_type);
     config.channel_config.channel_type = channel_type;
@@ -220,13 +167,13 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   card_layout->addLayout(type_layout);
 
   rosbridge_section_label_ = new QLabel(tr("ROSBridge"));
-  rosbridge_section_label_->setStyleSheet(QStringLiteral("color:#80868b;font-size:11px;font-weight:600;padding-top:4px;"));
+  rosbridge_section_label_->setStyleSheet(UiStyle::SectionLabelStyleSheet() + QStringLiteral("padding-top:4px;"));
   card_layout->addWidget(rosbridge_section_label_);
 
-  QHBoxLayout *ip_layout = new QHBoxLayout();
+  QHBoxLayout* ip_layout = new QHBoxLayout();
   rosbridge_ip_label_ = new QLabel(tr("地址"));
   rosbridge_ip_label_->setFixedWidth(88);
-  rosbridge_ip_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  rosbridge_ip_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   rosbridge_ip_edit_ = new QLineEdit(card);
   rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("192.168.31.50"));
   rosbridge_ip_edit_->setStyleSheet(LineEditStyle());
@@ -234,7 +181,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
     if (is_loading_config_) {
       return;
     }
-    auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString new_ip = rosbridge_ip_edit_->text();
     QString old_ip = QString::fromStdString(config.channel_config.rosbridge_config.ip);
     config.channel_config.rosbridge_config.ip = new_ip.toStdString();
@@ -248,10 +195,10 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   ip_layout->addWidget(rosbridge_ip_edit_, 1);
   card_layout->addLayout(ip_layout);
 
-  QHBoxLayout *port_layout = new QHBoxLayout();
+  QHBoxLayout* port_layout = new QHBoxLayout();
   rosbridge_port_label_ = new QLabel(tr("端口"));
   rosbridge_port_label_->setFixedWidth(88);
-  rosbridge_port_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  rosbridge_port_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   rosbridge_port_edit_ = new QLineEdit(card);
   rosbridge_port_edit_->setPlaceholderText(QStringLiteral("9090"));
   rosbridge_port_edit_->setStyleSheet(LineEditStyle());
@@ -259,7 +206,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
     if (is_loading_config_) {
       return;
     }
-    auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString new_port = rosbridge_port_edit_->text();
     QString old_port = QString::fromStdString(config.channel_config.rosbridge_config.port);
     config.channel_config.rosbridge_config.port = new_port.toStdString();
@@ -277,9 +224,7 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
 
   reconnect_channel_btn_ = new QPushButton(tr("帮助"), page);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
-  reconnect_channel_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:none; color:#1a73e8; font-size:13px; padding:10px 4px; background:transparent; }"
-                     "QPushButton:hover { text-decoration:underline; color:#1557b0; }"));
+  reconnect_channel_btn_->setStyleSheet(UiStyle::LinkButtonStyleSheet());
   connect(reconnect_channel_btn_, &QPushButton::clicked, [this]() {
     QMessageBox::information(
         this, tr("通道"),
@@ -291,32 +236,32 @@ QWidget *DisplayConfigWidget::CreateChannelPage() {
   return page;
 }
 
-QWidget *DisplayConfigWidget::CreateLayersPage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateLayersPage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("显示与话题"));
+  QLabel* page_title = new QLabel(tr("显示与话题"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
                tr("对应 config.json 中的 display_config：显示名称、话题、可见性。"
                   "左侧标签对应图层名称；可编辑每个图层的 ROS 话题。"));
 
-  QScrollArea *scroll = new QScrollArea(page);
+  QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
   scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  QWidget *scroll_body = new QWidget;
+  QWidget* scroll_body = new QWidget;
   scroll_body->setMinimumWidth(400);
-  QVBoxLayout *sl = new QVBoxLayout(scroll_body);
+  QVBoxLayout* sl = new QVBoxLayout(scroll_body);
   sl->setContentsMargins(0, 0, 8, 0);
   sl->setSpacing(4);
 
   const struct {
-    const char *section_en;
-    std::vector<std::pair<std::string, const char *>> rows;
+    const char* section_en;
+    std::vector<std::pair<std::string, const char*>> rows;
   } groups[] = {
       {"地图与定位",
        {{DISPLAY_MAP, "占据栅格地图"},
@@ -331,32 +276,32 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
        {{DISPLAY_ROBOT_FOOTPRINT, "机器人足迹"}, {DISPLAY_GOAL, "导航目标"}}},
   };
 
-  for (const auto &grp : groups) {
+  for (const auto& grp : groups) {
     AddSectionHeader(sl, tr(grp.section_en));
-    QFrame *card = CreateSettingsCard(scroll_body);
-    QVBoxLayout *card_layout = new QVBoxLayout(card);
+    QFrame* card = CreateSettingsCard(scroll_body);
+    QVBoxLayout* card_layout = new QVBoxLayout(card);
     card_layout->setContentsMargins(0, 0, 0, 0);
     card_layout->setSpacing(0);
 
     for (size_t i = 0; i < grp.rows.size(); ++i) {
-      const auto &entry = grp.rows[i];
-      const std::string &display_name = entry.first;
+      const auto& entry = grp.rows[i];
+      const std::string& display_name = entry.first;
 
-      QWidget *row = new QWidget(card);
+      QWidget* row = new QWidget(card);
       row->setStyleSheet(QStringLiteral("QWidget { background:transparent; }"));
-      QHBoxLayout *h = new QHBoxLayout(row);
+      QHBoxLayout* h = new QHBoxLayout(row);
       h->setContentsMargins(14, 12, 14, 12);
       h->setSpacing(12);
 
-      QLabel *name = new QLabel(tr(entry.second));
+      QLabel* name = new QLabel(tr(entry.second));
       name->setWordWrap(true);
       name->setMinimumWidth(168);
       name->setMaximumWidth(240);
       name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
       name->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-      name->setStyleSheet(QStringLiteral("font-size:13px;color:#202124;font-weight:500;"));
+      name->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
 
-      QLineEdit *topic_edit = new QLineEdit(row);
+      QLineEdit* topic_edit = new QLineEdit(row);
       topic_edit->setPlaceholderText(QStringLiteral("/topic/name"));
       topic_edit->setMinimumWidth(180);
       topic_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -366,7 +311,7 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
         OnDisplayTopicChanged(display_name, topic_edit->text());
       });
 
-      QCheckBox *vis_cb = new QCheckBox(row);
+      QCheckBox* vis_cb = new QCheckBox(row);
       vis_cb->setChecked(true);
       vis_cb->setCursor(Qt::PointingHandCursor);
       vis_cb->setText(QString());
@@ -384,7 +329,7 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
       card_layout->addWidget(row);
 
       if (i + 1 < grp.rows.size()) {
-        QFrame *sep = new QFrame(card);
+        QFrame* sep = new QFrame(card);
         sep->setFixedHeight(1);
         sep->setStyleSheet(QStringLiteral("background:rgba(0,0,0,0.06); border:none; max-height:1px;"));
         card_layout->addWidget(sep);
@@ -399,19 +344,19 @@ QWidget *DisplayConfigWidget::CreateLayersPage() {
   return page;
 }
 
-QWidget *DisplayConfigWidget::CreateImagePage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateImagePage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("摄像头"));
+  QLabel* page_title = new QLabel(tr("摄像头"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root, tr("对应 config.json 中的 images：位置标识（dock id）、话题、启用状态。"));
 
-  QFrame *card = CreateSettingsCard(page);
-  QVBoxLayout *card_layout = new QVBoxLayout(card);
+  QFrame* card = CreateSettingsCard(page);
+  QVBoxLayout* card_layout = new QVBoxLayout(card);
   card_layout->setContentsMargins(12, 12, 12, 12);
   card_layout->setSpacing(10);
 
@@ -432,14 +377,7 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
   image_table_->setAlternatingRowColors(true);
   image_table_->setWordWrap(false);
   image_table_->setTextElideMode(Qt::ElideNone);
-  image_table_->setStyleSheet(
-      QStringLiteral("QTableWidget { border:none; background:#fafafa; border-radius:8px; font-size:13px; }"
-                     "QTableWidget::item { padding:8px 8px; border-bottom:1px solid rgba(0,0,0,0.05); color:#202124; }"
-                     "QTableWidget::item:selected { background-color:#e3f2fd; color:#202124; }"
-                     "QTableWidget::item:selected:active { background-color:#e3f2fd; color:#202124; }"
-                     "QTableWidget::item:selected:!active { background-color:#e8f0fe; color:#202124; }"
-                     "QHeaderView::section { background:#f1f3f4; padding:8px; border:none; "
-                     "border-bottom:1px solid rgba(0,0,0,0.08); font-size:12px; color:#5f6368; font-weight:600; }"));
+  image_table_->setStyleSheet(UiStyle::TableStyleSheet());
 
   connect(image_table_, &QTableWidget::cellChanged, this, [this](int row, int) {
     OnImageConfigChanged(row);
@@ -447,10 +385,7 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
 
   image_add_btn_ = new QPushButton(tr("添加摄像头"), card);
   image_add_btn_->setCursor(Qt::PointingHandCursor);
-  image_add_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:8px 16px; "
-                     "background:#fff; color:#1a73e8; font-weight:500; font-size:13px; }"
-                     "QPushButton:hover { background:#e8f0fe; }"));
+  image_add_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   connect(image_add_btn_, &QPushButton::clicked, this, &DisplayConfigWidget::OnAddImageConfig);
 
   card_layout->addWidget(image_table_);
@@ -459,33 +394,33 @@ QWidget *DisplayConfigWidget::CreateImagePage() {
   return page;
 }
 
-QWidget *DisplayConfigWidget::CreateRobotPage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateRobotPage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("机器人外形"));
+  QLabel* page_title = new QLabel(tr("机器人外形"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root, tr("对应 config.json 中的 robot_shape_config：顶点坐标、椭圆近似、颜色、不透明度。"));
 
-  QScrollArea *scroll = new QScrollArea(page);
+  QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
-  QWidget *scroll_content = new QWidget;
-  QVBoxLayout *outer = new QVBoxLayout(scroll_content);
+  QWidget* scroll_content = new QWidget;
+  QVBoxLayout* outer = new QVBoxLayout(scroll_content);
   outer->setContentsMargins(0, 0, 8, 0);
   outer->setSpacing(12);
 
   robot_polygon_section_label_ = AddSectionHeader(outer, tr("多边形顶点"));
-  QFrame *points_card = CreateSettingsCard(scroll_content);
-  QVBoxLayout *points_layout = new QVBoxLayout(points_card);
+  QFrame* points_card = CreateSettingsCard(scroll_content);
+  QVBoxLayout* points_layout = new QVBoxLayout(points_card);
   points_layout->setContentsMargins(14, 14, 14, 14);
   points_layout->setSpacing(10);
 
   robot_points_hint_label_ = new QLabel(tr("平面顶点坐标（米）"));
-  robot_points_hint_label_->setStyleSheet(QStringLiteral("QLabel { color:#80868b; font-size:12px; }"));
+  robot_points_hint_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   points_layout->addWidget(robot_points_hint_label_);
 
   robot_points_table_ = new QTableWidget(0, 2, points_card);
@@ -493,20 +428,14 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   robot_points_table_->horizontalHeader()->setStretchLastSection(true);
   robot_points_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
   robot_points_table_->setShowGrid(false);
-  robot_points_table_->setStyleSheet(
-      QStringLiteral("QTableWidget { border:none; background:#fafafa; border-radius:8px; }"
-                     "QTableWidget::item { padding:6px; border-bottom:1px solid rgba(0,0,0,0.05); }"
-                     "QHeaderView::section { background:#f1f3f4; padding:6px; border:none; font-size:12px; }"));
+  robot_points_table_->setStyleSheet(UiStyle::TableStyleSheet());
 
   connect(robot_points_table_, &QTableWidget::cellChanged, this, &DisplayConfigWidget::OnRobotShapePointChanged);
 
-  QHBoxLayout *points_btn_layout = new QHBoxLayout();
+  QHBoxLayout* points_btn_layout = new QHBoxLayout();
   robot_add_vertex_btn_ = new QPushButton(tr("添加顶点"), points_card);
   robot_add_vertex_btn_->setCursor(Qt::PointingHandCursor);
-  robot_add_vertex_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:6px 12px; "
-                     "background:#fff; color:#1a73e8; font-size:13px; }"
-                     "QPushButton:hover { background:#e8f0fe; }"));
+  robot_add_vertex_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   connect(robot_add_vertex_btn_, &QPushButton::clicked, [this]() {
     int row = robot_points_table_->rowCount();
     robot_points_table_->insertRow(row);
@@ -517,10 +446,7 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
 
   robot_remove_vertex_btn_ = new QPushButton(tr("移除选中"), points_card);
   robot_remove_vertex_btn_->setCursor(Qt::PointingHandCursor);
-  robot_remove_vertex_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:none; border-radius:8px; padding:6px 12px; background:transparent; "
-                     "color:#d93025; font-size:13px; }"
-                     "QPushButton:hover { background:#fce8e6; }"));
+  robot_remove_vertex_btn_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
   connect(robot_remove_vertex_btn_, &QPushButton::clicked, [this]() {
     int row = robot_points_table_->currentRow();
     if (row >= 0) {
@@ -538,36 +464,32 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   outer->addWidget(points_card);
 
   robot_style_section_label_ = AddSectionHeader(outer, tr("样式"));
-  QFrame *style_card = CreateSettingsCard(scroll_content);
-  QVBoxLayout *style_layout = new QVBoxLayout(style_card);
+  QFrame* style_card = CreateSettingsCard(scroll_content);
+  QVBoxLayout* style_layout = new QVBoxLayout(style_card);
   style_layout->setContentsMargins(14, 14, 14, 14);
   style_layout->setSpacing(14);
 
   robot_is_ellipse_checkbox_ = new QCheckBox(tr("椭圆近似"), style_card);
-  robot_is_ellipse_checkbox_->setStyleSheet(QStringLiteral("QCheckBox { font-size:13px; color:#202124; spacing:8px; }"
-                                                           "QCheckBox::indicator { width:18px; height:18px; }"));
+  robot_is_ellipse_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
   connect(robot_is_ellipse_checkbox_, &QCheckBox::toggled, this, &DisplayConfigWidget::OnRobotShapeIsEllipseChanged);
 
-  QHBoxLayout *color_layout = new QHBoxLayout();
+  QHBoxLayout* color_layout = new QHBoxLayout();
   robot_color_caption_label_ = new QLabel(tr("颜色"));
   robot_color_caption_label_->setFixedWidth(72);
-  robot_color_caption_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  robot_color_caption_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   robot_color_button_ = new QPushButton(tr("选择颜色"), style_card);
   robot_color_button_->setMinimumWidth(120);
   robot_color_button_->setCursor(Qt::PointingHandCursor);
-  robot_color_button_->setStyleSheet(
-      QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 12px; background:#fafafa; "
-                     "font-size:13px; }"
-                     "QPushButton:hover { border-color:#1a73e8; }"));
+  robot_color_button_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   connect(robot_color_button_, &QPushButton::clicked, this, &DisplayConfigWidget::OnRobotShapeColorChanged);
   color_layout->addWidget(robot_color_caption_label_);
   color_layout->addWidget(robot_color_button_);
   color_layout->addStretch();
 
-  QHBoxLayout *opacity_layout = new QHBoxLayout();
+  QHBoxLayout* opacity_layout = new QHBoxLayout();
   robot_opacity_caption_label_ = new QLabel(tr("不透明度"));
   robot_opacity_caption_label_->setFixedWidth(72);
-  robot_opacity_caption_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  robot_opacity_caption_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   robot_opacity_slider_ = new QSlider(Qt::Horizontal, style_card);
   robot_opacity_slider_->setRange(0, 100);
   robot_opacity_slider_->setValue(50);
@@ -576,7 +498,7 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
                      "QSlider::handle:horizontal { background:#1a73e8; width:18px; margin:-6px 0; border-radius:9px; }"));
   robot_opacity_label_ = new QLabel(QStringLiteral("50%"), style_card);
   robot_opacity_label_->setFixedWidth(44);
-  robot_opacity_label_->setStyleSheet(QStringLiteral("color:#5f6368;font-size:13px;"));
+  robot_opacity_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   connect(robot_opacity_slider_, &QSlider::valueChanged, [this](int value) {
     robot_opacity_label_->setText(QString::number(value) + QStringLiteral("%"));
     OnRobotShapeOpacityChanged(value);
@@ -597,27 +519,27 @@ QWidget *DisplayConfigWidget::CreateRobotPage() {
   return page;
 }
 
-QWidget *DisplayConfigWidget::CreateMapPage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateMapPage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("默认地图"));
+  QLabel* page_title = new QLabel(tr("默认地图"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
                tr("对应 config.json 中的 map_config.path：启动时加载的地图 YAML 文件路径。"));
 
-  QFrame *card = CreateSettingsCard(page);
-  QVBoxLayout *card_layout = new QVBoxLayout(card);
+  QFrame* card = CreateSettingsCard(page);
+  QVBoxLayout* card_layout = new QVBoxLayout(card);
   card_layout->setContentsMargins(16, 16, 16, 16);
   card_layout->setSpacing(12);
 
-  QHBoxLayout *path_layout = new QHBoxLayout();
+  QHBoxLayout* path_layout = new QHBoxLayout();
   map_path_label_ = new QLabel(tr("地图路径"));
   map_path_label_->setFixedWidth(88);
-  map_path_label_->setStyleSheet(QStringLiteral("color:#3c4043;font-size:13px;"));
+  map_path_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   map_path_edit_ = new QLineEdit(card);
   map_path_edit_->setPlaceholderText(tr("例如 /home/maps/office.yaml"));
   map_path_edit_->setStyleSheet(LineEditStyle());
@@ -630,13 +552,10 @@ QWidget *DisplayConfigWidget::CreateMapPage() {
   });
   map_browse_btn_ = new QPushButton(tr("浏览…"), card);
   map_browse_btn_->setCursor(Qt::PointingHandCursor);
-  map_browse_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 14px; background:#fff; "
-                     "font-size:13px; color:#1a73e8; }"
-                     "QPushButton:hover { background:#e8f0fe; border-color:#1a73e8; }"));
+  map_browse_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   connect(map_browse_btn_, &QPushButton::clicked, [this]() {
     QString f = QFileDialog::getOpenFileName(this, tr("选择地图YAML"), QString(),
-                                               tr("YAML (*.yaml *.yml);;所有文件 (*.*)"));
+                                             tr("YAML (*.yaml *.yml);;所有文件 (*.*)"));
     if (!f.isEmpty()) {
       map_path_edit_->setText(f);
       if (!is_loading_config_) {
@@ -655,24 +574,24 @@ QWidget *DisplayConfigWidget::CreateMapPage() {
   return page;
 }
 
-QWidget *DisplayConfigWidget::CreateKeyValuePage() {
-  QWidget *page = new QWidget;
-  QVBoxLayout *root = new QVBoxLayout(page);
+QWidget* DisplayConfigWidget::CreateKeyValuePage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel *page_title = new QLabel(tr("键值对"));
+  QLabel* page_title = new QLabel(tr("键值对"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
   AddHintLabel(root,
                tr("对应 config.json 中的 key_value：通道和应用选项的任意字符串键值对。"));
 
-  QFrame *card = CreateSettingsCard(page);
-  QVBoxLayout *card_layout = new QVBoxLayout(card);
+  QFrame* card = CreateSettingsCard(page);
+  QVBoxLayout* card_layout = new QVBoxLayout(card);
   card_layout->setContentsMargins(0, 8, 0, 8);
   card_layout->setSpacing(0);
 
-  QScrollArea *scroll = new QScrollArea(card);
+  QScrollArea* scroll = new QScrollArea(card);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
   scroll->setMinimumHeight(200);
@@ -696,19 +615,19 @@ QWidget *DisplayConfigWidget::CreateKeyValuePage() {
   return page;
 }
 
-void DisplayConfigWidget::SetChannelList(const std::vector<std::string> &channel_list) {
+void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel_list) {
   channel_list_ = channel_list;
 
   channel_type_combo_->blockSignals(true);
   channel_type_combo_->clear();
 
   channel_type_combo_->addItem(tr("自动"), QStringLiteral("auto"));
-  for (const auto &channel_type : channel_list_) {
+  for (const auto& channel_type : channel_list_) {
     QString q = QString::fromStdString(channel_type);
     channel_type_combo_->addItem(q, q);
   }
 
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   std::string channel_type =
       config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   int index = channel_type_combo_->findData(QString::fromStdString(channel_type));
@@ -721,18 +640,18 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string> &channel
   channel_type_combo_->blockSignals(false);
 }
 
-void DisplayConfigWidget::SetDisplayManager(Display::DisplayManager *manager) {
+void DisplayConfigWidget::SetDisplayManager(Display::DisplayManager* manager) {
   display_manager_ = manager;
   if (display_manager_) {
     LoadConfig();
   }
 }
 
-void DisplayConfigWidget::OnToggleDisplay(const std::string &display_name, bool visible) {
+void DisplayConfigWidget::OnToggleDisplay(const std::string& display_name, bool visible) {
   UpdateDisplayVisibility(display_name, visible);
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
-                         [&display_name](const auto &item) { return item.display_name == display_name; });
+                         [&display_name](const auto& item) { return item.display_name == display_name; });
   auto topic_it = display_topic_edits_.find(display_name);
   std::string topic =
       (topic_it != display_topic_edits_.end()) ? topic_it->second->text().toStdString() : std::string();
@@ -744,10 +663,10 @@ void DisplayConfigWidget::OnToggleDisplay(const std::string &display_name, bool 
   AutoSaveConfig();
 }
 
-void DisplayConfigWidget::OnDisplayTopicChanged(const std::string &display_name, const QString &topic) {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name, const QString& topic) {
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
-                         [&display_name](const auto &item) { return item.display_name == display_name; });
+                         [&display_name](const auto& item) { return item.display_name == display_name; });
   if (it != config.display_config.end()) {
     it->topic = topic.toStdString();
   } else {
@@ -758,7 +677,7 @@ void DisplayConfigWidget::OnDisplayTopicChanged(const std::string &display_name,
   AutoSaveConfig();
 }
 
-void DisplayConfigWidget::OnKeyValueChanged(const std::string &key, const QString &value) {
+void DisplayConfigWidget::OnKeyValueChanged(const std::string& key, const QString& value) {
   SET_KEY_VALUE(key, value.toStdString())
 }
 
@@ -774,8 +693,8 @@ void DisplayConfigWidget::OnAddKeyValue() {
   }
 }
 
-void DisplayConfigWidget::OnRemoveKeyValue(const std::string &key) {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+void DisplayConfigWidget::OnRemoveKeyValue(const std::string& key) {
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   config.key_value.erase(key);
   AutoSaveConfig();
   RefreshKeyValueTab();
@@ -785,7 +704,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
   if (!key_value_layout_) {
     return;
   }
-  QLayoutItem *item = nullptr;
+  QLayoutItem* item = nullptr;
   while ((item = key_value_layout_->takeAt(0)) != nullptr) {
     if (item->widget()) {
       item->widget()->deleteLater();
@@ -794,22 +713,22 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
   }
   key_value_edits_.clear();
 
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
 
-  for (const auto &[key, value] : config.key_value) {
-    QWidget *item_widget = new QWidget(key_value_host_);
+  for (const auto& [key, value] : config.key_value) {
+    QWidget* item_widget = new QWidget(key_value_host_);
     item_widget->setStyleSheet(QStringLiteral("QWidget { background:#fff; border-bottom:1px solid rgba(0,0,0,0.06); }"));
 
-    QHBoxLayout *item_layout = new QHBoxLayout(item_widget);
+    QHBoxLayout* item_layout = new QHBoxLayout(item_widget);
     item_layout->setContentsMargins(14, 12, 14, 12);
     item_layout->setSpacing(12);
 
-    QLabel *key_label = new QLabel(QString::fromStdString(key), item_widget);
+    QLabel* key_label = new QLabel(QString::fromStdString(key), item_widget);
     key_label->setFixedWidth(128);
-    key_label->setStyleSheet(QStringLiteral("font-size:13px;color:#202124;font-weight:500;"));
+    key_label->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
     item_layout->addWidget(key_label);
 
-    QLineEdit *value_edit = new QLineEdit(QString::fromStdString(value), item_widget);
+    QLineEdit* value_edit = new QLineEdit(QString::fromStdString(value), item_widget);
     value_edit->setPlaceholderText(tr("值"));
     value_edit->setStyleSheet(LineEditStyle());
     key_value_edits_[key] = value_edit;
@@ -818,13 +737,10 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
     });
     item_layout->addWidget(value_edit, 1);
 
-    QPushButton *remove_btn = new QPushButton(tr("移除"), item_widget);
+    QPushButton* remove_btn = new QPushButton(tr("移除"), item_widget);
     remove_btn->setFixedWidth(52);
     remove_btn->setCursor(Qt::PointingHandCursor);
-    remove_btn->setStyleSheet(
-        QStringLiteral("QPushButton { border:none; border-radius:6px; padding:6px 8px; background:transparent; "
-                       "color:#d93025; font-size:13px; }"
-                       "QPushButton:hover { background:#fce8e6; }"));
+    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
     connect(remove_btn, &QPushButton::clicked, [this, key]() { OnRemoveKeyValue(key); });
     item_layout->addWidget(remove_btn);
 
@@ -838,14 +754,14 @@ void DisplayConfigWidget::OnAddImageConfig() {
   int row = image_table_->rowCount();
   image_table_->insertRow(row);
 
-  QTableWidgetItem *location_item = new QTableWidgetItem(QString());
+  QTableWidgetItem* location_item = new QTableWidgetItem(QString());
   location_item->setToolTip(QStringLiteral("停靠标识，如 front、rear"));
-  QTableWidgetItem *topic_item = new QTableWidgetItem(QString());
+  QTableWidgetItem* topic_item = new QTableWidgetItem(QString());
   topic_item->setToolTip(QStringLiteral("图像话题，如 /camera/front/image_raw"));
-  QTableWidgetItem *enable_item = new QTableWidgetItem(QStringLiteral("true"));
+  QTableWidgetItem* enable_item = new QTableWidgetItem(QStringLiteral("true"));
   enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
-  QCheckBox *enable_checkbox = new QCheckBox();
+  QCheckBox* enable_checkbox = new QCheckBox();
   enable_checkbox->setChecked(true);
   enable_checkbox->setStyleSheet(
       QStringLiteral("QCheckBox::indicator { width:18px; height:18px; }"));
@@ -854,11 +770,9 @@ void DisplayConfigWidget::OnAddImageConfig() {
     OnImageConfigChanged(row);
   });
 
-  QPushButton *remove_btn = new QPushButton(tr("移除"));
+  QPushButton* remove_btn = new QPushButton(tr("移除"));
   remove_btn->setCursor(Qt::PointingHandCursor);
-  remove_btn->setStyleSheet(
-      QStringLiteral("QPushButton { border:none; color:#d93025; font-size:13px; padding:4px 8px; }"
-                     "QPushButton:hover { background:#fce8e6; border-radius:6px; }"));
+  remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
   connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
   image_table_->setItem(row, 0, location_item);
@@ -873,19 +787,19 @@ void DisplayConfigWidget::OnAddImageConfig() {
 void DisplayConfigWidget::OnRemoveImageConfig(int row) {
   image_table_->removeRow(row);
 
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   if (row < static_cast<int>(config.images.size())) {
     config.images.erase(config.images.begin() + row);
     AutoSaveConfig();
   }
 
   for (int i = row; i < image_table_->rowCount(); i++) {
-    QPushButton *btn = qobject_cast<QPushButton *>(image_table_->cellWidget(i, 3));
+    QPushButton* btn = qobject_cast<QPushButton*>(image_table_->cellWidget(i, 3));
     if (btn) {
       btn->disconnect();
       connect(btn, &QPushButton::clicked, [this, i]() { OnRemoveImageConfig(i); });
     }
-    QCheckBox *checkbox = qobject_cast<QCheckBox *>(image_table_->cellWidget(i, 2));
+    QCheckBox* checkbox = qobject_cast<QCheckBox*>(image_table_->cellWidget(i, 2));
     if (checkbox) {
       checkbox->disconnect();
       connect(checkbox, &QCheckBox::toggled, [this, i](bool checked) {
@@ -901,11 +815,11 @@ void DisplayConfigWidget::OnImageConfigChanged(int row) {
     return;
   }
 
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
 
-  QTableWidgetItem *location_item = image_table_->item(row, 0);
-  QTableWidgetItem *topic_item = image_table_->item(row, 1);
-  QCheckBox *enable_checkbox = qobject_cast<QCheckBox *>(image_table_->cellWidget(row, 2));
+  QTableWidgetItem* location_item = image_table_->item(row, 0);
+  QTableWidgetItem* topic_item = image_table_->item(row, 1);
+  QCheckBox* enable_checkbox = qobject_cast<QCheckBox*>(image_table_->cellWidget(row, 2));
 
   if (!location_item || !topic_item || !enable_checkbox) {
     return;
@@ -930,12 +844,12 @@ void DisplayConfigWidget::OnImageConfigChanged(int row) {
 }
 
 void DisplayConfigWidget::OnRobotShapePointChanged() {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   config.robot_shape_config.shaped_points.clear();
 
   for (int row = 0; row < robot_points_table_->rowCount(); row++) {
-    QTableWidgetItem *x_item = robot_points_table_->item(row, 0);
-    QTableWidgetItem *y_item = robot_points_table_->item(row, 1);
+    QTableWidgetItem* x_item = robot_points_table_->item(row, 0);
+    QTableWidgetItem* y_item = robot_points_table_->item(row, 1);
 
     if (x_item && y_item) {
       bool x_ok = false;
@@ -953,7 +867,7 @@ void DisplayConfigWidget::OnRobotShapePointChanged() {
 }
 
 void DisplayConfigWidget::OnRobotShapeIsEllipseChanged(bool checked) {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   config.robot_shape_config.is_ellipse = checked;
   AutoSaveConfig();
 }
@@ -968,7 +882,7 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
                        "QPushButton:hover { border-color:#1a73e8; }") +
         color_style);
 
-    auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString color_str = QStringLiteral("0x%1").arg(color.rgb(), 8, 16, QChar('0')).toUpper();
     config.robot_shape_config.color = color_str.toStdString();
     AutoSaveConfig();
@@ -976,12 +890,12 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
 }
 
 void DisplayConfigWidget::OnRobotShapeOpacityChanged(int value) {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   config.robot_shape_config.opacity = value / 100.0f;
   AutoSaveConfig();
 }
 
-void DisplayConfigWidget::UpdateDisplayVisibility(const std::string &display_name, bool visible) {
+void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
   auto display = Display::FactoryDisplay::Instance()->GetDisplay(display_name);
   if (display) {
     display->setVisible(visible);
@@ -994,11 +908,11 @@ void DisplayConfigWidget::AutoSaveConfig() {
 }
 
 void DisplayConfigWidget::LoadConfig() {
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
 
   bool has_front_camera = false;
   bool image_config_changed = false;
-  for (auto &image_config : config.images) {
+  for (auto& image_config : config.images) {
     if (image_config.location == "front") {
       has_front_camera = true;
       if (image_config.topic.empty()) {
@@ -1024,7 +938,7 @@ void DisplayConfigWidget::LoadConfig() {
     Config::ConfigManager::Instance()->StoreConfig();
   }
 
-  for (auto &display_config : config.display_config) {
+  for (auto& display_config : config.display_config) {
     auto toggle_it = display_toggle_buttons_.find(display_config.display_name);
     if (toggle_it != display_toggle_buttons_.end()) {
       toggle_it->second->blockSignals(true);
@@ -1046,29 +960,27 @@ void DisplayConfigWidget::LoadConfig() {
   image_table_->blockSignals(true);
   image_table_->setRowCount(0);
   for (size_t i = 0; i < config.images.size(); i++) {
-    const auto &image_config = config.images[i];
+    const auto& image_config = config.images[i];
     int row = image_table_->rowCount();
     image_table_->insertRow(row);
 
-    QTableWidgetItem *location_item = new QTableWidgetItem(QString::fromStdString(image_config.location));
+    QTableWidgetItem* location_item = new QTableWidgetItem(QString::fromStdString(image_config.location));
     location_item->setToolTip(QStringLiteral("位置标识"));
-    QTableWidgetItem *topic_item = new QTableWidgetItem(QString::fromStdString(image_config.topic));
+    QTableWidgetItem* topic_item = new QTableWidgetItem(QString::fromStdString(image_config.topic));
     topic_item->setToolTip(QStringLiteral("图像话题"));
-    QTableWidgetItem *enable_item = new QTableWidgetItem(image_config.enable ? QStringLiteral("true") : QStringLiteral("false"));
+    QTableWidgetItem* enable_item = new QTableWidgetItem(image_config.enable ? QStringLiteral("true") : QStringLiteral("false"));
     enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
-    QCheckBox *enable_checkbox = new QCheckBox();
+    QCheckBox* enable_checkbox = new QCheckBox();
     enable_checkbox->setChecked(image_config.enable);
     connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool checked) {
       image_table_->item(row, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
       OnImageConfigChanged(row);
     });
 
-    QPushButton *remove_btn = new QPushButton(tr("移除"));
+    QPushButton* remove_btn = new QPushButton(tr("移除"));
     remove_btn->setCursor(Qt::PointingHandCursor);
-    remove_btn->setStyleSheet(
-        QStringLiteral("QPushButton { border:none; color:#d93025; font-size:13px; padding:4px 8px; }"
-                       "QPushButton:hover { background:#fce8e6; border-radius:6px; }"));
+    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
     connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
     image_table_->setItem(row, 0, location_item);
@@ -1085,7 +997,7 @@ void DisplayConfigWidget::LoadConfig() {
 
   robot_points_table_->blockSignals(true);
   robot_points_table_->setRowCount(0);
-  for (const auto &point : config.robot_shape_config.shaped_points) {
+  for (const auto& point : config.robot_shape_config.shaped_points) {
     int row = robot_points_table_->rowCount();
     robot_points_table_->insertRow(row);
     robot_points_table_->setItem(row, 0, new QTableWidgetItem(QString::number(point.x)));

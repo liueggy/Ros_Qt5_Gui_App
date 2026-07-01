@@ -13,17 +13,18 @@
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
 #include <algorithm>
+#include "widgets/ui_style.h"
 
 namespace {
 
-bool StringContainsInsensitive(const std::string &s, const QString &q) {
+bool StringContainsInsensitive(const std::string& s, const QString& q) {
   return QString::fromStdString(s).toLower().contains(q);
 }
 
-bool ComponentMatchesSearch(const std::string &hardware_id,
-                             const std::string &component_name,
-                             const basic::DiagnosticComponentState &st,
-                             const QString &q) {
+bool ComponentMatchesSearch(const std::string& hardware_id,
+                            const std::string& component_name,
+                            const basic::DiagnosticComponentState& st,
+                            const QString& q) {
   if (q.isEmpty()) {
     return true;
   }
@@ -36,7 +37,7 @@ bool ComponentMatchesSearch(const std::string &hardware_id,
   if (StringContainsInsensitive(st.message, q)) {
     return true;
   }
-  for (const auto &kv : st.key_values) {
+  for (const auto& kv : st.key_values) {
     if (StringContainsInsensitive(kv.first, q) || StringContainsInsensitive(kv.second, q)) {
       return true;
     }
@@ -44,15 +45,15 @@ bool ComponentMatchesSearch(const std::string &hardware_id,
   return false;
 }
 
-bool HardwareRowMatches(const std::string &hardware_id,
-                        const std::map<std::string, basic::DiagnosticComponentState> &states,
-                        const QString &search_q, int filter_level) {
+bool HardwareRowMatches(const std::string& hardware_id,
+                        const std::map<std::string, basic::DiagnosticComponentState>& states,
+                        const QString& search_q, int filter_level) {
   if (!search_q.isEmpty()) {
     bool any = false;
     if (StringContainsInsensitive(hardware_id, search_q)) {
       any = true;
     } else {
-      for (const auto &e : states) {
+      for (const auto& e : states) {
         if (ComponentMatchesSearch(hardware_id, e.first, e.second, search_q)) {
           any = true;
           break;
@@ -65,7 +66,7 @@ bool HardwareRowMatches(const std::string &hardware_id,
   }
   if (filter_level != -1) {
     bool has = false;
-    for (const auto &e : states) {
+    for (const auto& e : states) {
       if (e.second.level == filter_level) {
         has = true;
         break;
@@ -79,14 +80,14 @@ bool HardwareRowMatches(const std::string &hardware_id,
 }
 
 std::map<std::string, basic::DiagnosticComponentState> FilterComponents(
-    const std::string &hardware_id,
-    const std::map<std::string, basic::DiagnosticComponentState> &states,
-    const QString &search_q, int filter_level) {
+    const std::string& hardware_id,
+    const std::map<std::string, basic::DiagnosticComponentState>& states,
+    const QString& search_q, int filter_level) {
   if (search_q.isEmpty() && filter_level == -1) {
     return states;
   }
   std::map<std::string, basic::DiagnosticComponentState> out;
-  for (const auto &e : states) {
+  for (const auto& e : states) {
     if (!ComponentMatchesSearch(hardware_id, e.first, e.second, search_q)) {
       continue;
     }
@@ -98,9 +99,9 @@ std::map<std::string, basic::DiagnosticComponentState> FilterComponents(
   return out;
 }
 
-int MaxLevelInMap(const std::map<std::string, basic::DiagnosticComponentState> &m) {
+int MaxLevelInMap(const std::map<std::string, basic::DiagnosticComponentState>& m) {
   int max_level = 0;
-  for (const auto &e : m) {
+  for (const auto& e : m) {
     if (e.second.level > max_level) {
       max_level = e.second.level;
     }
@@ -108,9 +109,9 @@ int MaxLevelInMap(const std::map<std::string, basic::DiagnosticComponentState> &
   return max_level;
 }
 
-int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentState> &m) {
+int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentState>& m) {
   int64_t t = 0;
-  for (const auto &e : m) {
+  for (const auto& e : m) {
     if (e.second.last_update_ms > t) {
       t = e.second.last_update_ms;
     }
@@ -120,21 +121,21 @@ int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentSta
 
 }  // namespace
 
-DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
-  auto *root = new QVBoxLayout(this);
+DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
+  auto* root = new QVBoxLayout(this);
   root->setContentsMargins(8, 8, 8, 8);
   root->setSpacing(6);
 
-  auto *summary_row = new QHBoxLayout();
+  auto* summary_row = new QHBoxLayout();
   summary_ok_ = new QLabel();
   summary_warn_ = new QLabel();
   summary_error_ = new QLabel();
   summary_stale_ = new QLabel();
-  for (auto *lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
-    lb->setStyleSheet(QStringLiteral("padding:4px 8px;border-radius:10px;font-size:11px;"));
+  for (auto* lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
+    lb->setStyleSheet(QStringLiteral("padding:4px 8px;border-radius:10px;font-size:%1px;").arg(UiStyle::FontSmallPx()));
   }
   summary_ok_->setStyleSheet(summary_ok_->styleSheet() +
-                               QStringLiteral("background-color:rgba(46,125,50,0.15);color:#2e7d32;"));
+                             QStringLiteral("background-color:rgba(46,125,50,0.15);color:#2e7d32;"));
   summary_warn_->setStyleSheet(summary_warn_->styleSheet() +
                                QStringLiteral("background-color:rgba(245,124,0,0.15);color:#f57c00;"));
   summary_error_->setStyleSheet(summary_error_->styleSheet() +
@@ -147,13 +148,15 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   summary_row->addWidget(summary_stale_);
   summary_row->addStretch();
   refresh_btn_ = new QPushButton(tr("刷新"));
+  refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   refresh_btn_->setFixedHeight(26);
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
   summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
 
-  auto *filter_row = new QHBoxLayout();
+  auto* filter_row = new QHBoxLayout();
   search_edit_ = new QLineEdit();
+  search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
   filter_row->addWidget(search_edit_, 2);
@@ -161,20 +164,18 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   filter_group_ = new QButtonGroup(this);
   filter_group_->setExclusive(true);
   const struct {
-    const char *label;
+    const char* label;
     int level;
   } chips[] = {{"全部", -1}, {"正常", 0}, {"警告", 1}, {"错误", 2}, {"过期", 3}};
-  auto *chip_layout = new QHBoxLayout();
+  auto* chip_layout = new QHBoxLayout();
   chip_layout->setSpacing(4);
   for (int i = 0; i < 5; ++i) {
-    auto *b = new QPushButton(tr(chips[i].label));
+    auto* b = new QPushButton(tr(chips[i].label));
     filter_chip_buttons_[i] = b;
     b->setCheckable(true);
     b->setFixedHeight(26);
     b->setProperty("diagLevel", chips[i].level);
-    b->setStyleSheet(QStringLiteral(
-        "QPushButton{padding:2px 8px;border-radius:10px;border:1px solid #ccc;background:#fff;}"
-        "QPushButton:checked{font-weight:bold;background:#e3f2fd;border-color:#1976d2;}"));
+    b->setStyleSheet(UiStyle::ChipStyleSheet());
     filter_group_->addButton(b);
     chip_layout->addWidget(b);
     if (chips[i].level == -1) {
@@ -184,12 +185,13 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
   filter_row->addLayout(chip_layout, 3);
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
+  clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   clear_filter_btn_->setFixedHeight(26);
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
     search_lower_.clear();
     filter_level_ = -1;
-    for (QAbstractButton *ab : filter_group_->buttons()) {
+    for (QAbstractButton* ab : filter_group_->buttons()) {
       if (ab->property("diagLevel").toInt() == -1) {
         ab->setChecked(true);
         break;
@@ -202,11 +204,12 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
 
   filter_hint_ = new QLabel();
   filter_hint_->setWordWrap(true);
-  filter_hint_->setStyleSheet(QStringLiteral("color:#1565c0;font-size:11px;"));
+  filter_hint_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("color:#174ea6;"));
   filter_hint_->hide();
   root->addWidget(filter_hint_);
 
   tree_ = new QTreeWidget();
+  tree_->setStyleSheet(UiStyle::TableStyleSheet());
   tree_->setColumnCount(2);
   tree_->setHeaderLabels({tr("名称 / 键"), tr("状态 / 值")});
   tree_->setAlternatingRowColors(true);
@@ -215,16 +218,16 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget *parent) : QWidget(parent) {
 
   empty_label_ = new QLabel(tr("无诊断数据"));
   empty_label_->setAlignment(Qt::AlignCenter);
-  empty_label_->setStyleSheet(QStringLiteral("color:#888;font-size:13px;padding:24px;"));
+  empty_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:24px;"));
   empty_label_->hide();
   root->addWidget(empty_label_);
 
-  connect(search_edit_, &QLineEdit::textChanged, this, [this](const QString &t) {
+  connect(search_edit_, &QLineEdit::textChanged, this, [this](const QString& t) {
     search_lower_ = t.toLower();
     RebuildUi();
   });
-  connect(filter_group_, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this,
-          [this](QAbstractButton *b) {
+  connect(filter_group_, QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked), this,
+          [this](QAbstractButton* b) {
             filter_level_ = b->property("diagLevel").toInt();
             RebuildUi();
           });
@@ -270,19 +273,19 @@ QColor DiagnosticDockWidget::LevelColor(int level) {
   }
 }
 
-void DiagnosticDockWidget::SetSnapshot(const basic::DiagnosticSnapshot &snapshot) {
+void DiagnosticDockWidget::SetSnapshot(const basic::DiagnosticSnapshot& snapshot) {
   SaveExpandedState();
   snapshot_ = snapshot;
   UpdateSummary();
   RebuildUi();
 }
 
-QString DiagnosticDockWidget::ItemKey(QTreeWidgetItem *item) {
+QString DiagnosticDockWidget::ItemKey(QTreeWidgetItem* item) {
   if (!item) {
     return QString();
   }
   QStringList parts;
-  for (auto *current = item; current; current = current->parent()) {
+  for (auto* current = item; current; current = current->parent()) {
     parts.prepend(current->text(0));
   }
   return parts.join(QStringLiteral("/"));
@@ -294,12 +297,12 @@ void DiagnosticDockWidget::SaveExpandedState() {
   }
   expanded_items_.clear();
   for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
-    auto *hw_item = tree_->topLevelItem(i);
+    auto* hw_item = tree_->topLevelItem(i);
     if (hw_item->isExpanded()) {
       expanded_items_.insert(ItemKey(hw_item));
     }
     for (int j = 0; j < hw_item->childCount(); ++j) {
-      auto *comp_item = hw_item->child(j);
+      auto* comp_item = hw_item->child(j);
       if (comp_item->isExpanded()) {
         expanded_items_.insert(ItemKey(comp_item));
       }
@@ -312,10 +315,10 @@ void DiagnosticDockWidget::RestoreExpandedState() {
     return;
   }
   for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
-    auto *hw_item = tree_->topLevelItem(i);
+    auto* hw_item = tree_->topLevelItem(i);
     hw_item->setExpanded(expanded_items_.contains(ItemKey(hw_item)));
     for (int j = 0; j < hw_item->childCount(); ++j) {
-      auto *comp_item = hw_item->child(j);
+      auto* comp_item = hw_item->child(j);
       comp_item->setExpanded(expanded_items_.contains(ItemKey(comp_item)));
     }
   }
@@ -323,8 +326,8 @@ void DiagnosticDockWidget::RestoreExpandedState() {
 
 void DiagnosticDockWidget::UpdateSummary() {
   int c0 = 0, c1 = 0, c2 = 0, c3 = 0;
-  for (const auto &hw : snapshot_.hardware) {
-    for (const auto &comp : hw.second) {
+  for (const auto& hw : snapshot_.hardware) {
+    for (const auto& comp : hw.second) {
       int lv = comp.second.level;
       if (lv < 0 || lv > 3) {
         continue;
@@ -351,7 +354,7 @@ void DiagnosticDockWidget::RebuildUi() {
   const bool has_filter = !search_lower_.isEmpty() || filter_level_ != -1;
 
   std::vector<std::pair<std::string, std::map<std::string, basic::DiagnosticComponentState>>> rows;
-  for (const auto &hw : snapshot_.hardware) {
+  for (const auto& hw : snapshot_.hardware) {
     if (!HardwareRowMatches(hw.first, hw.second, search_lower_, filter_level_)) {
       continue;
     }
@@ -385,12 +388,12 @@ void DiagnosticDockWidget::RebuildUi() {
                               .arg(static_cast<int>(rows.size())));
   }
 
-  for (const auto &entry : rows) {
-    const std::string &hid = entry.first;
-    const auto &filtered = entry.second;
+  for (const auto& entry : rows) {
+    const std::string& hid = entry.first;
+    const auto& filtered = entry.second;
     int max_lv = MaxLevelInMap(filtered);
     QString display_hid = hid == "unknown_hardware" ? tr("未知硬件") : QString::fromStdString(hid);
-    auto *hw_item = new QTreeWidgetItem(tree_);
+    auto* hw_item = new QTreeWidgetItem(tree_);
     QFont f = hw_item->font(0);
     f.setBold(true);
     hw_item->setFont(0, f);
@@ -401,10 +404,10 @@ void DiagnosticDockWidget::RebuildUi() {
                             .arg(static_cast<int>(filtered.size()))
                             .arg(FormatTimeMs(LatestUpdateMs(filtered))));
 
-    for (const auto &ce : filtered) {
-      const std::string &comp_name = ce.first;
-      const basic::DiagnosticComponentState &st = ce.second;
-      auto *comp_item = new QTreeWidgetItem(hw_item);
+    for (const auto& ce : filtered) {
+      const std::string& comp_name = ce.first;
+      const basic::DiagnosticComponentState& st = ce.second;
+      auto* comp_item = new QTreeWidgetItem(hw_item);
       comp_item->setText(0, QString::fromStdString(comp_name));
       comp_item->setForeground(1, LevelColor(st.level));
       QString msg = QString::fromStdString(st.message);
@@ -412,18 +415,18 @@ void DiagnosticDockWidget::RebuildUi() {
         msg = tr("数据过期");
       }
       comp_item->setText(1, tr("状态: %1 | %2 | 更新: %3")
-                                 .arg(LevelDisplayName(st.level))
-                                 .arg(msg)
-                                 .arg(FormatTimeMs(st.last_update_ms)));
+                                .arg(LevelDisplayName(st.level))
+                                .arg(msg)
+                                .arg(FormatTimeMs(st.last_update_ms)));
 
       if (!st.key_values.empty()) {
-        for (const auto &kv : st.key_values) {
-          auto *kv_item = new QTreeWidgetItem(comp_item);
+        for (const auto& kv : st.key_values) {
+          auto* kv_item = new QTreeWidgetItem(comp_item);
           kv_item->setText(0, QString::fromStdString(kv.first));
           kv_item->setText(1, QString::fromStdString(kv.second));
         }
       } else {
-        auto *empty_item = new QTreeWidgetItem(comp_item);
+        auto* empty_item = new QTreeWidgetItem(comp_item);
         empty_item->setText(0, tr("（无键值详情）"));
         empty_item->setText(1, FormatTimeMs(st.last_update_ms));
       }
@@ -435,4 +438,3 @@ void DiagnosticDockWidget::RebuildUi() {
     RestoreExpandedState();
   }
 }
-
