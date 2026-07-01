@@ -33,7 +33,6 @@
 
 #include "widgets/speed_ctrl.h"
 #include "widgets/display_config_widget.h"
-#include "widgets/diagnostic_dock_widget.h"
 #include "widgets/command_center_widget.h"
 #include "msg/diagnostic_snapshot.h"
 #include "display/manager/view_manager.h"
@@ -151,8 +150,8 @@ void MainWindow::registerChannel() {
   });
 
   SUBSCRIBE(MSG_ID_DIAGNOSTIC, [this](const basic::DiagnosticSnapshot &snap) {
-    if (diagnostic_dock_widget_) {
-      diagnostic_dock_widget_->SetSnapshot(snap);
+    if (command_center_widget_) {
+      command_center_widget_->SetDiagnosticSnapshot(snap);
     }
   });
 
@@ -772,16 +771,6 @@ void MainWindow::setupUi() {
   settings_dock_->toggleView(true);
   ui->menuView->addAction(settings_dock_->toggleViewAction());
 
-  diagnostic_dock_widget_ = new DiagnosticDockWidget();
-  diagnostic_dock_ = new ads::CDockWidget(tr("诊断"));
-  diagnostic_dock_->setWidget(diagnostic_dock_widget_);
-  diagnostic_dock_->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
-  diagnostic_dock_->setMinimumSize(280, 200);
-  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea, diagnostic_dock_,
-                               center_docker_area_);
-  diagnostic_dock_->toggleView(false);
-  ui->menuView->addAction(diagnostic_dock_->toggleViewAction());
-
   /////////////////////////////////////////////////////////导航任务列表
   QWidget *task_list_widget = new QWidget();
   nav_goal_table_view_ = new NavGoalTableView();
@@ -935,12 +924,12 @@ void MainWindow::setupUi() {
       nav_goal_table_view_,
       SLOT(UpdateSelectPoint(const TopologyMap::PointInfo &)));
 
-  //////////////////////////////////////////////////////Eggy 命令中心
+  //////////////////////////////////////////////////////Eggy 运维面板
   command_center_widget_ = new CommandCenterWidget();
-  command_center_dock_ = new ads::CDockWidget("命令中心");
+  command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
   command_center_dock_->setMinimumSizeHintMode(CDockWidget::MinimumSizeHintFromDockWidget);
-  command_center_dock_->setMinimumSize(360, 260);
+  command_center_dock_->setMinimumSize(420, 520);
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(false);
