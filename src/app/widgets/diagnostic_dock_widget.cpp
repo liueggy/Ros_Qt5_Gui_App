@@ -1,108 +1,17 @@
 #include "diagnostic_dock_widget.h"
 
-#include <QAbstractButton>
-#include <QButtonGroup>
 #include <QColor>
 #include <QDateTime>
 #include <QFont>
-#include <QFrame>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QLabel>
-#include <QLineEdit>
 #include <QPushButton>
-#include <QSize>
-#include <QTimer>
-#include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
-#include <algorithm>
 #include "widgets/ui_style.h"
 
 namespace {
-
-bool StringContainsInsensitive(const std::string& s, const QString& q) {
-  return QString::fromStdString(s).toLower().contains(q);
-}
-
-bool ComponentMatchesSearch(const std::string& hardware_id,
-                            const std::string& component_name,
-                            const basic::DiagnosticComponentState& st,
-                            const QString& q) {
-  if (q.isEmpty()) {
-    return true;
-  }
-  if (StringContainsInsensitive(hardware_id, q)) {
-    return true;
-  }
-  if (StringContainsInsensitive(component_name, q)) {
-    return true;
-  }
-  if (StringContainsInsensitive(st.message, q)) {
-    return true;
-  }
-  for (const auto& kv : st.key_values) {
-    if (StringContainsInsensitive(kv.first, q) || StringContainsInsensitive(kv.second, q)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool HardwareRowMatches(const std::string& hardware_id,
-                        const std::map<std::string, basic::DiagnosticComponentState>& states,
-                        const QString& search_q, int filter_level) {
-  if (!search_q.isEmpty()) {
-    bool any = false;
-    if (StringContainsInsensitive(hardware_id, search_q)) {
-      any = true;
-    } else {
-      for (const auto& e : states) {
-        if (ComponentMatchesSearch(hardware_id, e.first, e.second, search_q)) {
-          any = true;
-          break;
-        }
-      }
-    }
-    if (!any) {
-      return false;
-    }
-  }
-  if (filter_level != -1) {
-    bool has = false;
-    for (const auto& e : states) {
-      if (e.second.level == filter_level) {
-        has = true;
-        break;
-      }
-    }
-    if (!has) {
-      return false;
-    }
-  }
-  return true;
-}
-
-std::map<std::string, basic::DiagnosticComponentState> FilterComponents(
-    const std::string& hardware_id,
-    const std::map<std::string, basic::DiagnosticComponentState>& states,
-    const QString& search_q, int filter_level) {
-  if (search_q.isEmpty() && filter_level == -1) {
-    return states;
-  }
-  std::map<std::string, basic::DiagnosticComponentState> out;
-  for (const auto& e : states) {
-    if (!ComponentMatchesSearch(hardware_id, e.first, e.second, search_q)) {
-      continue;
-    }
-    if (filter_level != -1 && e.second.level != filter_level) {
-      continue;
-    }
-    out.insert(e);
-  }
-  return out;
-}
 
 int MaxLevelInMap(const std::map<std::string, basic::DiagnosticComponentState>& m) {
   int max_level = 0;
@@ -160,92 +69,8 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   refresh_btn_->setFixedHeight(34);
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
-  auto* filter_toggle = new QToolButton(this);
-  filter_toggle->setText(tr("筛选"));
-  filter_toggle->setCheckable(true);
-  filter_toggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  filter_toggle->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
-  filter_toggle->setIconSize(QSize(16, 16));
-  filter_toggle->setCursor(Qt::PointingHandCursor);
-  filter_toggle->setStyleSheet(QStringLiteral(
-      "QToolButton { color:#1f5fbf; background:#ffffff; border:1px solid #dce4ef; "
-      "border-radius:9px; padding:5px 10px; font-size:%1px; font-weight:700; }"
-      "QToolButton:hover { color:#174ea6; background:#f5f9ff; border-color:#bcd3fb; }")
-      .arg(UiStyle::FontSmallPx()));
-  summary_row->addWidget(filter_toggle);
   summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
-
-  auto* filter_panel = new QFrame(this);
-  filter_panel->setStyleSheet(QStringLiteral(
-      "QFrame { background:#f8fbff; border:1px solid #e3ebf7; border-radius:12px; }"));
-  auto* filter_tools = new QVBoxLayout(filter_panel);
-  filter_tools->setContentsMargins(8, 8, 8, 8);
-  filter_tools->setSpacing(5);
-  filter_panel->hide();
-
-  auto* search_row = new QHBoxLayout();
-  search_row->setSpacing(6);
-  search_edit_ = new QLineEdit();
-  search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
-  search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
-  search_edit_->setClearButtonEnabled(true);
-  search_edit_->setFixedHeight(38);
-  search_row->addWidget(search_edit_, 1);
-  filter_tools->addLayout(search_row);
-
-  filter_group_ = new QButtonGroup(this);
-  filter_group_->setExclusive(true);
-  const struct {
-    const char* label;
-    int level;
-  } chips[] = {{"全部", -1}, {"正常", 0}, {"警告", 1}, {"错误", 2}, {"过期", 3}};
-  auto* chip_layout = new QHBoxLayout();
-  chip_layout->setSpacing(5);
-  for (int i = 0; i < 5; ++i) {
-    auto* b = new QPushButton(tr(chips[i].label));
-    filter_chip_buttons_[i] = b;
-    b->setCheckable(true);
-    b->setFixedHeight(28);
-    b->setProperty("diagLevel", chips[i].level);
-    b->setStyleSheet(UiStyle::ChipStyleSheet());
-    filter_group_->addButton(b);
-    chip_layout->addWidget(b);
-    if (chips[i].level == -1) {
-      b->setChecked(true);
-    }
-  }
-
-  clear_filter_btn_ = new QPushButton(tr("清除筛选"));
-  clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  clear_filter_btn_->setFixedHeight(30);
-  connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
-    search_edit_->clear();
-    search_lower_.clear();
-    filter_level_ = -1;
-    for (QAbstractButton* ab : filter_group_->buttons()) {
-      if (ab->property("diagLevel").toInt() == -1) {
-        ab->setChecked(true);
-        break;
-      }
-    }
-    RebuildUi();
-  });
-  chip_layout->addStretch();
-  chip_layout->addWidget(clear_filter_btn_);
-  filter_tools->addLayout(chip_layout);
-  root->addWidget(filter_panel);
-  connect(filter_toggle, &QToolButton::toggled, [filter_toggle, filter_panel](bool checked) {
-    filter_toggle->setIcon(QIcon(checked ? QStringLiteral(":/icons/tabler/arrow-down.svg")
-                                         : QStringLiteral(":/icons/tabler/arrow-right.svg")));
-    filter_panel->setVisible(checked);
-  });
-
-  filter_hint_ = new QLabel();
-  filter_hint_->setWordWrap(true);
-  filter_hint_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("color:#174ea6;"));
-  filter_hint_->hide();
-  root->addWidget(filter_hint_);
 
   tree_ = new QTreeWidget();
   tree_->setStyleSheet(UiStyle::TableStyleSheet());
@@ -260,20 +85,6 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   empty_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:24px;"));
   empty_label_->hide();
   root->addWidget(empty_label_);
-
-  search_debounce_timer_ = new QTimer(this);
-  search_debounce_timer_->setSingleShot(true);
-  search_debounce_timer_->setInterval(140);
-  connect(search_debounce_timer_, &QTimer::timeout, this, &DiagnosticDockWidget::RebuildUi);
-  connect(search_edit_, &QLineEdit::textChanged, this, [this](const QString& t) {
-    search_lower_ = t.toLower();
-    search_debounce_timer_->start();
-  });
-  connect(filter_group_, QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked), this,
-          [this](QAbstractButton* b) {
-            filter_level_ = b->property("diagLevel").toInt();
-            RebuildUi();
-          });
 
   UpdateSummary();
   RebuildUi();
@@ -395,40 +206,20 @@ void DiagnosticDockWidget::UpdateSummary() {
 
 void DiagnosticDockWidget::RebuildUi() {
   tree_->clear();
-  const bool has_filter = !search_lower_.isEmpty() || filter_level_ != -1;
-
-  std::vector<std::pair<std::string, std::map<std::string, basic::DiagnosticComponentState>>> rows;
-  for (const auto& hw : snapshot_.hardware) {
-    if (!HardwareRowMatches(hw.first, hw.second, search_lower_, filter_level_)) {
-      continue;
-    }
-    auto filtered = FilterComponents(hw.first, hw.second, search_lower_, filter_level_);
-    if (filtered.empty()) {
-      continue;
-    }
-    rows.push_back({hw.first, std::move(filtered)});
-  }
-
-  if (rows.empty()) {
+  if (snapshot_.hardware.empty()) {
     tree_->hide();
     empty_label_->show();
-    empty_label_->setText(has_filter ? tr("当前筛选无结果，请清除筛选或调整条件。") : tr("暂无诊断数据"));
-    filter_hint_->hide();
+    empty_label_->setText(tr("暂无诊断数据"));
     return;
   }
 
   tree_->show();
   empty_label_->hide();
-  filter_hint_->setVisible(has_filter);
-  if (has_filter) {
-    filter_hint_->setText(tr("显示 %1 个硬件组（筛选已启用）")
-                              .arg(static_cast<int>(rows.size())));
-  }
 
-  for (const auto& entry : rows) {
+  for (const auto& entry : snapshot_.hardware) {
     const std::string& hid = entry.first;
-    const auto& filtered = entry.second;
-    int max_lv = MaxLevelInMap(filtered);
+    const auto& states = entry.second;
+    int max_lv = MaxLevelInMap(states);
     QString display_hid = hid == "unknown_hardware" ? tr("未知硬件") : QString::fromStdString(hid);
     auto* hw_item = new QTreeWidgetItem(tree_);
     QFont f = hw_item->font(0);
@@ -438,10 +229,10 @@ void DiagnosticDockWidget::RebuildUi() {
     hw_item->setForeground(1, LevelColor(max_lv));
     hw_item->setText(1, tr("状态: %1 | 组件: %2 | 最新: %3")
                             .arg(LevelDisplayName(max_lv))
-                            .arg(static_cast<int>(filtered.size()))
-                            .arg(FormatTimeMs(LatestUpdateMs(filtered))));
+                            .arg(static_cast<int>(states.size()))
+                            .arg(FormatTimeMs(LatestUpdateMs(states))));
 
-    for (const auto& ce : filtered) {
+    for (const auto& ce : states) {
       const std::string& comp_name = ce.first;
       const basic::DiagnosticComponentState& st = ce.second;
       auto* comp_item = new QTreeWidgetItem(hw_item);

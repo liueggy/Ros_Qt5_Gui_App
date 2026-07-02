@@ -15,6 +15,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
@@ -56,6 +58,31 @@ void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
   dock->setMinimumSizeHintMode(ads::CDockWidget::MinimumSizeHintFromDockWidget);
   dock->setMinimumSize(minimum_size);
   dock->setProperty("preferredDockSize", preferred_size.isValid() ? preferred_size : minimum_size);
+}
+
+QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
+                            const QString& tooltip, int width, QWidget* parent) {
+  auto* pill = new QFrame(parent);
+  pill->setObjectName(QStringLiteral("topStatusPill"));
+  pill->setFixedSize(width, 34);
+  pill->setToolTip(tooltip);
+  pill->setStyleSheet(QStringLiteral(
+      "QFrame#topStatusPill { background:#f8fbff; border:1px solid #dce4ef; border-radius:11px; }"
+      "QFrame#topStatusPill:hover { background:#ffffff; border-color:#bcd3fb; }"
+      "QFrame#topStatusPill QLabel { background:transparent; border:none; }"));
+
+  auto* layout = new QHBoxLayout(pill);
+  layout->setContentsMargins(8, 0, 8, 0);
+  layout->setSpacing(5);
+
+  auto* icon = new QLabel(pill);
+  icon->setPixmap(QIcon(icon_path).pixmap(18, 18));
+  icon->setFixedSize(18, 18);
+  icon->setAlignment(Qt::AlignCenter);
+  icon->setToolTip(tooltip);
+  layout->addWidget(icon);
+  layout->addWidget(value_widget, 1);
+  return pill;
 }
 
 }  // namespace
@@ -367,55 +394,40 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addItem(
       new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
 
-  ///////////////////////////////////////////////////////////////////电池电量 - 现代化设计
+  // Compact, consistent sensor status pills.
   battery_bar_ = new QProgressBar();
   battery_bar_->setObjectName(QString::fromUtf8("battery_bar_"));
-  battery_bar_->setMinimumSize(QSize(118, 26));
-  battery_bar_->setMaximumSize(QSize(118, 26));
-  battery_bar_->setAutoFillBackground(true);
+  battery_bar_->setRange(0, 100);
+  battery_bar_->setValue(0);
+  battery_bar_->setFormat(QStringLiteral("%p%"));
+  battery_bar_->setFixedSize(QSize(54, 24));
   battery_bar_->setStyleSheet(QStringLiteral(
-                                  "QProgressBar#battery_bar_ { border:1px solid #d5deeb; border-radius:11px; background:#f1f5fa; "
-                                  "text-align:center; color:#18212f; font-size:%1px; font-weight:700; }"
-                                  "QProgressBar::chunk { background:qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                                  "stop:0 #2f6fed, stop:0.55 #47a06d, stop:1 #47a06d); border-radius:9px; margin:2px; }")
-                                  .arg(UiStyle::FontSmallPx()));
-
+      "QProgressBar#battery_bar_ { border:none; background:transparent; text-align:center; "
+      "color:#18212f; font-size:%1px; font-weight:700; }"
+      "QProgressBar#battery_bar_::chunk { background:#dce9ff; border-radius:7px; margin:3px 0; }")
+      .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
-  horizontalLayout_tools->addWidget(battery_bar_);
+  horizontalLayout_tools->addWidget(CreateTopStatusPill(
+      QStringLiteral(":/icons/tabler/battery.svg"), battery_bar_, tr("电池电量"), 92, tools_strip));
 
-  QLabel* label_11 = new QLabel();
-  label_11->setObjectName(QString::fromUtf8("label_11"));
-  label_11->setMinimumSize(QSize(22, 24));
-  label_11->setMaximumSize(QSize(22, 24));
-  label_11->setPixmap(QPixmap(QString::fromUtf8(":/images/power-v.png")));
-  horizontalLayout_tools->addWidget(label_11);
-
-  label_power_ = new QLabel();
+  label_power_ = new QLabel(QStringLiteral("--.-- V"));
   label_power_->setObjectName(QString::fromUtf8("label_power_"));
-  label_power_->setMinimumSize(QSize(58, 26));
-  label_power_->setMaximumSize(QSize(58, 26));
   label_power_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
-  horizontalLayout_tools->addWidget(label_power_);
-
-  // 温湿度显示
-  horizontalLayout_tools->addSpacing(10);
-  QLabel* dht_icon = new QLabel(this);
-  dht_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/temperature.svg")).pixmap(20, 20));
-  dht_icon->setFixedSize(24, 24);
-  dht_icon->setAlignment(Qt::AlignCenter);
-  horizontalLayout_tools->addWidget(dht_icon);
+  label_power_->setAlignment(Qt::AlignCenter);
+  horizontalLayout_tools->addWidget(CreateTopStatusPill(
+      QStringLiteral(":/icons/tabler/bolt.svg"), label_power_, tr("电池电压"), 102, tools_strip));
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
-  label_dht11_temp_->setMinimumSize(QSize(70, 26));
-  label_dht11_temp_->setMaximumSize(QSize(70, 26));
-  label_dht11_temp_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#d93025")));
-  horizontalLayout_tools->addWidget(label_dht11_temp_);
+  label_dht11_temp_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  label_dht11_temp_->setAlignment(Qt::AlignCenter);
+  horizontalLayout_tools->addWidget(CreateTopStatusPill(
+      QStringLiteral(":/icons/tabler/temperature.svg"), label_dht11_temp_, tr("环境温度"), 108, tools_strip));
 
   label_dht11_humi_ = new QLabel(QStringLiteral("--.- %"), this);
-  label_dht11_humi_->setMinimumSize(QSize(64, 26));
-  label_dht11_humi_->setMaximumSize(QSize(64, 26));
-  label_dht11_humi_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#1a73e8")));
-  horizontalLayout_tools->addWidget(label_dht11_humi_);
+  label_dht11_humi_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  label_dht11_humi_->setAlignment(Qt::AlignCenter);
+  horizontalLayout_tools->addWidget(CreateTopStatusPill(
+      QStringLiteral(":/icons/tabler/droplet.svg"), label_dht11_humi_, tr("环境湿度"), 100, tools_strip));
 
   // 语音命令提示
   horizontalLayout_tools->addSpacing(8);
@@ -1244,7 +1256,7 @@ void MainWindow::updateOdomInfo(RobotState state) {
 void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
   // ROS BatteryState.percentage is 0.0-1.0; QProgressBar needs 0-100
   battery_bar_->setValue(static_cast<int>(percent * 100));
-  label_power_->setText(QString::number(voltage, 'f', 2) + "V");
+  label_power_->setText(QString::number(voltage, 'f', 2) + " V");
 }
 
 bool MainWindow::LoadMap(const std::string& file_path) {
