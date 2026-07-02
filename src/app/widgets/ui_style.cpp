@@ -162,12 +162,12 @@ QString SectionLabelStyleSheet() {
 
 QString ToolButtonStyleSheet() {
   return QStringLiteral(
-             "QToolButton { border:1px solid transparent; border-radius:10px; background:transparent; color:#18212f; "
-             "padding:6px 13px; font-size:%1px; font-weight:600; min-height:58px; max-height:58px; }"
-             "QToolButton:hover { background:#f3f7ff; border-color:#dbe7fb; color:#174ea6; }"
-             "QToolButton:pressed { background:#e7f0ff; border-color:#bcd3fb; }"
-             "QToolButton:checked { background:#edf4ff; border-color:#bcd3fb; color:#174ea6; }"
-             "QToolButton::menu-indicator { subcontrol-position:bottom right; right:5px; bottom:4px; }")
+             "QToolButton { border:1px solid transparent; border-radius:12px; background:transparent; color:#18212f; "
+             "padding:5px 14px; font-size:%1px; font-weight:700; min-height:54px; max-height:54px; }"
+             "QToolButton:hover { background:#f5f8fd; border-color:#dce6f5; color:#1f5fbf; }"
+             "QToolButton:pressed { background:#eaf2ff; border-color:#c9daf7; }"
+             "QToolButton:checked { background:#eaf2ff; border-color:#bcd3fb; color:#174ea6; }"
+             "QToolButton::menu-indicator { subcontrol-position:bottom right; right:6px; bottom:3px; }")
       .arg(FontBasePx());
 }
 
@@ -190,15 +190,19 @@ QString GhostIconButtonStyleSheet() {
 
 QString WindowControlButtonStyleSheet() {
   return QStringLiteral(
-             "QPushButton { min-width:28px; max-width:28px; min-height:24px; max-height:24px; border:1px solid #cfd8e6; "
-             "border-radius:9px; background:#ffffff; color:#18212f; font-size:%1px; font-weight:700; padding:0; }"
-             "QPushButton:hover { background:#eaf2ff; border-color:#8ab4f8; color:#174ea6; }"
+             "QPushButton { min-width:28px; max-width:28px; min-height:24px; max-height:24px; border:1px solid #dce4ef; "
+             "border-radius:9px; background:#fbfdff; color:#435267; font-size:%1px; font-weight:700; padding:0; }"
+             "QPushButton:hover { background:#eef4fd; border-color:#bcd3fb; color:#174ea6; }"
              "QPushButton:pressed { background:#d2e3fc; }")
       .arg(FontSmallPx());
 }
 
 QString TopStatusLabelStyleSheet(const QString& color) {
-  return QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:600; padding:2px; }").arg(color).arg(FontBasePx());
+  return QStringLiteral(
+             "QLabel { color:%1; font-size:%2px; font-weight:700; padding:3px 5px; "
+             "background:transparent; border:none; }")
+      .arg(color)
+      .arg(FontSmallPx());
 }
 
 QString VoiceStatusLabelStyleSheet() {

@@ -273,15 +273,15 @@ void MainWindow::setupUi() {
   tools_strip->installEventFilter(this);
   tools_strip->setStyleSheet(R"(
     QWidget {
-      background-color: #ffffff;
-      border-bottom: 1px solid #dce4ef;
+      background-color: #fbfdff;
+      border-bottom: 1px solid #d9e3f0;
     }
   )");
 
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
-  horizontalLayout_tools->setSpacing(6);
-  horizontalLayout_tools->setContentsMargins(20, 6, 10, 6);
+  horizontalLayout_tools->setSpacing(4);
+  horizontalLayout_tools->setContentsMargins(18, 5, 10, 5);
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
@@ -295,7 +295,7 @@ void MainWindow::setupUi() {
                     QSize(32, 32), QIcon::Normal, QIcon::Off);
   view_menu_btn->setIcon(view_icon);
   view_menu_btn->setIconSize(QSize(24, 24));
-  view_menu_btn->setMinimumWidth(64);
+  view_menu_btn->setMinimumWidth(58);
   view_menu_btn->setPopupMode(QToolButton::InstantPopup);
   view_menu_btn->setMenu(ui->menuView);
   view_menu_btn->setToolTip(tr("面板与窗口"));
@@ -370,34 +370,35 @@ void MainWindow::setupUi() {
   ///////////////////////////////////////////////////////////////////电池电量 - 现代化设计
   battery_bar_ = new QProgressBar();
   battery_bar_->setObjectName(QString::fromUtf8("battery_bar_"));
-  battery_bar_->setMaximumSize(QSize(130, 28));
+  battery_bar_->setMinimumSize(QSize(118, 26));
+  battery_bar_->setMaximumSize(QSize(118, 26));
   battery_bar_->setAutoFillBackground(true);
   battery_bar_->setStyleSheet(QStringLiteral(
-                                  "QProgressBar#battery_bar_ { border:2px solid #dadce0; border-radius:12px; background:#f1f4f8; "
-                                  "text-align:center; color:#202124; font-size:%1px; font-weight:600; }"
+                                  "QProgressBar#battery_bar_ { border:1px solid #d5deeb; border-radius:11px; background:#f1f5fa; "
+                                  "text-align:center; color:#18212f; font-size:%1px; font-weight:700; }"
                                   "QProgressBar::chunk { background:qlineargradient(x1:0, y1:0, x2:1, y2:0, "
-                                  "stop:0 #34a853, stop:0.5 #7cb342, stop:1 #34a853); border-radius:10px; margin:2px; }")
-                                  .arg(UiStyle::FontBasePx()));
+                                  "stop:0 #2f6fed, stop:0.55 #47a06d, stop:1 #47a06d); border-radius:9px; margin:2px; }")
+                                  .arg(UiStyle::FontSmallPx()));
 
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(battery_bar_);
 
   QLabel* label_11 = new QLabel();
   label_11->setObjectName(QString::fromUtf8("label_11"));
-  label_11->setMinimumSize(QSize(24, 24));
-  label_11->setMaximumSize(QSize(24, 24));
+  label_11->setMinimumSize(QSize(22, 24));
+  label_11->setMaximumSize(QSize(22, 24));
   label_11->setPixmap(QPixmap(QString::fromUtf8(":/images/power-v.png")));
   horizontalLayout_tools->addWidget(label_11);
 
   label_power_ = new QLabel();
   label_power_->setObjectName(QString::fromUtf8("label_power_"));
-  label_power_->setMinimumSize(QSize(60, 28));
-  label_power_->setMaximumSize(QSize(60, 28));
+  label_power_->setMinimumSize(QSize(58, 26));
+  label_power_->setMaximumSize(QSize(58, 26));
   label_power_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   horizontalLayout_tools->addWidget(label_power_);
 
   // 温湿度显示
-  horizontalLayout_tools->addSpacing(16);
+  horizontalLayout_tools->addSpacing(10);
   QLabel* dht_icon = new QLabel(this);
   dht_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/temperature.svg")).pixmap(20, 20));
   dht_icon->setFixedSize(24, 24);
@@ -405,14 +406,14 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(dht_icon);
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
-  label_dht11_temp_->setMinimumSize(QSize(70, 28));
-  label_dht11_temp_->setMaximumSize(QSize(70, 28));
+  label_dht11_temp_->setMinimumSize(QSize(70, 26));
+  label_dht11_temp_->setMaximumSize(QSize(70, 26));
   label_dht11_temp_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#d93025")));
   horizontalLayout_tools->addWidget(label_dht11_temp_);
 
   label_dht11_humi_ = new QLabel(QStringLiteral("--.- %"), this);
-  label_dht11_humi_->setMinimumSize(QSize(65, 28));
-  label_dht11_humi_->setMaximumSize(QSize(65, 28));
+  label_dht11_humi_->setMinimumSize(QSize(64, 26));
+  label_dht11_humi_->setMaximumSize(QSize(64, 26));
   label_dht11_humi_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#1a73e8")));
   horizontalLayout_tools->addWidget(label_dht11_humi_);
 
@@ -431,7 +432,7 @@ void MainWindow::setupUi() {
     label_voice_cmd_->setVisible(false);
   });
 
-  horizontalLayout_tools->addSpacing(12);
+  horizontalLayout_tools->addSpacing(8);
   QPushButton* min_btn = new QPushButton(this);
   maximize_button_ = new QPushButton(this);
   QPushButton* close_btn = new QPushButton(this);
@@ -441,7 +442,7 @@ void MainWindow::setupUi() {
   maximize_button_->setToolTip(tr("最大化"));
   close_btn->setToolTip(tr("关闭"));
   for (auto* button : {min_btn, maximize_button_, close_btn}) {
-    button->setFixedSize(36, 32);
+    button->setFixedSize(32, 28);
     button->setIconSize(QSize(16, 16));
     button->setCursor(Qt::PointingHandCursor);
     button->setFocusPolicy(Qt::NoFocus);
