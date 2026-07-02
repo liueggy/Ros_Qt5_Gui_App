@@ -5,11 +5,13 @@
 #include <QColor>
 #include <QDateTime>
 #include <QFont>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTimer>
+#include <QToolButton>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -152,10 +154,32 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addWidget(summary_error_);
   summary_row->addWidget(summary_stale_);
   summary_row->addStretch();
+  refresh_btn_ = new QPushButton(tr("刷新"));
+  refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  refresh_btn_->setFixedHeight(34);
+  connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
+  auto* filter_toggle = new QToolButton(this);
+  filter_toggle->setText(tr("筛选"));
+  filter_toggle->setCheckable(true);
+  filter_toggle->setArrowType(Qt::RightArrow);
+  filter_toggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  filter_toggle->setCursor(Qt::PointingHandCursor);
+  filter_toggle->setStyleSheet(QStringLiteral(
+      "QToolButton { color:#536277; background:#ffffff; border:1px solid #dce4ef; "
+      "border-radius:9px; padding:5px 10px; font-size:%1px; font-weight:700; }"
+      "QToolButton:hover { color:#1f5fbf; background:#f5f9ff; border-color:#bcd3fb; }")
+      .arg(UiStyle::FontSmallPx()));
+  summary_row->addWidget(filter_toggle);
+  summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
 
-  auto* filter_tools = new QVBoxLayout();
+  auto* filter_panel = new QFrame(this);
+  filter_panel->setStyleSheet(QStringLiteral(
+      "QFrame { background:#f8fbff; border:1px solid #e3ebf7; border-radius:12px; }"));
+  auto* filter_tools = new QVBoxLayout(filter_panel);
+  filter_tools->setContentsMargins(10, 10, 10, 10);
   filter_tools->setSpacing(7);
+  filter_panel->hide();
 
   auto* search_row = new QHBoxLayout();
   search_row->setSpacing(6);
@@ -164,11 +188,6 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
   search_row->addWidget(search_edit_, 1);
-  refresh_btn_ = new QPushButton(tr("刷新"));
-  refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  refresh_btn_->setFixedHeight(UiStyle::ControlHeightPx());
-  connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
-  search_row->addWidget(refresh_btn_);
   filter_tools->addLayout(search_row);
 
   filter_group_ = new QButtonGroup(this);
@@ -211,7 +230,11 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   chip_layout->addStretch();
   chip_layout->addWidget(clear_filter_btn_);
   filter_tools->addLayout(chip_layout);
-  root->addLayout(filter_tools);
+  root->addWidget(filter_panel);
+  connect(filter_toggle, &QToolButton::toggled, [filter_toggle, filter_panel](bool checked) {
+    filter_toggle->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+    filter_panel->setVisible(checked);
+  });
 
   filter_hint_ = new QLabel();
   filter_hint_->setWordWrap(true);

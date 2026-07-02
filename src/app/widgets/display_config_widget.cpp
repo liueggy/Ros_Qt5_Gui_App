@@ -149,7 +149,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("连接小车"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
@@ -242,13 +242,13 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   connection_status_card_ = new QFrame(page);
   connection_status_card_->setObjectName(QStringLiteral("connectionStatusCard"));
   QHBoxLayout* connection_action_layout = new QHBoxLayout(connection_status_card_);
-  connection_action_layout->setContentsMargins(16, 15, 16, 16);
-  connection_action_layout->setSpacing(14);
+  connection_action_layout->setContentsMargins(14, 10, 14, 10);
+  connection_action_layout->setSpacing(12);
   auto* connection_copy = new QVBoxLayout();
-  connection_copy->setSpacing(6);
+  connection_copy->setSpacing(2);
   connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
   connection_status_title_->setStyleSheet(CardTitleStyle());
-  connection_status_label_ = new QLabel(tr("正在检测小车通信状态。"), connection_status_card_);
+  connection_status_label_ = new QLabel(tr("检测中"), connection_status_card_);
   connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   connection_status_label_->setWordWrap(true);
   connection_copy->addWidget(connection_status_title_);
@@ -268,7 +268,6 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   });
   connection_action_layout->addLayout(connection_copy, 1);
   connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignVCenter);
-  root->addSpacing(12);
   root->addWidget(connection_status_card_);
   root->addStretch(1);
   return page;
@@ -299,7 +298,11 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
   connection_status_title_->setText(connecting ? tr("正在连接")
                                                : (connected ? tr("小车已连接")
                                                             : tr("小车未连接")));
-  connection_status_label_->setText(message);
+  Q_UNUSED(message);
+  const QString compact_message = connecting ? tr("检测中")
+                                             : (connected ? tr("在线")
+                                                          : tr("启动后重试"));
+  connection_status_label_->setText(compact_message);
   connection_status_label_->setStyleSheet(
       QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:400; }")
           .arg(color)
@@ -314,7 +317,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("显示与话题"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
@@ -419,7 +422,7 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("摄像头"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
@@ -473,7 +476,7 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("机器人外形"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
@@ -500,8 +503,13 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   robot_points_table_ = new QTableWidget(0, 2, points_card);
   robot_points_table_->setHorizontalHeaderLabels(QStringList() << tr("X") << tr("Y"));
   robot_points_table_->horizontalHeader()->setStretchLastSection(true);
+  robot_points_table_->verticalHeader()->setVisible(false);
+  robot_points_table_->verticalHeader()->setDefaultSectionSize(40);
+  robot_points_table_->setMinimumHeight(220);
   robot_points_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  robot_points_table_->setSelectionMode(QAbstractItemView::SingleSelection);
   robot_points_table_->setShowGrid(false);
+  robot_points_table_->setAlternatingRowColors(true);
   robot_points_table_->setStyleSheet(UiStyle::TableStyleSheet());
 
   connect(robot_points_table_, &QTableWidget::cellChanged, this, &DisplayConfigWidget::OnRobotShapePointChanged);
@@ -597,7 +605,7 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("默认地图"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
@@ -611,7 +619,7 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
   QHBoxLayout* path_layout = new QHBoxLayout();
   map_path_label_ = new QLabel(tr("地图路径"));
   map_path_label_->setFixedWidth(88);
-  map_path_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  map_path_label_->setStyleSheet(FieldLabelStyle());
   map_path_edit_ = new QLineEdit(card);
   map_path_edit_->setPlaceholderText(tr("例如 /home/maps/office.yaml"));
   map_path_edit_->setStyleSheet(LineEditStyle());
@@ -650,7 +658,7 @@ QWidget* DisplayConfigWidget::CreateKeyValuePage() {
   QWidget* page = new QWidget;
   QVBoxLayout* root = new QVBoxLayout(page);
   root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(0);
+  root->setSpacing(10);
 
   QLabel* page_title = new QLabel(tr("键值对"));
   page_title->setObjectName(QStringLiteral("pageTitle"));

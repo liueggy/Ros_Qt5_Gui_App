@@ -16,6 +16,7 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QStringList>
+#include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QVariant>
@@ -182,9 +183,31 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_layout->addLayout(profile_row);
   connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
 
+  auto* advanced_speed_btn = new QToolButton(speed_group);
+  advanced_speed_btn->setText(tr("高级参数"));
+  advanced_speed_btn->setCheckable(true);
+  advanced_speed_btn->setChecked(false);
+  advanced_speed_btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  advanced_speed_btn->setArrowType(Qt::RightArrow);
+  advanced_speed_btn->setCursor(Qt::PointingHandCursor);
+  advanced_speed_btn->setStyleSheet(QStringLiteral(
+      "QToolButton { color:#536277; background:transparent; border:none; "
+      "font-size:%1px; font-weight:700; padding:4px 2px; }"
+      "QToolButton:hover { color:#1f5fbf; }")
+      .arg(UiStyle::FontSmallPx()));
+  speed_layout->addWidget(advanced_speed_btn, 0, Qt::AlignLeft);
+
+  auto* advanced_speed_panel = new QFrame(speed_group);
+  advanced_speed_panel->setStyleSheet(QStringLiteral(
+      "QFrame { background:#f8fbff; border:1px solid #e3ebf7; border-radius:12px; }"));
+  auto* advanced_speed_layout = new QVBoxLayout(advanced_speed_panel);
+  advanced_speed_layout->setContentsMargins(12, 12, 12, 12);
+  advanced_speed_layout->setSpacing(8);
+  advanced_speed_panel->hide();
+
   auto* param_caption = new QLabel(tr("动态参数"), speed_group);
   param_caption->setStyleSheet(FieldCaptionStyle());
-  speed_layout->addWidget(param_caption);
+  advanced_speed_layout->addWidget(param_caption);
 
   auto* param_layout = new QVBoxLayout();
   param_layout->setSpacing(8);
@@ -197,7 +220,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_value_edit_->setPlaceholderText(tr("例如 0.45"));
   param_layout->addWidget(speed_param_combo_);
   param_layout->addWidget(speed_value_edit_);
-  speed_layout->addLayout(param_layout);
+  advanced_speed_layout->addLayout(param_layout);
 
   auto* param_btn_row = new QHBoxLayout();
   auto* read_param_btn = new QPushButton(tr("读取"), speed_group);
@@ -205,8 +228,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   param_btn_row->addWidget(read_param_btn);
   param_btn_row->addWidget(write_param_btn);
   param_btn_row->addStretch();
-  speed_layout->addLayout(param_btn_row);
+  advanced_speed_layout->addLayout(param_btn_row);
+  speed_layout->addWidget(advanced_speed_panel);
   root->addWidget(speed_group);
+  connect(advanced_speed_btn, &QToolButton::toggled, [advanced_speed_btn, advanced_speed_panel](bool checked) {
+    advanced_speed_btn->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+    advanced_speed_panel->setVisible(checked);
+  });
 
   connect(speed_param_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
     const QStringList parts = speed_param_combo_->itemData(index).toString().split('|');
