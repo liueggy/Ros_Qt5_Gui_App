@@ -15,6 +15,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
+#include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <iostream>
@@ -41,7 +42,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 3;
+constexpr int kUiLayoutVersion = 4;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -300,13 +301,22 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
+  auto* brand_icon = new QLabel(tools_strip);
+  brand_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/plug-connected.svg")).pixmap(24, 24));
+  brand_icon->setFixedSize(28, 28);
+  brand_icon->setAlignment(Qt::AlignCenter);
+  horizontalLayout_tools->addWidget(brand_icon);
+
+  auto* brand_title = new QLabel(tr("ROS Bridge 控制台"), tools_strip);
+  brand_title->setStyleSheet(QStringLiteral("QLabel { color:#111827; font-size:15px; font-weight:700; padding-right:16px; }"));
+  horizontalLayout_tools->addWidget(brand_title);
   // 现代化工具栏样式
   QString modernToolButtonStyle = UiStyle::ToolButtonStyleSheet();
 
   // 添加 "view" 菜单按钮
   QToolButton* view_menu_btn = new QToolButton();
   QIcon view_icon;
-  view_icon.addFile(QString::fromUtf8(":/images/list_view.svg"),
+  view_icon.addFile(QString::fromUtf8(":/icons/tabler/menu-2.svg"),
                     QSize(32, 32), QIcon::Normal, QIcon::Off);
   view_menu_btn->setIcon(view_icon);
   view_menu_btn->setIconSize(QSize(22, 22));
@@ -324,7 +334,7 @@ void MainWindow::setupUi() {
   reloc_btn->setStyleSheet(modernToolButtonStyle);
 
   QIcon icon4;
-  icon4.addFile(QString::fromUtf8(":/images/reloc2.svg"),
+  icon4.addFile(QString::fromUtf8(":/icons/tabler/map-pin.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   reloc_btn->setIcon(icon4);
   reloc_btn->setText("重定位");
@@ -332,7 +342,7 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(reloc_btn);
 
   QIcon icon5;
-  icon5.addFile(QString::fromUtf8(":/images/edit.svg"),
+  icon5.addFile(QString::fromUtf8(":/icons/tabler/pointer.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* edit_map_btn = new QToolButton();
   edit_map_btn->setIcon(icon5);
@@ -343,7 +353,7 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(edit_map_btn);
 
   QIcon icon6;
-  icon6.addFile(QString::fromUtf8(":/images/open.svg"),
+  icon6.addFile(QString::fromUtf8(":/icons/tabler/folder-open.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* open_map_btn = new QToolButton();
   open_map_btn->setIcon(icon6);
@@ -354,7 +364,7 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(open_map_btn);
 
   QIcon icon8;
-  icon8.addFile(QString::fromUtf8(":/images/save.svg"),
+  icon8.addFile(QString::fromUtf8(":/icons/tabler/device-floppy.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
 
   QToolButton* save_map_btn = new QToolButton();
@@ -366,7 +376,7 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(save_map_btn);
 
   QIcon icon7;
-  icon7.addFile(QString::fromUtf8(":/images/re_save.svg"),
+  icon7.addFile(QString::fromUtf8(":/icons/tabler/device-floppy.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* re_save_map_btn = new QToolButton();
   re_save_map_btn->setIcon(icon7);
@@ -635,16 +645,19 @@ void MainWindow::setupUi() {
   center_docker_area_ = dock_manager_->setCentralWidget(CentralDockWidget);
   center_docker_area_->setAllowedAreas(DockWidgetArea::OuterDockAreas);
 
-  //////////////////////////////////////////////////////////速度仪表盘
-  ads::CDockWidget* DashBoardDockWidget = new ads::CDockWidget("速度仪表盘");
-  QWidget* speed_dashboard_widget = new QWidget();
-  DashBoardDockWidget->setWidget(speed_dashboard_widget);
-  ConfigureDockWidget(DashBoardDockWidget, QSize(300, 220), QSize(360, 260));
-  speed_dash_board_ = new DashBoard(speed_dashboard_widget);
-  auto dashboard_area =
-      dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
-                                   DashBoardDockWidget, center_docker_area_);
-  ui->menuView->addAction(DashBoardDockWidget->toggleViewAction());
+  ////////////////////////////////////////////////////////图层配置管理
+  display_config_widget_ = new DisplayConfigWidget();
+  display_config_widget_->SetDisplayManager(display_manager_);
+  display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
+  settings_dock_ = new ads::CDockWidget(tr("设置"));
+  settings_dock_->setWidget(display_config_widget_);
+  ConfigureDockWidget(settings_dock_, QSize(420, 420), QSize(430, 620));
+  settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+  auto display_config_area =
+      dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
+                                   settings_dock_, center_docker_area_);
+  settings_dock_->toggleView(true);
+  ui->menuView->addAction(settings_dock_->toggleViewAction());
 
   ////////////////////////////////////////////////////////速度控制
   speed_ctrl_widget_ = new SpeedCtrlWidget();
@@ -654,25 +667,22 @@ void MainWindow::setupUi() {
           });
   ads::CDockWidget* SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
-  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(360, 280), QSize(520, 320));
+  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(420, 420), QSize(430, 500));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
-                                   SpeedCtrlDockWidget, dashboard_area);
+                                   SpeedCtrlDockWidget, display_config_area);
   ui->menuView->addAction(SpeedCtrlDockWidget->toggleViewAction());
 
-  ////////////////////////////////////////////////////////图层配置管理
-  display_config_widget_ = new DisplayConfigWidget();
-  display_config_widget_->SetDisplayManager(display_manager_);
-  display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
-  settings_dock_ = new ads::CDockWidget(tr("设置"));
-  settings_dock_->setWidget(display_config_widget_);
-  ConfigureDockWidget(settings_dock_, QSize(560, 420), QSize(680, 720));
-  settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-  auto display_config_area =
-      dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
-                                   settings_dock_, center_docker_area_);
-  settings_dock_->toggleView(true);
-  ui->menuView->addAction(settings_dock_->toggleViewAction());
+  //////////////////////////////////////////////////////////速度仪表盘
+  ads::CDockWidget* DashBoardDockWidget = new ads::CDockWidget("速度仪表盘");
+  QWidget* speed_dashboard_widget = new QWidget();
+  DashBoardDockWidget->setWidget(speed_dashboard_widget);
+  ConfigureDockWidget(DashBoardDockWidget, QSize(300, 220), QSize(360, 260));
+  speed_dash_board_ = new DashBoard(speed_dashboard_widget);
+  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+                               DashBoardDockWidget, center_docker_area_);
+  DashBoardDockWidget->toggleView(false);
+  ui->menuView->addAction(DashBoardDockWidget->toggleViewAction());
 
   /////////////////////////////////////////////////////////导航任务列表
   QWidget* task_list_widget = new QWidget();
@@ -786,10 +796,10 @@ void MainWindow::setupUi() {
   command_center_widget_ = new CommandCenterWidget();
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
-  ConfigureDockWidget(command_center_dock_, QSize(520, 560), QSize(640, 720));
+  ConfigureDockWidget(command_center_dock_, QSize(420, 560), QSize(450, 720));
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                command_center_dock_, center_docker_area_);
-  command_center_dock_->toggleView(false);
+  command_center_dock_->toggleView(true);
   ui->menuView->addAction(command_center_dock_->toggleViewAction());
 
   //////////////////////////////////////////////////////图片

@@ -104,7 +104,7 @@ QString TableStyleSheet() {
 }
 
 QString CardStyleSheet() {
-  return QStringLiteral("QFrame { background:#ffffff; border:1px solid rgba(32,33,36,0.10); border-radius:12px; }");
+  return QStringLiteral("QFrame { background:#ffffff; border:1px solid #e5ebf3; border-radius:12px; }");
 }
 
 QString MutedLabelStyleSheet() {
@@ -122,8 +122,8 @@ QString SectionLabelStyleSheet() {
 
 QString ToolButtonStyleSheet() {
   return QStringLiteral(
-             "QToolButton { border:1px solid #dadce0; border-radius:8px; background:#ffffff; color:#202124; "
-             "padding:8px 14px; font-size:%1px; font-weight:600; min-height:48px; max-height:48px; }"
+             "QToolButton { border:1px solid #e3eaf4; border-radius:8px; background:#ffffff; color:#202124; "
+             "padding:8px 14px; font-size:%1px; font-weight:600; min-height:44px; max-height:44px; }"
              "QToolButton:hover { background:#e8f0fe; border-color:#8ab4f8; color:#174ea6; }"
              "QToolButton:pressed { background:#d2e3fc; border-color:#1a73e8; }"
              "QToolButton:checked { background:#1a73e8; color:#ffffff; border-color:#1a73e8; }")
@@ -132,7 +132,7 @@ QString ToolButtonStyleSheet() {
 
 QString MiniToolButtonStyleSheet() {
   return QStringLiteral(
-             "QToolButton { border:1px solid #dadce0; border-radius:8px; background:#ffffff; color:#202124; "
+             "QToolButton { border:1px solid #e3eaf4; border-radius:8px; background:#ffffff; color:#202124; "
              "padding:6px; font-size:%1px; font-weight:600; }"
              "QToolButton:hover { background:#e8f0fe; border-color:#8ab4f8; color:#174ea6; }"
              "QToolButton:pressed { background:#d2e3fc; border-color:#1a73e8; }"

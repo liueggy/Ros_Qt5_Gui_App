@@ -6,6 +6,7 @@
 #include <QFileSystemModel>
 #include <QGraphicsItem>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QInputDialog>
 #include <QLabel>
 #include <QMainWindow>
@@ -149,6 +150,16 @@ class SpeedCtrlWidget : public QWidget {
 
  public:
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
+    const QString moveButtonStyle = QStringLiteral(
+        "QPushButton { background:#ffffff; border:1px solid #e1e7f0; border-radius:10px; color:transparent; }"
+        "QPushButton:hover { background:#eef5ff; border-color:#9ec1ff; }"
+        "QPushButton:pressed { background:#dbeafe; border-color:#2f6fed; }");
+    setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid #e5ebf3; border-radius:10px; background:#ffffff; top:-1px; }"
+                                                                                              "QTabBar::tab { padding:8px 20px; color:#4b5563; border:none; background:transparent; }"
+                                                                                              "QTabBar::tab:selected { color:#2f6fed; font-weight:700; border-bottom:2px solid #2f6fed; }"
+                                                                                              "QSlider::groove:horizontal { height:5px; border-radius:2px; background:#e5eaf2; }"
+                                                                                              "QSlider::sub-page:horizontal { background:#2f6fed; border-radius:2px; }"
+                                                                                              "QSlider::handle:horizontal { background:#2f6fed; width:14px; height:14px; margin:-5px 0; border-radius:7px; }"));
     QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
@@ -165,6 +176,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_left_2.png);}"));
+    pushButton_u->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-left.svg")));
+    pushButton_u->setIconSize(QSize(30, 30));
+    pushButton_u->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_2->addWidget(pushButton_u);
 
@@ -178,6 +192,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_2.png);}"));
+    pushButton_i->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up.svg")));
+    pushButton_i->setIconSize(QSize(30, 30));
+    pushButton_i->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_2->addWidget(pushButton_i);
 
@@ -191,6 +208,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up_right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_right_2.png);}"));
+    pushButton_o->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-right.svg")));
+    pushButton_o->setIconSize(QSize(30, 30));
+    pushButton_o->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_2->addWidget(pushButton_o);
 
@@ -209,13 +229,16 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/left_2.png);}"));
+    pushButton_j->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-left.svg")));
+    pushButton_j->setIconSize(QSize(30, 30));
+    pushButton_j->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_18->addWidget(pushButton_j);
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
     checkBox_use_all_->setMaximumSize(QSize(90, 16777215));
-    checkBox_use_all_->setText("全向模式:");
+    checkBox_use_all_->setText("全向");
     horizontalLayout_18->addWidget(checkBox_use_all_);
 
     QPushButton* pushButton_l = new QPushButton();
@@ -228,6 +251,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/right_2.png);}"));
+    pushButton_l->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
+    pushButton_l->setIconSize(QSize(30, 30));
+    pushButton_l->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_18->addWidget(pushButton_l);
 
@@ -246,6 +272,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/down_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_left_2.png);}"));
+    pushButton_m->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-left.svg")));
+    pushButton_m->setIconSize(QSize(30, 30));
+    pushButton_m->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_19->addWidget(pushButton_m);
 
@@ -260,6 +289,9 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/down.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_2.png);}"));
+    pushButton_back->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down.svg")));
+    pushButton_back->setIconSize(QSize(30, 30));
+    pushButton_back->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_19->addWidget(pushButton_back);
 
@@ -284,6 +316,9 @@ class SpeedCtrlWidget : public QWidget {
     connect(pushButton_back, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
     connect(pushButton_backr, SIGNAL(clicked()), this,
             SLOT(slotSpeedControl()));
+    pushButton_backr->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg")));
+    pushButton_backr->setIconSize(QSize(30, 30));
+    pushButton_backr->setStyleSheet(moveButtonStyle);
 
     horizontalLayout_19->addWidget(pushButton_backr);
 

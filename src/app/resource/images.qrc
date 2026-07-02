@@ -1,5 +1,38 @@
 <RCC>
     <qresource prefix="/">
+        <file>icons/tabler/settings.svg</file>
+        <file>icons/tabler/messages.svg</file>
+        <file>icons/tabler/camera.svg</file>
+        <file>icons/tabler/polygon.svg</file>
+        <file>icons/tabler/map.svg</file>
+        <file>icons/tabler/key.svg</file>
+        <file>icons/tabler/plug-connected.svg</file>
+        <file>icons/tabler/device-floppy.svg</file>
+        <file>icons/tabler/folder-open.svg</file>
+        <file>icons/tabler/map-pin.svg</file>
+        <file>icons/tabler/robot.svg</file>
+        <file>icons/tabler/player-play.svg</file>
+        <file>icons/tabler/player-stop.svg</file>
+        <file>icons/tabler/pointer.svg</file>
+        <file>icons/tabler/hand-click.svg</file>
+        <file>icons/tabler/zoom-in.svg</file>
+        <file>icons/tabler/zoom-out.svg</file>
+        <file>icons/tabler/focus-centered.svg</file>
+        <file>icons/tabler/menu-2.svg</file>
+        <file>icons/tabler/route.svg</file>
+        <file>icons/tabler/battery.svg</file>
+        <file>icons/tabler/bolt.svg</file>
+        <file>icons/tabler/temperature.svg</file>
+        <file>icons/tabler/droplet.svg</file>
+        <file>icons/tabler/circle-check.svg</file>
+        <file>icons/tabler/arrow-up.svg</file>
+        <file>icons/tabler/arrow-down.svg</file>
+        <file>icons/tabler/arrow-left.svg</file>
+        <file>icons/tabler/arrow-right.svg</file>
+        <file>icons/tabler/arrow-up-left.svg</file>
+        <file>icons/tabler/arrow-up-right.svg</file>
+        <file>icons/tabler/arrow-down-left.svg</file>
+        <file>icons/tabler/arrow-down-right.svg</file>
         <file>images/list_view.svg</file>
         <file>images/robot.png</file>
         <file>images/line.png</file>

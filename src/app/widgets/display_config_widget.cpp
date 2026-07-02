@@ -3,8 +3,11 @@
 #include <QFileDialog>
 #include <QFrame>
 #include <QHeaderView>
+#include <QIcon>
 #include <QInputDialog>
+#include <QListWidgetItem>
 #include <QMessageBox>
+#include <QPair>
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QSpacerItem>
@@ -28,7 +31,7 @@ QString LineEditStyle() {
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumWidth(540);
+  setMinimumWidth(420);
   ApplyGlobalStyle();
   InitUI();
 }
@@ -89,18 +92,25 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setFixedWidth(176);
+  nav_list_->setFixedWidth(128);
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
-  const QStringList navTitles = {tr("通道"), tr("显示与话题"), tr("摄像头"),
-                                 tr("机器人外形"), tr("默认地图"), tr("键值对")};
-  for (const QString& t : navTitles) {
-    nav_list_->addItem(t);
+  const QVector<QPair<QString, QString>> navItems = {
+      {tr("通道"), QStringLiteral(":/icons/tabler/plug-connected.svg")},
+      {tr("显示与话题"), QStringLiteral(":/icons/tabler/messages.svg")},
+      {tr("摄像头"), QStringLiteral(":/icons/tabler/camera.svg")},
+      {tr("机器人外形"), QStringLiteral(":/icons/tabler/polygon.svg")},
+      {tr("默认地图"), QStringLiteral(":/icons/tabler/map.svg")},
+      {tr("键值对"), QStringLiteral(":/icons/tabler/key.svg")},
+  };
+  for (const auto& item : navItems) {
+    auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
+    nav_item->setSizeHint(QSize(104, 42));
   }
 
   page_stack_ = new QStackedWidget(this);
-  page_stack_->setMinimumWidth(360);
+  page_stack_->setMinimumWidth(260);
   page_stack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
   page_stack_->addWidget(CreateChannelPage());
