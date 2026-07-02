@@ -66,7 +66,7 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
                     "DisplayConfigWidget QLabel#pageTitle { font-size:%3px; font-weight:700; color:#18212f; padding-bottom:5px; }"
                     "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#657386; padding-bottom:12px; }"
                     "DisplayConfigWidget QListWidget#settingsNav { background-color:#eef4fb; border:1px solid #dce4ef; border-radius:14px; padding:8px; outline:none; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; padding:12px 12px; border-radius:10px; margin:3px 0; border:1px solid transparent; min-height:24px; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; font-size:%1px; padding:13px 12px; border-radius:10px; margin:4px 0; border:1px solid transparent; min-height:28px; }"
                     "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#f7fbff; border-color:#d7e4f6; }"
                     "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; border-color:#c9daf7; color:#2f6fed; font-weight:600; }"
                     "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dce4ef; border-radius:12px; }"
@@ -122,9 +122,9 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(162, 48));
+    nav_item->setSizeHint(QSize(162, 54));
   }
-  nav_list_->setMinimumHeight(navItems.size() * 54 + 18);
+  nav_list_->setMinimumHeight(navItems.size() * 62 + 18);
 
   page_stack_ = new QStackedWidget(this);
   page_stack_->setMinimumWidth(0);
@@ -436,7 +436,8 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   image_table_ = new QTableWidget(0, 4, card);
   image_table_->setHorizontalHeaderLabels(
       QStringList() << tr("位置") << tr("话题") << tr("启用") << QString());
-  image_table_->setMinimumHeight(220);
+  image_table_->setMinimumHeight(148);
+  image_table_->setMaximumHeight(190);
   image_table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   image_table_->horizontalHeader()->setMinimumSectionSize(64);
   image_table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
@@ -444,11 +445,11 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   image_table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
   image_table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
   image_table_->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-  image_table_->setColumnWidth(0, 86);
-  image_table_->setColumnWidth(2, 64);
-  image_table_->setColumnWidth(3, 70);
+  image_table_->setColumnWidth(0, 72);
+  image_table_->setColumnWidth(2, 52);
+  image_table_->setColumnWidth(3, 58);
   image_table_->verticalHeader()->setVisible(false);
-  image_table_->verticalHeader()->setDefaultSectionSize(40);
+  image_table_->verticalHeader()->setDefaultSectionSize(42);
   image_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
   image_table_->setSelectionMode(QAbstractItemView::SingleSelection);
   image_table_->setShowGrid(false);
@@ -833,14 +834,15 @@ void DisplayConfigWidget::OnAddImageConfig() {
   location_item->setToolTip(QStringLiteral("停靠标识，如 front、rear"));
   QTableWidgetItem* topic_item = new QTableWidgetItem(QString());
   topic_item->setToolTip(QStringLiteral("图像话题，如 /camera/front/image_raw"));
-  QTableWidgetItem* enable_item = new QTableWidgetItem(QStringLiteral("true"));
+  QTableWidgetItem* enable_item = new QTableWidgetItem(QString());
   enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
   QCheckBox* enable_checkbox = new QCheckBox();
   enable_checkbox->setChecked(true);
-  enable_checkbox->setStyleSheet(QStringLiteral("QCheckBox { margin-left:20px; } QCheckBox::indicator { width:18px; height:18px; }"));
-  connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool checked) {
-    image_table_->item(row, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
+  enable_checkbox->setStyleSheet(QStringLiteral(
+      "QCheckBox { margin-left:15px; }"
+      "QCheckBox::indicator { width:18px; height:18px; }"));
+  connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool) {
     OnImageConfigChanged(row);
   });
 
@@ -877,8 +879,7 @@ void DisplayConfigWidget::OnRemoveImageConfig(int row) {
     QCheckBox* checkbox = qobject_cast<QCheckBox*>(image_table_->cellWidget(i, 2));
     if (checkbox) {
       checkbox->disconnect();
-      connect(checkbox, &QCheckBox::toggled, [this, i](bool checked) {
-        image_table_->item(i, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
+      connect(checkbox, &QCheckBox::toggled, [this, i](bool) {
         OnImageConfigChanged(i);
       });
     }
@@ -1042,14 +1043,15 @@ void DisplayConfigWidget::LoadConfig() {
     location_item->setToolTip(QStringLiteral("位置标识"));
     QTableWidgetItem* topic_item = new QTableWidgetItem(QString::fromStdString(image_config.topic));
     topic_item->setToolTip(QStringLiteral("图像话题"));
-    QTableWidgetItem* enable_item = new QTableWidgetItem(image_config.enable ? QStringLiteral("true") : QStringLiteral("false"));
+    QTableWidgetItem* enable_item = new QTableWidgetItem(QString());
     enable_item->setFlags(enable_item->flags() & ~Qt::ItemIsEditable);
 
     QCheckBox* enable_checkbox = new QCheckBox();
     enable_checkbox->setChecked(image_config.enable);
-    enable_checkbox->setStyleSheet(QStringLiteral("QCheckBox { margin-left:20px; } QCheckBox::indicator { width:18px; height:18px; }"));
-    connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool checked) {
-      image_table_->item(row, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
+    enable_checkbox->setStyleSheet(QStringLiteral(
+        "QCheckBox { margin-left:15px; }"
+        "QCheckBox::indicator { width:18px; height:18px; }"));
+    connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool) {
       OnImageConfigChanged(row);
     });
 

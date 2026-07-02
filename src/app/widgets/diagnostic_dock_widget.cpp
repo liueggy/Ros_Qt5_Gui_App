@@ -180,8 +180,8 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   filter_panel->setStyleSheet(QStringLiteral(
       "QFrame { background:#f8fbff; border:1px solid #e3ebf7; border-radius:12px; }"));
   auto* filter_tools = new QVBoxLayout(filter_panel);
-  filter_tools->setContentsMargins(10, 10, 10, 10);
-  filter_tools->setSpacing(7);
+  filter_tools->setContentsMargins(8, 8, 8, 8);
+  filter_tools->setSpacing(5);
   filter_panel->hide();
 
   auto* search_row = new QHBoxLayout();
@@ -190,6 +190,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
+  search_edit_->setFixedHeight(38);
   search_row->addWidget(search_edit_, 1);
   filter_tools->addLayout(search_row);
 
@@ -205,7 +206,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     auto* b = new QPushButton(tr(chips[i].label));
     filter_chip_buttons_[i] = b;
     b->setCheckable(true);
-    b->setFixedHeight(30);
+    b->setFixedHeight(28);
     b->setProperty("diagLevel", chips[i].level);
     b->setStyleSheet(UiStyle::ChipStyleSheet());
     filter_group_->addButton(b);
@@ -217,7 +218,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  clear_filter_btn_->setFixedHeight(34);
+  clear_filter_btn_->setFixedHeight(30);
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
     search_lower_.clear();
