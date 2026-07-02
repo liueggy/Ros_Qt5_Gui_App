@@ -104,6 +104,8 @@ class MainWindow : public QMainWindow {
   QLabel *label_dht11_humi_{nullptr};
   QLabel *label_voice_cmd_{nullptr};
   QTimer *voice_clear_timer_{nullptr};
+  int connection_attempt_id_{0};
+  bool channel_subscriptions_registered_{false};
   
  signals:
   void OnRecvChannelData(const MsgId &id, const std::any &data);

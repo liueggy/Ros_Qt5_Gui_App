@@ -172,14 +172,13 @@ bool ChannelManager::OpenChannel(const std::string &path) {
   return true;
 }
 void ChannelManager::CloseChannel() {
+  if (!channel_ptr_) {
+    return;
+  }
   channel_ptr_->ShutDown();
   delete channel_ptr_;
   channel_ptr_ = nullptr;
 }
 VirtualChannelNode *ChannelManager::GetChannel() {
-  if (channel_ptr_ == nullptr) {
-    LOG_ERROR("error channel is nullptr exit!");
-    exit(1);
-  }
   return channel_ptr_;
 }

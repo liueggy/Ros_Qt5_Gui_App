@@ -46,7 +46,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 6;
+constexpr int kUiLayoutVersion = 7;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -95,13 +95,30 @@ MainWindow::MainWindow(QWidget* parent)
   });
 }
 bool MainWindow::openChannel() {
+  const int attempt_id = ++connection_attempt_id_;
+  if (display_config_widget_) {
+    display_config_widget_->SetConnectionState(
+        false, true, tr("正在检测小车连接，请稍候…"));
+  }
   if (channel_manager_.OpenChannelAuto()) {
-    registerChannel();
+    if (!channel_subscriptions_registered_) {
+      registerChannel();
+      channel_subscriptions_registered_ = true;
+    }
 
     // 延迟检查连接状态（连接超时是5秒）
     auto* channel = channel_manager_.GetChannel();
     if (channel) {
-      QTimer::singleShot(6000, this, [this, channel]() {
+      QTimer::singleShot(6000, this, [this, attempt_id]() {
+        if (attempt_id != connection_attempt_id_) {
+          return;
+        }
+        auto* channel = channel_manager_.GetChannel();
+        if (!channel) {
+          display_config_widget_->SetConnectionState(
+              false, false, tr("未建立连接，可在小车启动后重试。"));
+          return;
+        }
         if (channel->IsConnectionFailed()) {
           std::string error_msg = channel->GetConnectionError();
           std::string channel_name = channel->Name();
@@ -109,13 +126,16 @@ bool MainWindow::openChannel() {
             QString display_error = error_msg.empty()
                                         ? "无法连接到 ROSBridge 服务器。"
                                         : QString::fromStdString(error_msg);
-            QMessageBox::warning(this,
-                                 "ROSBridge 连接失败",
-                                 display_error +
-                                     "\n\n请在左侧「设置」面板中重新设置 ROSBridge 的 IP 和端口。",
-                                 QMessageBox::Ok);
+            display_config_widget_->SetConnectionState(
+                false, false,
+                tr("小车当前离线：%1。启动小车后再点击“连接”。").arg(display_error));
             LOG_ERROR("ROSBridge connection failed: " << error_msg);
           } else {
+            display_config_widget_->SetConnectionState(
+                false, false,
+                error_msg.empty()
+                    ? tr("小车当前离线，请启动相关服务后重试。")
+                    : QString::fromStdString(error_msg));
             LOG_ERROR("Channel " << channel_name << " connection failed: " << error_msg);
             if (!error_msg.empty()) {
               QMessageBox::critical(this,
@@ -133,11 +153,18 @@ bool MainWindow::openChannel() {
                                     QMessageBox::Ok);
             }
           }
+        } else {
+          display_config_widget_->SetConnectionState(
+              true, false, tr("已连接到小车，ROSBridge 通信正常。"));
         }
       });
     }
 
     return true;
+  }
+  if (display_config_widget_) {
+    display_config_widget_->SetConnectionState(
+        false, false, tr("连接组件启动失败，请检查通道配置。"));
   }
   return false;
 }
@@ -212,7 +239,14 @@ void MainWindow::SlotRecvImage(const std::string& location, std::shared_ptr<cv::
     image_frame_map_[location]->setImage(image);
   }
 }
-void MainWindow::closeChannel() { channel_manager_.CloseChannel(); }
+void MainWindow::closeChannel() {
+  ++connection_attempt_id_;
+  channel_manager_.CloseChannel();
+  if (display_config_widget_) {
+    display_config_widget_->SetConnectionState(
+        false, false, tr("连接已断开，可在小车启动后重新连接。"));
+  }
+}
 MainWindow::~MainWindow() { delete ui; }
 void MainWindow::setupUi() {
   ui->setupUi(this);
@@ -666,6 +700,13 @@ void MainWindow::setupUi() {
   display_config_widget_ = new DisplayConfigWidget();
   display_config_widget_->SetDisplayManager(display_manager_);
   display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
+  connect(display_config_widget_, &DisplayConfigWidget::ConnectRequested, this,
+          [this]() {
+            closeChannel();
+            openChannel();
+          });
+  connect(display_config_widget_, &DisplayConfigWidget::DisconnectRequested,
+          this, &MainWindow::closeChannel);
   settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_);
   ConfigureDockWidget(settings_dock_, QSize(400, 420), QSize(500, 620));
@@ -1126,7 +1167,7 @@ void MainWindow::ApplyDefaultDockSizes() {
     splitter->setSizes(sizes);
   };
 
-  resize_area(settings_dock_area_, 500);
+  resize_area(settings_dock_area_, 600);
   resize_area(command_center_dock_area_, 500);
 }
 

@@ -31,7 +31,7 @@ QString LineEditStyle() {
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumWidth(440);
+  setMinimumWidth(500);
   ApplyGlobalStyle();
   InitUI();
 }
@@ -40,13 +40,16 @@ DisplayConfigWidget::~DisplayConfigWidget() {}
 
 void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
-                    "DisplayConfigWidget { background-color:#f3f5f8; }"
+                    "DisplayConfigWidget { background-color:#f7f8fa; }"
+                    "DisplayConfigWidget QWidget { font-size:%1px; color:#202124; }"
                     "DisplayConfigWidget QLabel#pageTitle { font-size:%1px; font-weight:700; color:#202124; padding-bottom:4px; }"
                     "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#5f6368; padding-bottom:12px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#e8edf4; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav { background-color:transparent; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
                     "DisplayConfigWidget QListWidget#settingsNav::item { color:#3c4043; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; min-height:24px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:rgba(255,255,255,0.7); }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#eef3fb; }"
                     "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#1a73e8; font-weight:600; }"
+                    "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dfe3ea; border-radius:12px; }"
+                    "DisplayConfigWidget QTableWidget { font-size:%1px; }"
                     "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
                     "DisplayConfigWidget QToolTip { background:#fff; color:#202124; border:1px solid rgba(0,0,0,0.12); padding:6px 8px; border-radius:4px; }")
                     .arg(UiStyle::FontTitlePx())
@@ -92,8 +95,8 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setMinimumWidth(152);
-  nav_list_->setMaximumWidth(176);
+  nav_list_->setMinimumWidth(168);
+  nav_list_->setMaximumWidth(190);
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
@@ -107,7 +110,7 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(140, 42));
+    nav_item->setSizeHint(QSize(156, 42));
   }
 
   page_stack_ = new QStackedWidget(this);
@@ -168,10 +171,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     bool show_rosbridge = (channel_type == "rosbridge");
     rosbridge_ip_edit_->setEnabled(show_rosbridge);
     rosbridge_port_edit_->setEnabled(show_rosbridge);
-    if (QString::fromStdString(channel_type) != old_channel_type) {
-      QMessageBox::information(this, tr("通道"),
-                               tr("通道类型已更改，请重启应用以生效。"), QMessageBox::Ok);
-    }
+    Q_UNUSED(old_channel_type);
   });
   type_layout->addWidget(channel_type_label_);
   type_layout->addWidget(channel_type_combo_, 1);
@@ -197,10 +197,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     QString old_ip = QString::fromStdString(config.channel_config.rosbridge_config.ip);
     config.channel_config.rosbridge_config.ip = new_ip.toStdString();
     AutoSaveConfig();
-    if (new_ip != old_ip && !new_ip.isEmpty()) {
-      QMessageBox::information(this, tr("ROSBridge"),
-                               tr("IP已更改，请重启应用以生效。"), QMessageBox::Ok);
-    }
+    Q_UNUSED(old_ip);
   });
   ip_layout->addWidget(rosbridge_ip_label_);
   ip_layout->addWidget(rosbridge_ip_edit_, 1);
@@ -222,10 +219,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     QString old_port = QString::fromStdString(config.channel_config.rosbridge_config.port);
     config.channel_config.rosbridge_config.port = new_port.toStdString();
     AutoSaveConfig();
-    if (new_port != old_port && !new_port.isEmpty()) {
-      QMessageBox::information(this, tr("ROSBridge"),
-                               tr("端口已更改，请重启应用以生效。"), QMessageBox::Ok);
-    }
+    Q_UNUSED(old_port);
   });
   port_layout->addWidget(rosbridge_port_label_);
   port_layout->addWidget(rosbridge_port_edit_, 1);
@@ -233,18 +227,51 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   root->addWidget(card);
 
-  reconnect_channel_btn_ = new QPushButton(tr("帮助"), page);
+  QHBoxLayout* connection_action_layout = new QHBoxLayout();
+  connection_action_layout->setContentsMargins(2, 12, 2, 0);
+  connection_action_layout->setSpacing(12);
+  connection_status_label_ = new QLabel(tr("尚未检测连接"), page);
+  connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  connection_status_label_->setWordWrap(true);
+
+  reconnect_channel_btn_ = new QPushButton(tr("连接"), page);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
-  reconnect_channel_btn_->setStyleSheet(UiStyle::LinkButtonStyleSheet());
+  reconnect_channel_btn_->setMinimumWidth(104);
+  reconnect_channel_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   connect(reconnect_channel_btn_, &QPushButton::clicked, [this]() {
-    QMessageBox::information(
-        this, tr("通道"),
-        tr("更改已保存到 config.json。\n更改通道类型或 ROSBridge 地址后请重启应用。"),
-        QMessageBox::Ok);
+    if (reconnect_channel_btn_->property("connected").toBool()) {
+      emit DisconnectRequested();
+    } else {
+      emit ConnectRequested();
+    }
   });
-  root->addWidget(reconnect_channel_btn_, 0, Qt::AlignLeft);
+  connection_action_layout->addWidget(connection_status_label_, 1);
+  connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignRight);
+  root->addLayout(connection_action_layout);
   root->addStretch(1);
   return page;
+}
+
+void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
+                                             const QString& message) {
+  if (!reconnect_channel_btn_ || !connection_status_label_) {
+    return;
+  }
+  reconnect_channel_btn_->setProperty("connected", connected);
+  reconnect_channel_btn_->setEnabled(!connecting);
+  reconnect_channel_btn_->setText(connecting ? tr("正在检测…")
+                                             : (connected ? tr("断开连接") : tr("连接")));
+  reconnect_channel_btn_->setStyleSheet(
+      connected ? UiStyle::DangerButtonStyleSheet() : UiStyle::MainButtonStyleSheet());
+
+  const QString color = connecting ? QStringLiteral("#b06000")
+                                   : (connected ? QStringLiteral("#188038")
+                                                : QStringLiteral("#d93025"));
+  connection_status_label_->setText(message);
+  connection_status_label_->setStyleSheet(
+      QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:600; }")
+          .arg(color)
+          .arg(UiStyle::FontSmallPx()));
 }
 
 QWidget* DisplayConfigWidget::CreateLayersPage() {

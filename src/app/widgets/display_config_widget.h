@@ -34,6 +34,11 @@ class DisplayConfigWidget : public QWidget {
   void SetChannelList(const std::vector<std::string> &channel_list);
   void LoadConfig();
   void SaveConfig();
+  void SetConnectionState(bool connected, bool connecting, const QString &message);
+
+ signals:
+  void ConnectRequested();
+  void DisconnectRequested();
 
  private slots:
   void OnToggleDisplay(const std::string &display_name, bool visible);
@@ -91,6 +96,7 @@ class DisplayConfigWidget : public QWidget {
   QLineEdit *rosbridge_ip_edit_{nullptr};
   QLineEdit *rosbridge_port_edit_{nullptr};
   QPushButton *reconnect_channel_btn_{nullptr};
+  QLabel *connection_status_label_{nullptr};
   QLineEdit *map_path_edit_{nullptr};
 
   QLabel *title_label_{nullptr};
