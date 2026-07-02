@@ -19,8 +19,10 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QScreen>
+#include <QSplitter>
 #include <QStyle>
 #include <iostream>
+#include <numeric>
 #include <opencv2/opencv.hpp>
 #include "AutoHideDockContainer.h"
 #include "DockAreaTabBar.h"
@@ -44,7 +46,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 5;
+constexpr int kUiLayoutVersion = 6;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -668,7 +670,7 @@ void MainWindow::setupUi() {
   settings_dock_->setWidget(display_config_widget_);
   ConfigureDockWidget(settings_dock_, QSize(400, 420), QSize(500, 620));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-  auto display_config_area =
+  settings_dock_area_ =
       dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
                                    settings_dock_, center_docker_area_);
   settings_dock_->toggleView(true);
@@ -685,7 +687,7 @@ void MainWindow::setupUi() {
   ConfigureDockWidget(SpeedCtrlDockWidget, QSize(400, 420), QSize(500, 500));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
-                                   SpeedCtrlDockWidget, display_config_area);
+                                   SpeedCtrlDockWidget, settings_dock_area_);
   ui->menuView->addAction(SpeedCtrlDockWidget->toggleViewAction());
 
   //////////////////////////////////////////////////////////速度仪表盘
@@ -697,6 +699,7 @@ void MainWindow::setupUi() {
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                DashBoardDockWidget, center_docker_area_);
   DashBoardDockWidget->toggleView(false);
+  ConfigureFloatingOnOpen(DashBoardDockWidget, QSize(720, 520));
   ui->menuView->addAction(DashBoardDockWidget->toggleViewAction());
 
   /////////////////////////////////////////////////////////导航任务列表
@@ -742,6 +745,7 @@ void MainWindow::setupUi() {
   nav_goal_list_dock_widget->setMaximumSize(520, 9999);
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                nav_goal_list_dock_widget, center_docker_area_);
+  ConfigureFloatingOnOpen(nav_goal_list_dock_widget, QSize(680, 760));
   nav_goal_list_dock_widget->toggleView(false);
   connect(nav_goal_table_view_, &NavGoalTableView::signalSendNavGoal,
           [this](const RobotPose& pose) {
@@ -812,8 +816,9 @@ void MainWindow::setupUi() {
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
   ConfigureDockWidget(command_center_dock_, QSize(420, 560), QSize(500, 720));
-  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
-                               command_center_dock_, center_docker_area_);
+  command_center_dock_area_ =
+      dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+                                   command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(true);
   ui->menuView->addAction(command_center_dock_->toggleViewAction());
 
@@ -826,6 +831,7 @@ void MainWindow::setupUi() {
     ConfigureDockWidget(dock_widget, QSize(420, 320), QSize(520, 390));
     dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea, dock_widget, center_docker_area_);
     dock_widget->toggleView(false);
+    ConfigureFloatingOnOpen(dock_widget, QSize(760, 560));
     ui->menuView->addAction(dock_widget->toggleViewAction());
   }
 
@@ -1071,6 +1077,97 @@ void MainWindow::ApplyCenteredWindowGeometry() {
   move(available.center() - QPoint(target_size.width() / 2, target_size.height() / 2));
 }
 
+void MainWindow::ApplyDefaultDockSizes() {
+  auto resize_area = [](ads::CDockAreaWidget* area, int target_width) {
+    if (!area) {
+      return;
+    }
+
+    QWidget* branch = area;
+    QSplitter* splitter = nullptr;
+    while (branch && branch->parentWidget()) {
+      if (auto* candidate = qobject_cast<QSplitter*>(branch->parentWidget())) {
+        if (candidate->orientation() == Qt::Horizontal) {
+          splitter = candidate;
+          break;
+        }
+      }
+      branch = branch->parentWidget();
+    }
+    if (!splitter) {
+      return;
+    }
+
+    const int branch_index = splitter->indexOf(branch);
+    QList<int> sizes = splitter->sizes();
+    if (branch_index < 0 || branch_index >= sizes.size() || sizes.size() < 2) {
+      return;
+    }
+
+    const int total = std::accumulate(sizes.cbegin(), sizes.cend(), 0);
+    const int clamped_target = qMin(target_width, qMax(320, total / 2));
+    const int remaining = qMax(1, total - clamped_target);
+    const int old_other_total = qMax(1, total - sizes.at(branch_index));
+    int assigned = 0;
+    for (int i = 0; i < sizes.size(); ++i) {
+      if (i == branch_index) {
+        sizes[i] = clamped_target;
+        continue;
+      }
+      sizes[i] = qMax(1, remaining * sizes.at(i) / old_other_total);
+      assigned += sizes.at(i);
+    }
+    for (int i = 0; i < sizes.size() && assigned < remaining; ++i) {
+      if (i != branch_index) {
+        sizes[i] += remaining - assigned;
+        break;
+      }
+    }
+    splitter->setSizes(sizes);
+  };
+
+  resize_area(settings_dock_area_, 500);
+  resize_area(command_center_dock_area_, 500);
+}
+
+void MainWindow::ConfigureFloatingOnOpen(ads::CDockWidget* dock,
+                                         const QSize& preferred_size) {
+  if (!dock) {
+    return;
+  }
+  connect(dock->toggleViewAction(), &QAction::triggered, this,
+          [this, dock, preferred_size](bool open) {
+            if (!open) {
+              return;
+            }
+            QTimer::singleShot(0, this, [this, dock, preferred_size]() {
+              if (!dock->isInFloatingContainer()) {
+                dock->setFloating();
+              }
+              CenterFloatingDock(dock, preferred_size);
+            });
+          });
+}
+
+void MainWindow::CenterFloatingDock(ads::CDockWidget* dock,
+                                    const QSize& preferred_size) {
+  if (!dock) {
+    return;
+  }
+  auto* container = dock->floatingDockContainer();
+  if (!container) {
+    return;
+  }
+
+  const QRect host = frameGeometry();
+  const QSize target(qMin(preferred_size.width(), qRound(host.width() * 0.75)),
+                     qMin(preferred_size.height(), qRound(host.height() * 0.80)));
+  container->resize(target);
+  container->move(host.center() - QPoint(target.width() / 2, target.height() / 2));
+  container->raise();
+  container->activateWindow();
+}
+
 void MainWindow::signalCursorPose(QPointF pos) {
   basic::Point mapPos =
       display_manager_->mapPose2Word(basic::Point(pos.x(), pos.y()));
@@ -1111,6 +1208,7 @@ void MainWindow::RestoreState() {
   if (settings.value("uiLayout/version", 0).toInt() != kUiLayoutVersion) {
     LOG_INFO("skip stale UI layout state, expected version " << kUiLayoutVersion);
     ApplyCenteredWindowGeometry();
+    QTimer::singleShot(0, this, &MainWindow::ApplyDefaultDockSizes);
     return;
   }
   const bool geometry_restored =

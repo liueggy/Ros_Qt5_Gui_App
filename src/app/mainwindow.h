@@ -86,6 +86,8 @@ class MainWindow : public QMainWindow {
   QProgressBar *battery_bar_;
   QLabel *label_power_;
   ads::CDockAreaWidget *center_docker_area_;
+  ads::CDockAreaWidget *settings_dock_area_{nullptr};
+  ads::CDockAreaWidget *command_center_dock_area_{nullptr};
   QWidget *custom_title_bar_{nullptr};
   QPushButton *maximize_button_{nullptr};
   bool dragging_window_{false};
@@ -115,6 +117,9 @@ class MainWindow : public QMainWindow {
   void SaveState();
   bool LoadMap(const std::string& file_path);
   void ApplyCenteredWindowGeometry();
+  void ApplyDefaultDockSizes();
+  void ConfigureFloatingOnOpen(ads::CDockWidget *dock, const QSize& preferred_size);
+  void CenterFloatingDock(ads::CDockWidget *dock, const QSize& preferred_size);
   void UpdateMaximizeButton();
 };
 #endif  // MAINWINDOW_H
