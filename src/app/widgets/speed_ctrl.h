@@ -42,21 +42,22 @@
 #include "algorithm.h"
 #include "point_type.h"
 #include "widgets/joystick.h"
+#include "widgets/ui_style.h"
 using namespace basic;
 class SpeedCtrlWidget : public QWidget {
   Q_OBJECT
  private:
-  QCheckBox *checkBox_use_all_;
-  JoyStick *joyStick_widget_;
-  QSlider *horizontalSlider_raw_;
-  QSlider *horizontalSlider_linear_;
+  QCheckBox* checkBox_use_all_;
+  JoyStick* joyStick_widget_;
+  QSlider* horizontalSlider_raw_;
+  QSlider* horizontalSlider_linear_;
  signals:
-  void signalControlSpeed(const RobotSpeed &speed);
+  void signalControlSpeed(const RobotSpeed& speed);
  private slots:
   void slotSpeedControl() {
-    QPushButton *btn = qobject_cast<QPushButton *>(sender());
+    QPushButton* btn = qobject_cast<QPushButton*>(sender());
     char button_key = btn->text().toStdString()[0];
-    //速度
+    // 速度
     float liner = horizontalSlider_linear_->value() * 0.01;
     float turn = horizontalSlider_raw_->value() * 0.01;
     bool is_all = checkBox_use_all_->isChecked();
@@ -93,7 +94,7 @@ class SpeedCtrlWidget : public QWidget {
 
     std::map<char, std::vector<float>> moveBindings{
         {'i', {1, 0, 0, 0}}, {'o', {1, 0, 0, -1}}, {'j', {0, 0, 0, 1}}, {'l', {0, 0, 0, -1}}, {'u', {1, 0, 0, 1}}, {',', {-1, 0, 0, 0}}, {'.', {-1, 0, 0, 1}}, {'m', {-1, 0, 0, -1}}, {'O', {1, -1, 0, 0}}, {'I', {1, 0, 0, 0}}, {'J', {0, 1, 0, 0}}, {'L', {0, -1, 0, 0}}, {'U', {1, 1, 0, 0}}, {'<', {-1, 0, 0, 0}}, {'>', {-1, -1, 0, 0}}, {'M', {-1, 1, 0, 0}}, {'t', {0, 0, 1, 0}}, {'b', {0, 0, -1, 0}}, {'k', {0, 0, 0, 0}}, {'K', {0, 0, 0, 0}}};
-    //计算是往哪个方向
+    // 计算是往哪个方向
 
     float x = moveBindings[key][0];
     float y = moveBindings[key][1];
@@ -102,7 +103,7 @@ class SpeedCtrlWidget : public QWidget {
     emit signalControlSpeed(RobotSpeed(x * liner, y * liner, th * turn));
   }
   void slotJoyStickKeyChange(int value) {
-    //速度
+    // 速度
     float liner = horizontalSlider_linear_->value() * 0.01;
     float turn = horizontalSlider_raw_->value() * 0.01;
     bool is_all = checkBox_use_all_->isChecked();
@@ -138,7 +139,7 @@ class SpeedCtrlWidget : public QWidget {
     }
     std::map<char, std::vector<float>> moveBindings{
         {'i', {1, 0, 0, 0}}, {'o', {1, 0, 0, -1}}, {'j', {0, 0, 0, 1}}, {'l', {0, 0, 0, -1}}, {'u', {1, 0, 0, 1}}, {',', {-1, 0, 0, 0}}, {'.', {-1, 0, 0, 1}}, {'m', {-1, 0, 0, -1}}, {'O', {1, -1, 0, 0}}, {'I', {1, 0, 0, 0}}, {'J', {0, 1, 0, 0}}, {'L', {0, -1, 0, 0}}, {'U', {1, 1, 0, 0}}, {'<', {-1, 0, 0, 0}}, {'>', {-1, -1, 0, 0}}, {'M', {-1, 1, 0, 0}}, {'t', {0, 0, 1, 0}}, {'b', {0, 0, -1, 0}}, {'k', {0, 0, 0, 0}}, {'K', {0, 0, 0, 0}}};
-    //计算是往哪个方向
+    // 计算是往哪个方向
     float x = moveBindings[key][0];
     float y = moveBindings[key][1];
     float z = moveBindings[key][2];
@@ -147,14 +148,14 @@ class SpeedCtrlWidget : public QWidget {
   }
 
  public:
-  SpeedCtrlWidget(QWidget *parent = 0) : QWidget(parent) {
-    QVBoxLayout *verticalLayout_speed_ctrl = new QVBoxLayout();
+  SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
+    QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
-    QVBoxLayout *verticalLayout_cmd_btn = new QVBoxLayout();
-    QHBoxLayout *horizontalLayout_2 = new QHBoxLayout();
+    QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
+    QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
-    QPushButton *pushButton_u = new QPushButton();
+    QPushButton* pushButton_u = new QPushButton();
     pushButton_u->setObjectName(QString::fromUtf8("pushButton_u"));
     pushButton_u->setText("u");
     pushButton_u->setShortcut(QApplication::translate("Widget", "u", nullptr));
@@ -167,7 +168,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_2->addWidget(pushButton_u);
 
-    QPushButton *pushButton_i = new QPushButton();
+    QPushButton* pushButton_i = new QPushButton();
     pushButton_i->setObjectName(QString::fromUtf8("pushButton_i"));
     pushButton_i->setText("i");
     pushButton_i->setShortcut(QApplication::translate("Widget", "i", nullptr));
@@ -180,7 +181,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_2->addWidget(pushButton_i);
 
-    QPushButton *pushButton_o = new QPushButton();
+    QPushButton* pushButton_o = new QPushButton();
     pushButton_o->setObjectName(QString::fromUtf8("pushButton_o"));
     pushButton_o->setText("o");
     pushButton_o->setShortcut(QApplication::translate("Widget", "o", nullptr));
@@ -195,10 +196,10 @@ class SpeedCtrlWidget : public QWidget {
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_2);
 
-    QHBoxLayout *horizontalLayout_18 = new QHBoxLayout();
+    QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
     horizontalLayout_18->setObjectName(
         QString::fromUtf8("horizontalLayout_18"));
-    QPushButton *pushButton_j = new QPushButton();
+    QPushButton* pushButton_j = new QPushButton();
     pushButton_j->setText("j");
     pushButton_j->setShortcut(QApplication::translate("Widget", "j", nullptr));
     pushButton_j->setObjectName(QString::fromUtf8("pushButton_j"));
@@ -217,7 +218,7 @@ class SpeedCtrlWidget : public QWidget {
     checkBox_use_all_->setText("全向模式:");
     horizontalLayout_18->addWidget(checkBox_use_all_);
 
-    QPushButton *pushButton_l = new QPushButton();
+    QPushButton* pushButton_l = new QPushButton();
     pushButton_l->setObjectName(QString::fromUtf8("pushButton_l"));
     pushButton_l->setText("l");
     pushButton_l->setShortcut(QApplication::translate("Widget", "l", nullptr));
@@ -232,10 +233,10 @@ class SpeedCtrlWidget : public QWidget {
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_18);
 
-    QHBoxLayout *horizontalLayout_19 = new QHBoxLayout();
+    QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
     horizontalLayout_19->setObjectName(
         QString::fromUtf8("horizontalLayout_19"));
-    QPushButton *pushButton_m = new QPushButton();
+    QPushButton* pushButton_m = new QPushButton();
     pushButton_m->setObjectName(QString::fromUtf8("pushButton_m"));
     pushButton_m->setText("m");
     pushButton_m->setShortcut(QApplication::translate("Widget", "m", nullptr));
@@ -248,7 +249,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_19->addWidget(pushButton_m);
 
-    QPushButton *pushButton_back = new QPushButton();
+    QPushButton* pushButton_back = new QPushButton();
     pushButton_back->setObjectName(QString::fromUtf8("pushButton_,"));
     pushButton_back->setText(",");
     pushButton_back->setShortcut(
@@ -262,7 +263,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_19->addWidget(pushButton_back);
 
-    QPushButton *pushButton_backr = new QPushButton();
+    QPushButton* pushButton_backr = new QPushButton();
     pushButton_backr->setObjectName(QString::fromUtf8("pushButton_."));
     pushButton_backr->setText(".");
     pushButton_backr->setShortcut(
@@ -288,16 +289,16 @@ class SpeedCtrlWidget : public QWidget {
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_19);
 
-    QWidget *cmdCtrlWidget = new QWidget();
+    QWidget* cmdCtrlWidget = new QWidget();
     cmdCtrlWidget->setLayout(verticalLayout_cmd_btn);
 
-    QTabWidget *tabWidget = new QTabWidget;
+    QTabWidget* tabWidget = new QTabWidget;
 
     tabWidget->addTab(cmdCtrlWidget, "命令控制");
     verticalLayout_speed_ctrl->addWidget(tabWidget);
 
-    QWidget *widget_joyStick = new QWidget();
-    QHBoxLayout *horizontalLayout_joyStick = new QHBoxLayout();
+    QWidget* widget_joyStick = new QWidget();
+    QHBoxLayout* horizontalLayout_joyStick = new QHBoxLayout();
     joyStick_widget_ = new JoyStick();
     joyStick_widget_->setMinimumSize(QSize(200, 200));
 
@@ -311,10 +312,10 @@ class SpeedCtrlWidget : public QWidget {
 
     tabWidget->addTab(widget_joyStick, "摇杆控制");
 
-    QHBoxLayout *horizontalLayout_20 = new QHBoxLayout();
+    QHBoxLayout* horizontalLayout_20 = new QHBoxLayout();
     horizontalLayout_20->setObjectName(
         QString::fromUtf8("horizontalLayout_20"));
-    QLabel *label_14 = new QLabel();
+    QLabel* label_14 = new QLabel();
     label_14->setObjectName(QString::fromUtf8("label_14"));
     label_14->setText("角速度:");
     horizontalLayout_20->addWidget(label_14);
@@ -328,7 +329,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_20->addWidget(horizontalSlider_raw_);
 
-    QLabel *label_raw = new QLabel();
+    QLabel* label_raw = new QLabel();
     label_raw->setObjectName(QString::fromUtf8("label_raw"));
     label_raw->setText(QString::number(horizontalSlider_raw_->value() * 0.01) +
                        " deg/s");
@@ -342,10 +343,10 @@ class SpeedCtrlWidget : public QWidget {
     verticalLayout_speed_ctrl->addLayout(horizontalLayout_20);
 
     // linear anglur
-    QHBoxLayout *horizontalLayout_21 = new QHBoxLayout();
+    QHBoxLayout* horizontalLayout_21 = new QHBoxLayout();
     horizontalLayout_21->setObjectName(
         QString::fromUtf8("horizontalLayout_21"));
-    QLabel *label_9 = new QLabel();
+    QLabel* label_9 = new QLabel();
     label_9->setObjectName(QString::fromUtf8("label_9"));
     label_9->setText("线速度:");
     horizontalLayout_21->addWidget(label_9);
@@ -360,7 +361,7 @@ class SpeedCtrlWidget : public QWidget {
 
     horizontalLayout_21->addWidget(horizontalSlider_linear_);
 
-    QLabel *label_linear = new QLabel();
+    QLabel* label_linear = new QLabel();
     label_linear->setObjectName(QString::fromUtf8("label_linear"));
     label_linear->setText(
         QString::number(horizontalSlider_linear_->value() * 0.01) + " m/s");
@@ -370,14 +371,11 @@ class SpeedCtrlWidget : public QWidget {
             });
     horizontalLayout_21->addWidget(label_linear);
     verticalLayout_speed_ctrl->addLayout(horizontalLayout_21);
-    QHBoxLayout *horizontalLayout_stop_button = new QHBoxLayout();
-    QPushButton *btn_stop = new QPushButton();
+    QHBoxLayout* horizontalLayout_stop_button = new QHBoxLayout();
+    QPushButton* btn_stop = new QPushButton();
     btn_stop->setObjectName(QString::fromUtf8("btn_stop"));
     btn_stop->setText("停止(s)");
-    btn_stop->setStyleSheet(
-        "QPushButton {background-color: red; color: white; "
-        "font-size: 14px;}"
-        "QPushButton:hover {background-color: darkred;}");
+    btn_stop->setStyleSheet(UiStyle::DangerButtonStyleSheet());
     btn_stop->setShortcut(QApplication::translate("Widget", "s", nullptr));
     connect(btn_stop, &QPushButton::clicked,
             [this]() { emit signalControlSpeed(RobotSpeed()); });

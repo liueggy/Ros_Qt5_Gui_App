@@ -18,11 +18,15 @@ int FontTitlePx() {
   return 18;
 }
 
+int ControlHeightPx() {
+  return 36;
+}
+
 QString PanelStyleSheet() {
   return QStringLiteral(
-             "QWidget { color:#202124; font-size:%1px; }"
+             "QWidget { color:#202124; font-size:%1px; background:transparent; }"
              "QScrollArea { border:none; background:transparent; }"
-             "QGroupBox { border:1px solid rgba(32,33,36,0.12); border-radius:12px; margin-top:12px; "
+             "QGroupBox { border:1px solid rgba(32,33,36,0.10); border-radius:12px; margin-top:12px; "
              "padding:12px; font-weight:600; color:#202124; background:#ffffff; }"
              "QGroupBox::title { subcontrol-origin: margin; left:12px; padding:0 6px; background:#ffffff; }"
              "QLabel#pageTitle { font-size:%2px; font-weight:700; color:#202124; }"
@@ -39,41 +43,45 @@ QString PanelStyleSheet() {
 QString MainButtonStyleSheet() {
   return QStringLiteral(
              "QPushButton { background:#1a73e8; color:#ffffff; border:none; border-radius:8px; "
-             "padding:8px 14px; font-size:%1px; font-weight:600; }"
+             "padding:7px 14px; min-height:%2px; font-size:%1px; font-weight:600; }"
              "QPushButton:hover { background:#1765cc; }"
              "QPushButton:pressed { background:#1558b0; }"
              "QPushButton:disabled { background:#dfe3ea; color:#8a9099; }")
-      .arg(FontBasePx());
+      .arg(FontBasePx())
+      .arg(ControlHeightPx());
 }
 
 QString SecondaryButtonStyleSheet() {
   return QStringLiteral(
              "QPushButton { border:1px solid #dadce0; border-radius:8px; padding:7px 12px; "
-             "background:#ffffff; color:#202124; font-size:%1px; font-weight:500; }"
+             "min-height:%2px; background:#ffffff; color:#202124; font-size:%1px; font-weight:500; }"
              "QPushButton:hover { background:#e8f0fe; border-color:#8ab4f8; color:#174ea6; }"
              "QPushButton:pressed { background:#d2e3fc; }"
              "QPushButton:disabled { background:#f1f3f4; color:#9aa0a6; }")
-      .arg(FontBasePx());
+      .arg(FontBasePx())
+      .arg(ControlHeightPx());
 }
 
 QString DangerButtonStyleSheet() {
   return QStringLiteral(
              "QPushButton { background:#d93025; color:#ffffff; border:none; border-radius:8px; "
-             "padding:8px 14px; font-size:%1px; font-weight:600; }"
+             "padding:7px 14px; min-height:%2px; font-size:%1px; font-weight:600; }"
              "QPushButton:hover { background:#b3261e; }"
              "QPushButton:pressed { background:#8c1d18; }")
-      .arg(FontBasePx());
+      .arg(FontBasePx())
+      .arg(ControlHeightPx());
 }
 
 QString InputStyleSheet() {
   return QStringLiteral(
              "QLineEdit, QComboBox, QDoubleSpinBox, QSpinBox { border:1px solid #dadce0; border-radius:8px; "
-             "padding:7px 9px; background:#ffffff; color:#202124; font-size:%1px; }"
+             "padding:7px 9px; min-height:%2px; background:#ffffff; color:#202124; font-size:%1px; }"
              "QLineEdit:focus, QComboBox:focus, QDoubleSpinBox:focus, QSpinBox:focus { "
              "border-color:#1a73e8; background:#ffffff; }"
              "QLineEdit:disabled, QComboBox:disabled, QDoubleSpinBox:disabled, QSpinBox:disabled { "
              "background:#f1f3f4; color:#9aa0a6; }")
-      .arg(FontBasePx());
+      .arg(FontBasePx())
+      .arg(ControlHeightPx());
 }
 
 QString ChipStyleSheet() {
@@ -87,9 +95,12 @@ QString ChipStyleSheet() {
 
 QString TableStyleSheet() {
   return QStringLiteral(
-      "QTableWidget { border:1px solid #dadce0; border-radius:10px; background:#ffffff; "
-      "gridline-color:#edf0f4; selection-background-color:#e8f0fe; selection-color:#174ea6; }"
-      "QHeaderView::section { background:#f1f4f8; color:#3c4043; border:none; padding:6px 8px; font-weight:600; }");
+      "QTableWidget, QTableView, QTreeWidget { border:1px solid #dadce0; border-radius:10px; background:#ffffff; "
+      "gridline-color:#edf0f4; selection-background-color:#e8f0fe; selection-color:#174ea6; "
+      "alternate-background-color:#f8fafd; outline:none; }"
+      "QTableWidget::item, QTableView::item, QTreeWidget::item { padding:5px 8px; border:none; }"
+      "QTableWidget::item:selected, QTableView::item:selected, QTreeWidget::item:selected { color:#174ea6; background:#e8f0fe; }"
+      "QHeaderView::section { background:#f1f4f8; color:#3c4043; border:none; padding:7px 8px; font-weight:600; }");
 }
 
 QString CardStyleSheet() {
@@ -127,6 +138,13 @@ QString MiniToolButtonStyleSheet() {
              "QToolButton:pressed { background:#d2e3fc; border-color:#1a73e8; }"
              "QToolButton:checked { background:#1a73e8; color:#ffffff; border-color:#1a73e8; }")
       .arg(FontMiniPx());
+}
+
+QString GhostIconButtonStyleSheet() {
+  return QStringLiteral(
+      "QToolButton { border:none; border-radius:8px; background:transparent; padding:5px; }"
+      "QToolButton:hover { background:rgba(26,115,232,0.10); }"
+      "QToolButton:pressed { background:rgba(26,115,232,0.18); }");
 }
 
 QString WindowControlButtonStyleSheet() {

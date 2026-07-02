@@ -111,7 +111,7 @@ void DashBoard::draw_tachometer(QPainter& painter) {
   painter.save();
   painter.rotate(90);
   painter.setPen(normal_color);
-  painter.setFont(QFont("Times", 14));
+  painter.setFont(QFont(QApplication::font().family(), 14));
   for (int i = 0; i < 11; ++i) {
     painter.save();
     if (i > 6) {
@@ -140,9 +140,9 @@ void DashBoard::draw_tachometer(QPainter& painter) {
   // 绘制文字
   painter.save();
   painter.setPen(normal_color);
-  painter.setFont(QFont("DejaVu Sans", 8));
+  painter.setFont(QFont(QApplication::font().family(), 8));
   painter.drawText(QRect(-50, -70, 100, 50), Qt::AlignCenter, "×10");
-  painter.setFont(QFont("DejaVu Sans", 8, 50, true));
+  painter.setFont(QFont(QApplication::font().family(), 8, 50, true));
   painter.drawText(QRect(-50, 34, 32, 16), Qt::AlignCenter, "CM/S");
   painter.restore();
 }
@@ -151,16 +151,16 @@ void DashBoard::draw_speedometer(QPainter& painter) {
   painter.save();
 
   painter.setPen(QColor(64, 64, 245));
-  painter.setFont(QFont("DejaVu Sans", 6, 50, true));
+  painter.setFont(QFont(QApplication::font().family(), 6, 50, true));
   painter.drawText(QRect(80, 50, 70, 20), Qt::AlignCenter, "SPEED");
 
   painter.setPen(QColor(26, 245, 245));
-  painter.setFont(QFont("DejaVu Sans", 24, 63, true));
+  painter.setFont(QFont(QApplication::font().family(), 24, 63, true));
   painter.drawText(QRect(80, 50, 70, 50), Qt::AlignBottom | Qt::AlignLeft,
                    QString("%0").arg(QString::number(_speed), 3, '0'));
 
   painter.setPen(QColor(26, 245, 245));
-  painter.setFont(QFont("DejaVu Sans", 8, 63, true));
+  painter.setFont(QFont(QApplication::font().family(), 8, 63, true));
   painter.drawText(QRect(145, 75, 40, 20), Qt::AlignBottom | Qt::AlignLeft,
                    "cm/s");
 
@@ -170,11 +170,11 @@ void DashBoard::draw_speedometer(QPainter& painter) {
 void DashBoard::draw_gear(QPainter& painter) {
   static QRect gear_rect(0, 0, 80, 80);
   static QRect suffix_rect(48, 48, 32, 32);
-  static QFont suffix_font("DejaVu Sans", 16, 63, true);
+  QFont suffix_font(QApplication::font().family(), 16, 63, true);
 
   painter.save();
   painter.setPen(QPen(QColor(26, 245, 245), 1, Qt::SolidLine));
-  painter.setFont(QFont("DejaVu Sans", 48, 63, true));
+  painter.setFont(QFont(QApplication::font().family(), 48, 63, true));
 
   switch (_gear) {
     case kGear_1:
@@ -252,7 +252,7 @@ void DashBoard::draw_thermometer(QPainter& painter) {
   // 绘制刻度值
   painter.save();
   painter.setPen(normal_color);
-  painter.setFont(QFont("DejaVu Sans", 6));
+  painter.setFont(QFont(QApplication::font().family(), 6));
 
   painter.rotate(-12);
   painter.save();
@@ -334,7 +334,7 @@ void DashBoard::draw_oil_meter(QPainter& painter) {
   // 绘制刻度值
   painter.save();
   painter.setPen(normal_color);
-  painter.setFont(QFont("DejaVu Sans", 6));
+  painter.setFont(QFont(QApplication::font().family(), 6));
 
   painter.rotate(12);
   painter.save();

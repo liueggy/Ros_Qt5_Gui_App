@@ -8,13 +8,13 @@
  * 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #include "mainwindow.h"
+#include <QApplication>
 #include <QButtonGroup>
 #include <QDebug>
 #include <QEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
-#include <QFontDatabase>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <iostream>
@@ -41,7 +41,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 2;
+constexpr int kUiLayoutVersion = 3;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -213,23 +213,7 @@ void MainWindow::setupUi() {
   setWindowFlags((windowFlags() | Qt::FramelessWindowHint) & ~Qt::WindowTitleHint);
   setAttribute(Qt::WA_TranslucentBackground, false);
 
-  const QStringList preferredFontFamilies = {
-      "SF Pro Display",
-      "SF Pro Text",
-      ".AppleSystemUIFont",
-      "Segoe UI",
-      "Microsoft YaHei UI"};
-  const QStringList availableFontFamilies = QFontDatabase().families();
-  QString selectedFontFamily = "Microsoft YaHei UI";
-  for (const auto& fontFamily : preferredFontFamilies) {
-    if (availableFontFamilies.contains(fontFamily)) {
-      selectedFontFamily = fontFamily;
-      break;
-    }
-  }
-  QFont uiFont(selectedFontFamily, 12);
-  uiFont.setStyleStrategy(QFont::PreferAntialias);
-  this->setFont(uiFont);
+  this->setFont(QApplication::font());
 
   // 设置主窗体现代化样式
   this->setStyleSheet(R"(
@@ -682,7 +666,7 @@ void MainWindow::setupUi() {
   display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
   settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_);
-  ConfigureDockWidget(settings_dock_, QSize(340, 360), QSize(380, 680));
+  ConfigureDockWidget(settings_dock_, QSize(560, 420), QSize(680, 720));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
   auto display_config_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
@@ -802,7 +786,7 @@ void MainWindow::setupUi() {
   command_center_widget_ = new CommandCenterWidget();
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
-  ConfigureDockWidget(command_center_dock_, QSize(440, 560), QSize(480, 720));
+  ConfigureDockWidget(command_center_dock_, QSize(520, 560), QSize(640, 720));
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(false);

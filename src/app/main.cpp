@@ -6,10 +6,12 @@
  * @FilePath: /ROS2_Qt5_Gui_App/src/app/main.cpp
  */
 #ifndef SDL_MAIN_HANDLED
-#define SDL_MAIN_HANDLED
+  #define SDL_MAIN_HANDLED
 #endif
 
 #include <QApplication>
+#include <QFont>
+#include <QFontDatabase>
 #include <QLabel>
 #include <QMovie>
 #include <QPixmap>
@@ -20,7 +22,30 @@
 #include "logger/logger.h"
 #include "mainwindow.h"
 
+namespace {
 
+void ApplyApplicationFont(QApplication* app) {
+  const QStringList preferredFontFamilies = {
+      "Microsoft YaHei UI",
+      "Microsoft YaHei",
+      "PingFang SC",
+      "Noto Sans CJK SC",
+      "Source Han Sans SC",
+      "Segoe UI"};
+  const QStringList availableFontFamilies = QFontDatabase().families();
+  QString selectedFontFamily = QStringLiteral("Microsoft YaHei UI");
+  for (const auto& fontFamily : preferredFontFamilies) {
+    if (availableFontFamilies.contains(fontFamily)) {
+      selectedFontFamily = fontFamily;
+      break;
+    }
+  }
+  QFont uiFont(selectedFontFamily, 10);
+  uiFont.setStyleStrategy(QFont::PreferAntialias);
+  app->setFont(uiFont);
+}
+
+}  // namespace
 static QApplication* g_app = nullptr;
 
 void signalHandler(int signal) {
@@ -31,8 +56,9 @@ void signalHandler(int signal) {
   }
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   QApplication a(argc, argv);
+  ApplyApplicationFont(&a);
   g_app = &a;
 
   std::signal(SIGINT, signalHandler);

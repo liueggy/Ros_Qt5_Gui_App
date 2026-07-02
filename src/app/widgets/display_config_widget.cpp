@@ -28,7 +28,7 @@ QString LineEditStyle() {
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumWidth(280);
+  setMinimumWidth(540);
   ApplyGlobalStyle();
   InitUI();
 }
@@ -37,11 +37,11 @@ DisplayConfigWidget::~DisplayConfigWidget() {}
 
 void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
-                    "DisplayConfigWidget { background-color:#eef1f6; }"
+                    "DisplayConfigWidget { background-color:#f3f5f8; }"
                     "DisplayConfigWidget QLabel#pageTitle { font-size:%1px; font-weight:700; color:#202124; padding-bottom:4px; }"
                     "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#5f6368; padding-bottom:12px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#e8eaed; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#3c4043; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#e8edf4; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#3c4043; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; min-height:24px; }"
                     "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:rgba(255,255,255,0.7); }"
                     "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#1a73e8; font-weight:600; }"
                     "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
@@ -89,9 +89,8 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setMinimumWidth(120);
-  nav_list_->setMaximumWidth(200);
-  nav_list_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  nav_list_->setFixedWidth(176);
+  nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
   const QStringList navTitles = {tr("通道"), tr("显示与话题"), tr("摄像头"),
@@ -101,6 +100,7 @@ void DisplayConfigWidget::InitUI() {
   }
 
   page_stack_ = new QStackedWidget(this);
+  page_stack_->setMinimumWidth(360);
   page_stack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
   page_stack_->addWidget(CreateChannelPage());
@@ -254,7 +254,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
   scroll->setFrameShape(QFrame::NoFrame);
   scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   QWidget* scroll_body = new QWidget;
-  scroll_body->setMinimumWidth(400);
+  scroll_body->setMinimumWidth(420);
   QVBoxLayout* sl = new QVBoxLayout(scroll_body);
   sl->setContentsMargins(0, 0, 8, 0);
   sl->setSpacing(4);
@@ -363,20 +363,25 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   image_table_ = new QTableWidget(0, 4, card);
   image_table_->setHorizontalHeaderLabels(
       QStringList() << tr("位置") << tr("话题") << tr("启用") << QString());
-  image_table_->horizontalHeader()->setMinimumSectionSize(72);
-  image_table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  image_table_->setMinimumHeight(220);
+  image_table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  image_table_->horizontalHeader()->setMinimumSectionSize(64);
+  image_table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
   image_table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   image_table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
   image_table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
-  image_table_->setColumnWidth(2, 80);
-  image_table_->setColumnWidth(3, 80);
+  image_table_->horizontalHeader()->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  image_table_->setColumnWidth(0, 86);
+  image_table_->setColumnWidth(2, 64);
+  image_table_->setColumnWidth(3, 70);
   image_table_->verticalHeader()->setVisible(false);
-  image_table_->verticalHeader()->setDefaultSectionSize(36);
+  image_table_->verticalHeader()->setDefaultSectionSize(40);
   image_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
+  image_table_->setSelectionMode(QAbstractItemView::SingleSelection);
   image_table_->setShowGrid(false);
   image_table_->setAlternatingRowColors(true);
   image_table_->setWordWrap(false);
-  image_table_->setTextElideMode(Qt::ElideNone);
+  image_table_->setTextElideMode(Qt::ElideRight);
   image_table_->setStyleSheet(UiStyle::TableStyleSheet());
 
   connect(image_table_, &QTableWidget::cellChanged, this, [this](int row, int) {
@@ -604,10 +609,7 @@ QWidget* DisplayConfigWidget::CreateKeyValuePage() {
 
   key_value_add_btn_ = new QPushButton(tr("添加条目"), page);
   key_value_add_btn_->setCursor(Qt::PointingHandCursor);
-  key_value_add_btn_->setStyleSheet(
-      QStringLiteral("QPushButton { border:1px solid rgba(26,115,232,0.45); border-radius:8px; padding:8px 16px; "
-                     "background:#fff; color:#1a73e8; font-weight:500; margin-top:10px; }"
-                     "QPushButton:hover { background:#e8f0fe; }"));
+  key_value_add_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   connect(key_value_add_btn_, &QPushButton::clicked, this, &DisplayConfigWidget::OnAddKeyValue);
 
   root->addWidget(card, 1);
@@ -763,8 +765,7 @@ void DisplayConfigWidget::OnAddImageConfig() {
 
   QCheckBox* enable_checkbox = new QCheckBox();
   enable_checkbox->setChecked(true);
-  enable_checkbox->setStyleSheet(
-      QStringLiteral("QCheckBox::indicator { width:18px; height:18px; }"));
+  enable_checkbox->setStyleSheet(QStringLiteral("QCheckBox { margin-left:20px; } QCheckBox::indicator { width:18px; height:18px; }"));
   connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool checked) {
     image_table_->item(row, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
     OnImageConfigChanged(row);
@@ -772,6 +773,7 @@ void DisplayConfigWidget::OnAddImageConfig() {
 
   QPushButton* remove_btn = new QPushButton(tr("移除"));
   remove_btn->setCursor(Qt::PointingHandCursor);
+  remove_btn->setFixedWidth(58);
   remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
   connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
@@ -838,7 +840,6 @@ void DisplayConfigWidget::OnImageConfigChanged(int row) {
 
   location_item->setToolTip(location_item->text());
   topic_item->setToolTip(topic_item->text());
-  image_table_->resizeColumnToContents(0);
 
   AutoSaveConfig();
 }
@@ -973,6 +974,7 @@ void DisplayConfigWidget::LoadConfig() {
 
     QCheckBox* enable_checkbox = new QCheckBox();
     enable_checkbox->setChecked(image_config.enable);
+    enable_checkbox->setStyleSheet(QStringLiteral("QCheckBox { margin-left:20px; } QCheckBox::indicator { width:18px; height:18px; }"));
     connect(enable_checkbox, &QCheckBox::toggled, [this, row](bool checked) {
       image_table_->item(row, 2)->setText(checked ? QStringLiteral("true") : QStringLiteral("false"));
       OnImageConfigChanged(row);
@@ -980,6 +982,7 @@ void DisplayConfigWidget::LoadConfig() {
 
     QPushButton* remove_btn = new QPushButton(tr("移除"));
     remove_btn->setCursor(Qt::PointingHandCursor);
+    remove_btn->setFixedWidth(58);
     remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
     connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
@@ -993,7 +996,6 @@ void DisplayConfigWidget::LoadConfig() {
     topic_item->setToolTip(topic_item->text());
   }
   image_table_->blockSignals(false);
-  image_table_->resizeColumnToContents(0);
 
   robot_points_table_->blockSignals(true);
   robot_points_table_->setRowCount(0);
