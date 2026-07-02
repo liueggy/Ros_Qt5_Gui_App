@@ -220,9 +220,6 @@ void RosNode::DiagnosticCallback(const diagnostic_msgs::DiagnosticArray::ConstPt
   }
   PUBLISH(MSG_ID_DIAGNOSTIC, snapshot);
 }
-// void RosNode::MbStatusCallback(actionlib_msgs::GoalStatusArray::ConstPtr msg) {
-
-// }
 void RosNode::OdometryCallback(const nav_msgs::Odometry::ConstPtr &msg) {
   basic::RobotState state =
       static_cast<basic::RobotState>(Convert(msg->pose.pose));

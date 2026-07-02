@@ -38,6 +38,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void PubRobotSpeed(const basic::RobotSpeed &speed);
   void PubTopologyMapUpdate(const TopologyMap &topology_map);
   void PubCommandRequest(const std::string &json_request);
+  void PubInspectionRequest(const std::string &json_request);
   
   bool IsConnecting() const override { return connecting_; }
   bool IsConnectionFailed() const override { return connection_failed_; }
@@ -60,6 +61,9 @@ class RosbridgeComm : public VirtualChannelNode {
   void DiagnosticCallback(const ROSBridgePublishMsg &msg);
   void CommandResponseCallback(const ROSBridgePublishMsg &msg);
   void CommandStatusCallback(const ROSBridgePublishMsg &msg);
+  void InspectionStatusCallback(const ROSBridgePublishMsg &msg);
+  void InspectionResultCallback(const ROSBridgePublishMsg &msg);
+  void AutoExploreStatusCallback(const ROSBridgePublishMsg &msg);
   void Dht11TempCallback(const ROSBridgePublishMsg &msg);
   void Dht11HumiCallback(const ROSBridgePublishMsg &msg);
   void VoiceCommandCallback(const ROSBridgePublishMsg &msg);

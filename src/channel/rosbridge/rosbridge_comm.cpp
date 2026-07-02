@@ -75,6 +75,10 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_REQUEST, "/eggy/command/request")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_RESPONSE, "/eggy/command/response")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_COMMAND_STATUS, "/eggy/command/status")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_INSPECTION_REQUEST, "/inspection_servo_route/request")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_INSPECTION_STATUS, "/inspection_servo_route/status")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_INSPECTION_RESULT, "/inspection_servo_route/result")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS, "/auto_explore/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_TEMP, "/stm32/dht11/temperature")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_HUMI, "/stm32/dht11/humidity")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_VOICE_COMMAND, "/stm32/voice_command")
@@ -278,6 +282,30 @@ void RosbridgeComm::ConnectAsync() {
   callback_handles_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = command_status_topic->Subscribe(
       [this](const ROSBridgePublishMsg &msg) { CommandStatusCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
+
+  auto inspection_status_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_INSPECTION_STATUS), "std_msgs/String", 10);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_INSPECTION_STATUS)] =
+      inspection_status_topic->Subscribe(
+          [this](const ROSBridgePublishMsg &msg) { InspectionStatusCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_INSPECTION_STATUS)] =
+      std::move(inspection_status_topic);
+
+  auto inspection_result_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_INSPECTION_RESULT), "std_msgs/String", 10);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_INSPECTION_RESULT)] =
+      inspection_result_topic->Subscribe(
+          [this](const ROSBridgePublishMsg &msg) { InspectionResultCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_INSPECTION_RESULT)] =
+      std::move(inspection_result_topic);
+
+  auto auto_explore_status_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS), "std_msgs/String", 5);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS)] =
+      auto_explore_status_topic->Subscribe(
+          [this](const ROSBridgePublishMsg &msg) { AutoExploreStatusCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS)] =
+      std::move(auto_explore_status_topic);
   
   // DHT11 温湿度话题订阅
   auto dht11_temp_topic = std::make_unique<ROSTopic>(
@@ -352,6 +380,12 @@ void RosbridgeComm::ConnectAsync() {
   auto command_request_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST), "std_msgs/String", 10);
   command_request_publisher->Advertise();
   publishers_[GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST)] = std::move(command_request_publisher);
+
+  auto inspection_request_publisher = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_INSPECTION_REQUEST), "std_msgs/String", 5);
+  inspection_request_publisher->Advertise();
+  publishers_[GET_TOPIC_NAME(MSG_ID_INSPECTION_REQUEST)] =
+      std::move(inspection_request_publisher);
   
   // ========== 订阅内部消息总线 ==========
   
@@ -378,6 +412,11 @@ void RosbridgeComm::ConnectAsync() {
   SUBSCRIBE(MSG_ID_COMMAND_REQUEST, [this](const std::string& json_request) {
     LOG_INFO("recv eggy command request:" << json_request);
     PubCommandRequest(json_request);
+  });
+
+  SUBSCRIBE(MSG_ID_INSPECTION_REQUEST, [this](const std::string& json_request) {
+    LOG_INFO("recv inspection route request:" << json_request);
+    PubInspectionRequest(json_request);
   });
   
   init_flag_ = true;
@@ -1058,6 +1097,27 @@ void RosbridgeComm::CommandStatusCallback(const ROSBridgePublishMsg &msg) {
   PUBLISH(MSG_ID_COMMAND_STATUS, std::string(msg_json["data"].GetString()));
 }
 
+void RosbridgeComm::InspectionStatusCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &msg_json = msg.msg_json_;
+  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
+  PUBLISH(MSG_ID_INSPECTION_STATUS, std::string(msg_json["data"].GetString()));
+}
+
+void RosbridgeComm::InspectionResultCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &msg_json = msg.msg_json_;
+  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
+  PUBLISH(MSG_ID_INSPECTION_RESULT, std::string(msg_json["data"].GetString()));
+}
+
+void RosbridgeComm::AutoExploreStatusCallback(const ROSBridgePublishMsg &msg) {
+  if (msg.msg_json_.IsNull()) return;
+  const auto &msg_json = msg.msg_json_;
+  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
+  PUBLISH(MSG_ID_AUTO_EXPLORE_STATUS, std::string(msg_json["data"].GetString()));
+}
+
 /**
  * @brief 里程计回调函数
  * @param msg ROSBridge消息
@@ -1473,6 +1533,18 @@ void RosbridgeComm::PubCommandRequest(const std::string &json_request) {
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST));
+  if (it != publishers_.end()) {
+    it->second->Publish(msg);
+  }
+}
+
+void RosbridgeComm::PubInspectionRequest(const std::string &json_request) {
+  rapidjson::Document msg;
+  msg.SetObject();
+  auto &allocator = msg.GetAllocator();
+  msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
+
+  auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_INSPECTION_REQUEST));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
   }

@@ -100,6 +100,9 @@ class MainWindow : public QMainWindow {
   ads::CDockWidget *diagnostic_dock_{nullptr};
   CommandCenterWidget *command_center_widget_{nullptr};
   ads::CDockWidget *command_center_dock_{nullptr};
+  QLabel *inspection_status_label_{nullptr};
+  QPlainTextEdit *inspection_result_view_{nullptr};
+  QPushButton *inspection_start_button_{nullptr};
   QLabel *label_dht11_temp_{nullptr};
   QLabel *label_dht11_humi_{nullptr};
   QLabel *label_voice_cmd_{nullptr};

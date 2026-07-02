@@ -24,6 +24,7 @@
 #include <QSplitter>
 #include <QStyle>
 #include <iostream>
+#include <map>
 #include <numeric>
 #include <opencv2/opencv.hpp>
 #include "AutoHideDockContainer.h"
@@ -39,6 +40,7 @@
 #include "ui_mainwindow.h"
 
 #include <QTimer>
+#include <nlohmann/json.hpp>
 #include "display/manager/view_manager.h"
 #include "msg/diagnostic_snapshot.h"
 #include "widgets/command_center_widget.h"
@@ -85,6 +87,116 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   return pill;
 }
 
+QString InspectionStageText(const std::string& stage) {
+  static const std::map<std::string, QString> kStageText = {
+      {"ready", QStringLiteral("待命")},
+      {"home_recorded", QStringLiteral("已记录起点")},
+      {"waiting_move_base", QStringLiteral("等待导航")},
+      {"navigating", QStringLiteral("导航中")},
+      {"target_intercept", QStringLiteral("识别到目标，切换视觉靠近")},
+      {"servo_starting", QStringLiteral("启动视觉靠近")},
+      {"servo_running", QStringLiteral("视觉靠近中")},
+      {"kimi_running", QStringLiteral("Kimi 读数中")},
+      {"returning_home", QStringLiteral("正在返航")},
+      {"complete", QStringLiteral("巡检完成")},
+      {"cancelled", QStringLiteral("已取消")},
+      {"error", QStringLiteral("巡检异常")},
+      {"busy", QStringLiteral("任务运行中")},
+  };
+  const auto it = kStageText.find(stage);
+  if (it != kStageText.end()) {
+    return it->second;
+  }
+  return QString::fromStdString(stage.empty() ? "未知状态" : stage);
+}
+
+QString FormatInspectionStatus(const std::string& json_text) {
+  try {
+    const auto data = nlohmann::json::parse(json_text);
+    const QString stage = InspectionStageText(
+        data.value("stage", data.value("state", std::string())));
+    const QString message =
+        QString::fromStdString(data.value("message", std::string()));
+    QStringList parts;
+    parts << stage;
+    if (data.contains("waypoint_id")) {
+      parts << QStringLiteral("点位: %1").arg(
+          QString::fromStdString(data.value("waypoint_id", std::string())));
+    }
+    if (data.contains("extra") && data["extra"].is_object() &&
+        data["extra"].contains("waypoint") && data["extra"]["waypoint"].is_object()) {
+      parts << QStringLiteral("点位: %1").arg(QString::fromStdString(
+          data["extra"]["waypoint"].value("id", std::string())));
+    }
+    if (data.value("intercepted", false)) {
+      parts << QStringLiteral("已由视觉截获目标");
+    }
+    if (!message.isEmpty()) {
+      parts << message;
+    }
+    return parts.join(QStringLiteral(" · "));
+  } catch (const std::exception&) {
+    return QString::fromStdString(json_text);
+  }
+}
+
+QString FormatInspectionResult(const std::string& json_text) {
+  try {
+    const auto data = nlohmann::json::parse(json_text);
+    QStringList lines;
+    const bool ok = data.value("ok", false);
+    lines << (ok ? QStringLiteral("巡检完成") : QStringLiteral("巡检未完成"));
+    if (data.contains("error")) {
+      lines << QStringLiteral("错误: %1").arg(
+          QString::fromStdString(data.value("error", std::string())));
+    }
+    const auto points = data.contains("points") ? data["points"] :
+                        data.contains("results") ? data["results"] :
+                        nlohmann::json::array();
+    if (points.is_array()) {
+      int index = 1;
+      for (const auto& point : points) {
+        const auto wp = point.value("waypoint", nlohmann::json::object());
+        const QString waypoint = QString::fromStdString(
+            wp.value("id", std::string("P" + std::to_string(index))));
+        QStringList point_parts;
+        point_parts << QStringLiteral("%1. %2").arg(index).arg(waypoint);
+        if (point.contains("navigation")) {
+          const auto nav = point["navigation"];
+          point_parts << QStringLiteral("导航:%1").arg(
+              QString::fromStdString(nav.value("state_text", std::string("-"))));
+          if (nav.value("intercepted", false)) {
+            point_parts << QStringLiteral("视觉截获");
+          }
+        }
+        if (point.contains("servo") && point["servo"].is_object()) {
+          const auto servo = point["servo"];
+          point_parts << QStringLiteral("靠近:%1").arg(
+              servo.value("ok", false) ? QStringLiteral("完成") : QStringLiteral("未完成"));
+        }
+        if (point.contains("kimi") && point["kimi"].is_object()) {
+          const auto kimi = point["kimi"];
+          point_parts << QStringLiteral("读数:%1").arg(
+              kimi.value("ok", false) ? QStringLiteral("完成") : QStringLiteral("未完成"));
+          if (kimi.contains("result")) {
+            const auto result = kimi["result"];
+            if (result.is_object() && result.contains("summary")) {
+              point_parts << QString::fromStdString(result.value("summary", std::string()));
+            }
+          }
+        }
+        lines << point_parts.join(QStringLiteral(" · "));
+        ++index;
+      }
+    } else if (data.contains("message")) {
+      lines << QString::fromStdString(data.value("message", std::string()));
+    }
+    return lines.join(QStringLiteral("\n"));
+  } catch (const std::exception&) {
+    return QString::fromStdString(json_text);
+  }
+}
+
 }  // namespace
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -96,7 +208,6 @@ MainWindow::MainWindow(QWidget* parent)
   qRegisterMetaType<RobotPose>("RobotPose");
   qRegisterMetaType<RobotSpeed>("RobotSpeed");
   qRegisterMetaType<RobotState>("RobotState");
-  qRegisterMetaType<OccupancyMap>("OccupancyMap");
   qRegisterMetaType<OccupancyMap>("OccupancyMap");
   qRegisterMetaType<LaserScan>("LaserScan");
   qRegisterMetaType<RobotPath>("RobotPath");
@@ -227,6 +338,30 @@ void MainWindow::registerChannel() {
     if (command_center_widget_) {
       command_center_widget_->SetDiagnosticSnapshot(snap);
     }
+  });
+
+  SUBSCRIBE(MSG_ID_INSPECTION_STATUS, [this](const std::string& json_str) {
+    if (!inspection_status_label_) {
+      return;
+    }
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      inspection_status_label_->setText(FormatInspectionStatus(json_str));
+    }, Qt::QueuedConnection);
+  });
+
+  SUBSCRIBE(MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      if (inspection_result_view_) {
+        inspection_result_view_->setPlainText(FormatInspectionResult(json_str));
+      }
+      if (inspection_start_button_) {
+        inspection_start_button_->setText(QStringLiteral("开始任务链"));
+      }
+    }, Qt::QueuedConnection);
+  });
+
+  SUBSCRIBE(MSG_ID_AUTO_EXPLORE_STATUS, [this](const std::string& json_str) {
+    LOG_INFO("auto explore status: " << json_str);
   });
 
   SUBSCRIBE(MSG_ID_DHT11_TEMP, [this](const double& temp) {
@@ -712,6 +847,7 @@ void MainWindow::setupUi() {
   QHBoxLayout* horizontalLayout_15 = new QHBoxLayout();
   QPushButton* btn_start_task_chain = new QPushButton("开始任务链");
   btn_start_task_chain->setStyleSheet(modernButtonStyle);
+  inspection_start_button_ = btn_start_task_chain;
 
   QCheckBox* loop_task_checkbox = new QCheckBox("循环任务");
   loop_task_checkbox->setStyleSheet(UiStyle::CheckBoxStyleSheet());
@@ -730,9 +866,30 @@ void MainWindow::setupUi() {
   horizontalLayout_16->addWidget(btn_load_task_chain);
   horizontalLayout_16->addWidget(btn_save_task_chain);
 
+  auto* inspection_status_card = new QFrame();
+  inspection_status_card->setStyleSheet(QStringLiteral(
+      "QFrame { background:#f8fbff; border:1px solid #dce6f2; border-radius:12px; }"
+      "QLabel { background:transparent; border:none; color:#334155; }"
+      "QPlainTextEdit { background:#ffffff; border:1px solid #dce6f2; border-radius:10px; padding:8px; }"));
+  auto* inspection_status_layout = new QVBoxLayout(inspection_status_card);
+  inspection_status_layout->setContentsMargins(12, 10, 12, 12);
+  inspection_status_layout->setSpacing(8);
+  auto* inspection_title = new QLabel(QStringLiteral("巡检执行"));
+  inspection_title->setStyleSheet(QStringLiteral("font-weight:700; color:#0f172a;"));
+  inspection_status_label_ = new QLabel(QStringLiteral("待命。添加点位后点击开始任务链。"));
+  inspection_status_label_->setWordWrap(true);
+  inspection_result_view_ = new QPlainTextEdit();
+  inspection_result_view_->setReadOnly(true);
+  inspection_result_view_->setPlaceholderText(QStringLiteral("巡检结果将在这里显示。"));
+  inspection_result_view_->setFixedHeight(110);
+  inspection_status_layout->addWidget(inspection_title);
+  inspection_status_layout->addWidget(inspection_status_label_);
+  inspection_status_layout->addWidget(inspection_result_view_);
+
   horizontalLayout_13->addLayout(horizontalLayout_15);
   horizontalLayout_13->addLayout(horizontalLayout_14);
   horizontalLayout_13->addLayout(horizontalLayout_16);
+  horizontalLayout_13->addWidget(inspection_status_card);
   nav_goal_list_dock_widget->setWidget(task_list_widget);
   ConfigureDockWidget(nav_goal_list_dock_widget, QSize(340, 360), QSize(380, 620));
   nav_goal_list_dock_widget->setMaximumSize(520, 9999);
@@ -783,17 +940,29 @@ void MainWindow::setupUi() {
   connect(btn_start_task_chain, &QPushButton::clicked,
           [this, btn_start_task_chain, loop_task_checkbox]() {
             if (btn_start_task_chain->text() == "开始任务链") {
+              if (nav_goal_table_view_->RowCount() == 0) {
+                QMessageBox::information(this, QStringLiteral("任务链为空"),
+                                         QStringLiteral("请先添加至少一个点位。"),
+                                         QMessageBox::Ok);
+                return;
+              }
               btn_start_task_chain->setText("停止任务链");
-              nav_goal_table_view_->StartTaskChain(loop_task_checkbox->isChecked());
+              const auto request =
+                  nav_goal_table_view_->BuildInspectionRequest(loop_task_checkbox->isChecked());
+              if (inspection_status_label_) {
+                inspection_status_label_->setText(QStringLiteral("已发送任务链，等待小车响应…"));
+              }
+              if (inspection_result_view_) {
+                inspection_result_view_->clear();
+              }
+              PUBLISH(MSG_ID_INSPECTION_REQUEST, request);
             } else {
               btn_start_task_chain->setText("开始任务链");
-              nav_goal_table_view_->StopTaskChain();
+              PUBLISH(MSG_ID_INSPECTION_REQUEST, std::string("{\"command\":\"cancel\"}"));
+              if (inspection_status_label_) {
+                inspection_status_label_->setText(QStringLiteral("已发送停止请求。"));
+              }
             }
-          });
-  connect(nav_goal_table_view_, &NavGoalTableView::signalTaskFinish,
-          [this, btn_start_task_chain]() {
-            LOG_INFO("task finish!");
-            btn_start_task_chain->setText("开始任务链");
           });
   connect(display_manager_,
           SIGNAL(signalTopologyMapUpdate(const TopologyMap&)),
@@ -1221,20 +1390,6 @@ void MainWindow::RestoreState() {
   UpdateMaximizeButton();
 }
 void MainWindow::updateOdomInfo(RobotState state) {
-  // 转向灯
-  //   if (state.w > 0.1) {
-  //     ui->label_turnLeft->setPixmap(
-  //         QPixmap::fromImage(QImage("://images/turnLeft_hl.png")));
-  //   } else if (state.w < -0.1) {
-  //     ui->label_turnRight->setPixmap(
-  //         QPixmap::fromImage(QImage("://images/turnRight_hl.png")));
-  //   } else {
-  //     ui->label_turnLeft->setPixmap(
-  //         QPixmap::fromImage(QImage("://images/turnLeft_l.png")));
-  //     ui->label_turnRight->setPixmap(
-  //         QPixmap::fromImage(QImage("://images/turnRight_l.png")));
-  //   }
-  //   // 仪表盘
   speed_dash_board_->set_speed(abs(state.vx * 100));
   if (state.vx > 0.001) {
     speed_dash_board_->set_gear(DashBoard::kGear_D);
@@ -1243,20 +1398,12 @@ void MainWindow::updateOdomInfo(RobotState state) {
   } else {
     speed_dash_board_->set_gear(DashBoard::kGear_N);
   }
-  //   QString number = QString::number(abs(state.vx * 100)).mid(0, 2);
-  //   if (number[1] == ".") {
-  //     number = number.mid(0, 1);
-  //   }
-  //  ui->label_speed->setText(number);
-  //  ui->mapViz->grab().save("/home/chengyangkj/test.jpg");
-  //  QImage image(mysize,QImage::Format_RGB32);
-  //           QPainter painter(&image);
-  //           myscene->render(&painter);   //关键函数
 }
 void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
   // ROS BatteryState.percentage is 0.0-1.0; QProgressBar needs 0-100
   battery_bar_->setValue(static_cast<int>(percent * 100));
-  label_power_->setText(QString::number(voltage, 'f', 2) + " V");
+  const double displayed_voltage = voltage > 12.0 ? 12.0 : voltage;
+  label_power_->setText(QString::number(displayed_voltage, 'f', 2) + " V");
 }
 
 bool MainWindow::LoadMap(const std::string& file_path) {

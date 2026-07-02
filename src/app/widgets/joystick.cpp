@@ -11,9 +11,6 @@ JoyStick::JoyStick(QWidget *parent) : QWidget(parent) {
   tim = new QTimer(this);
   connect(tim, &QTimer::timeout, this,
           [=] { emit keyNumchanged(getKeyNum()); });
-  //    connect(this,&JoyStick::keyNumchanged,this,[=](int num){
-  //        qDebug()<<num<<endl;
-  //    });
 }
 
 JoyStick::~JoyStick() {}

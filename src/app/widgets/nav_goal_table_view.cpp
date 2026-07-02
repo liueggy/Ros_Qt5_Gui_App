@@ -4,7 +4,6 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
-#include <QtConcurrent>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "algorithm.h"
@@ -17,6 +16,7 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   setModel(table_model_);
   QStringList table_h_headers;
   table_h_headers << "点位名"
+                  << "目标类型"
                   << "任务状态"
                   << "删除"
                   << "运行";
@@ -63,12 +63,23 @@ void NavGoalTableView::UpdateSelectPoint(const TopologyMap::PointInfo& point) {
   }
 }
 void NavGoalTableView::AddItem() {
+  InsertRow();
+}
+
+void NavGoalTableView::InsertRow(const QString& point_name,
+                                 const QString& expected_class) {
   QComboBox* comboBox = new QComboBox();
   for (auto point : topologyMap_.points) {
     comboBox->addItem(point.name.c_str());
   }
   comboBox->addItem("");
-  comboBox->setCurrentText("");
+  comboBox->setCurrentText(point_name);
+  QComboBox* targetType = new QComboBox();
+  targetType->addItem("自动识别", "any");
+  targetType->addItem("水表", "water_meter");
+  targetType->addItem("压力表", "pressure_gauge");
+  const int targetIndex = targetType->findData(expected_class);
+  targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
   QLabel* label_status = new QLabel("无");
   QPushButton* button_remove = new QPushButton("删除");
   QPushButton* button_run = new QPushButton("运行");
@@ -82,49 +93,20 @@ void NavGoalTableView::AddItem() {
       table_model_->removeRow(selectedIndexes[0].row());
     }
   });
+  connect(button_run, &QPushButton::clicked, [this, comboBox]() {
+    const auto point =
+        topologyMap_.GetPoint(comboBox->currentText().toStdString());
+    if (!point.name.empty()) {
+      emit signalSendNavGoal(point.ToRobotPose());
+    }
+  });
   table_model_->insertRow(row);
 
   setIndexWidget(table_model_->index(row, 0), comboBox);
-  setIndexWidget(table_model_->index(row, 1), label_status);
-  setIndexWidget(table_model_->index(row, 2), button_remove);
-  setIndexWidget(table_model_->index(row, 3), button_run);
-}
-void NavGoalTableView::StartTaskChain(bool is_loop) {
-  is_task_chain_running_ = true;
-  QtConcurrent::run([this, is_loop]() {
-    do {
-      for (int row = 0; row < table_model_->rowCount(); ++row) {
-        QComboBox* comboBoxName =
-            static_cast<QComboBox*>(indexWidget(model()->index(row, 0)));
-        QLabel* label_status =
-            static_cast<QLabel*>(indexWidget(model()->index(row, 1)));
-        label_status->setText("运行中");
-        TopologyMap::PointInfo point =
-            topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
-        if (point.name == "") {
-          label_status->setText("未找到点位!");
-          continue;
-        }
-        RobotPose target_pose = point.ToRobotPose();
-        emit signalSendNavGoal(target_pose);
-        RobotPose diff = absoluteDifference(target_pose, robot_pose_);
-        while (diff.mod() > 0.2 || fabs(diff.theta) > deg2rad(15)) {
-          LOG_INFO("Task chain is running diff:" << diff << " mode:" << diff.mod() << " deg:" << rad2deg(fabs(diff.theta)));
-          diff = absoluteDifference(target_pose, robot_pose_);
-          if (!is_task_chain_running_) {
-            emit signalTaskFinish();
-            LOG_INFO("Task chain is stopped");
-            return;
-          }
-          QThread::msleep(100);
-        }
-        label_status->setText("完成");
-      }
-    } while (is_loop);
-
-    LOG_INFO("Task chain is finished");
-    emit signalTaskFinish();
-  });
+  setIndexWidget(table_model_->index(row, 1), targetType);
+  setIndexWidget(table_model_->index(row, 2), label_status);
+  setIndexWidget(table_model_->index(row, 3), button_remove);
+  setIndexWidget(table_model_->index(row, 4), button_run);
 }
 bool NavGoalTableView::LoadTaskChain(const std::string& name) {
   // 清空模型
@@ -141,10 +123,8 @@ bool NavGoalTableView::LoadTaskChain(const std::string& name) {
   }
   file.close();
   for (auto point : task_chain_.points) {
-    QComboBox* comboBox = new QComboBox();
     bool find_point = false;
     for (auto p : topologyMap_.points) {
-      comboBox->addItem(p.name.c_str());
       if (point.name == p.name) {
         find_point = true;
       }
@@ -152,56 +132,75 @@ bool NavGoalTableView::LoadTaskChain(const std::string& name) {
     if (!find_point) {
       LOG_ERROR(
           "Can't find point " << point.name << " in topology map skip this point!");
-      delete comboBox;
       continue;
     }
-    comboBox->setCurrentText(QString::fromStdString(point.name));
-    QLabel* label_status = new QLabel("无");
-    QPushButton* button_remove = new QPushButton("删除");
-    QPushButton* button_run = new QPushButton("运行");
-    button_remove->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#c5221f")));
-    button_run->setStyleSheet(UiStyle::MainButtonStyleSheet());
-    int row = table_model_->rowCount();
-
-    connect(button_remove, &QPushButton::clicked, [this, row]() {
-      QModelIndexList selectedIndexes = selectionModel()->selectedRows();
-      if (selectedIndexes.size() == 1) {
-        table_model_->removeRow(selectedIndexes[0].row());
-      }
-    });
-    table_model_->insertRow(row);
-
-    setIndexWidget(table_model_->index(row, 0), comboBox);
-    setIndexWidget(table_model_->index(row, 1), label_status);
-    setIndexWidget(table_model_->index(row, 2), button_remove);
-    setIndexWidget(table_model_->index(row, 3), button_run);
+    const auto expected = task_chain_.expected_classes.find(point.name);
+    InsertRow(QString::fromStdString(point.name),
+              QString::fromStdString(expected == task_chain_.expected_classes.end()
+                                         ? "any"
+                                         : expected->second));
   }
   return true;
 }
 bool NavGoalTableView::SaveTaskChain(const std::string& name) {
+  task_chain_.points.clear();
+  task_chain_.expected_classes.clear();
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     QComboBox* comboBoxName =
         static_cast<QComboBox*>(indexWidget(model()->index(row, 0)));
-    QLabel* label_status =
-        static_cast<QLabel*>(indexWidget(model()->index(row, 1)));
-    label_status->setText("运行中");
     TopologyMap::PointInfo point =
         topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
     if (point.name == "") {
-      label_status->setText("未找到点位!");
       continue;
     }
     task_chain_.points.push_back(point);
+    auto* targetType =
+        static_cast<QComboBox*>(indexWidget(model()->index(row, 1)));
+    task_chain_.expected_classes[point.name] =
+        targetType ? targetType->currentData().toString().toStdString() : "any";
   }
   nlohmann::json j = task_chain_;
   std::string pretty_json = j.dump(2);
   return Config::ConfigManager::writeStringToFile(name, pretty_json);
 }
-void NavGoalTableView::StopTaskChain() {
-  if (is_task_chain_running_) {
-    is_task_chain_running_ = false;
-  }
-}
 void NavGoalTableView::UpdateRobotPose(const RobotPose& pose) {
   robot_pose_ = pose;
+}
+
+std::string NavGoalTableView::BuildInspectionRequest(bool is_loop) {
+  nlohmann::json request = {
+      {"command", "start"},
+      {"loop", is_loop},
+      {"return_home", true},
+      {"route", nlohmann::json::array()},
+  };
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    auto* pointCombo =
+        static_cast<QComboBox*>(indexWidget(model()->index(row, 0)));
+    auto* targetType =
+        static_cast<QComboBox*>(indexWidget(model()->index(row, 1)));
+    if (!pointCombo) {
+      continue;
+    }
+    const auto point =
+        topologyMap_.GetPoint(pointCombo->currentText().toStdString());
+    if (point.name.empty()) {
+      continue;
+    }
+    request["route"].push_back({
+        {"id", point.name},
+        {"frame_id", "map"},
+        {"x", point.x},
+        {"y", point.y},
+        {"yaw", point.theta},
+        {"expected_class",
+         targetType ? targetType->currentData().toString().toStdString() : "any"},
+        {"allow_vision_intercept", true},
+    });
+  }
+  return request.dump();
+}
+
+int NavGoalTableView::RowCount() const {
+  return table_model_->rowCount();
 }

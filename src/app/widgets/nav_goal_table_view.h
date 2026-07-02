@@ -17,21 +17,21 @@ class NavGoalTableView : public QTableView {
   QStandardItemModel *table_model_;
   TopologyMap topologyMap_;
   RobotPose robot_pose_;
-  std::atomic<bool> is_task_chain_running_;
   TaskChain task_chain_;
  public slots:
   void UpdateTopologyMap(const TopologyMap &_topology_map);
   void AddItem();
   void UpdateSelectPoint(const TopologyMap::PointInfo &);
-  void StartTaskChain(bool is_loop);
-  void StopTaskChain();
   void UpdateRobotPose(const RobotPose &pose);
   bool LoadTaskChain(const std::string &name);
   bool SaveTaskChain(const std::string &name);
+  std::string BuildInspectionRequest(bool is_loop);
+  int RowCount() const;
  signals:
   void signalSendNavGoal(const RobotPose &pose);
-  void signalTaskFinish();
 
  private:
+  void InsertRow(const QString &point_name = QString(),
+                 const QString &expected_class = QStringLiteral("any"));
   void onItemChanged(QStandardItem *item);
 };
