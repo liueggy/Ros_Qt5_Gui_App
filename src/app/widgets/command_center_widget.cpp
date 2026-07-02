@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -15,6 +16,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSize>
 #include <QStringList>
 #include <QToolButton>
 #include <QUuid>
@@ -188,12 +190,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   advanced_speed_btn->setCheckable(true);
   advanced_speed_btn->setChecked(false);
   advanced_speed_btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  advanced_speed_btn->setArrowType(Qt::RightArrow);
+  advanced_speed_btn->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
+  advanced_speed_btn->setIconSize(QSize(16, 16));
   advanced_speed_btn->setCursor(Qt::PointingHandCursor);
   advanced_speed_btn->setStyleSheet(QStringLiteral(
-      "QToolButton { color:#536277; background:transparent; border:none; "
-      "font-size:%1px; font-weight:700; padding:4px 2px; }"
-      "QToolButton:hover { color:#1f5fbf; }")
+      "QToolButton { color:#1f5fbf; background:transparent; border:none; "
+      "font-size:%1px; font-weight:700; padding:5px 2px; }"
+      "QToolButton:hover { color:#174ea6; background:rgba(47,111,237,0.08); border-radius:8px; }")
       .arg(UiStyle::FontSmallPx()));
   speed_layout->addWidget(advanced_speed_btn, 0, Qt::AlignLeft);
 
@@ -232,7 +235,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_layout->addWidget(advanced_speed_panel);
   root->addWidget(speed_group);
   connect(advanced_speed_btn, &QToolButton::toggled, [advanced_speed_btn, advanced_speed_panel](bool checked) {
-    advanced_speed_btn->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+    advanced_speed_btn->setIcon(QIcon(checked ? QStringLiteral(":/icons/tabler/arrow-down.svg")
+                                              : QStringLiteral(":/icons/tabler/arrow-right.svg")));
     advanced_speed_panel->setVisible(checked);
   });
 

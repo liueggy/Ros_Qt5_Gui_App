@@ -7,9 +7,11 @@
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSize>
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
@@ -161,13 +163,14 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   auto* filter_toggle = new QToolButton(this);
   filter_toggle->setText(tr("筛选"));
   filter_toggle->setCheckable(true);
-  filter_toggle->setArrowType(Qt::RightArrow);
   filter_toggle->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  filter_toggle->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
+  filter_toggle->setIconSize(QSize(16, 16));
   filter_toggle->setCursor(Qt::PointingHandCursor);
   filter_toggle->setStyleSheet(QStringLiteral(
-      "QToolButton { color:#536277; background:#ffffff; border:1px solid #dce4ef; "
+      "QToolButton { color:#1f5fbf; background:#ffffff; border:1px solid #dce4ef; "
       "border-radius:9px; padding:5px 10px; font-size:%1px; font-weight:700; }"
-      "QToolButton:hover { color:#1f5fbf; background:#f5f9ff; border-color:#bcd3fb; }")
+      "QToolButton:hover { color:#174ea6; background:#f5f9ff; border-color:#bcd3fb; }")
       .arg(UiStyle::FontSmallPx()));
   summary_row->addWidget(filter_toggle);
   summary_row->addWidget(refresh_btn_);
@@ -232,7 +235,8 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   filter_tools->addLayout(chip_layout);
   root->addWidget(filter_panel);
   connect(filter_toggle, &QToolButton::toggled, [filter_toggle, filter_panel](bool checked) {
-    filter_toggle->setArrowType(checked ? Qt::DownArrow : Qt::RightArrow);
+    filter_toggle->setIcon(QIcon(checked ? QStringLiteral(":/icons/tabler/arrow-down.svg")
+                                         : QStringLiteral(":/icons/tabler/arrow-right.svg")));
     filter_panel->setVisible(checked);
   });
 
