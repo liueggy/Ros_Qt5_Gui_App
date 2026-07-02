@@ -148,19 +148,20 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addWidget(summary_error_);
   summary_row->addWidget(summary_stale_);
   summary_row->addStretch();
-  refresh_btn_ = new QPushButton(tr("刷新"));
-  refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  refresh_btn_->setFixedHeight(32);
-  connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
-  summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
 
   auto* search_row = new QHBoxLayout();
+  search_row->setSpacing(8);
   search_edit_ = new QLineEdit();
   search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
   search_row->addWidget(search_edit_, 1);
+  refresh_btn_ = new QPushButton(tr("刷新"));
+  refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  refresh_btn_->setFixedHeight(UiStyle::ControlHeightPx());
+  connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
+  search_row->addWidget(refresh_btn_);
 
   filter_group_ = new QButtonGroup(this);
   filter_group_->setExclusive(true);
@@ -186,7 +187,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  clear_filter_btn_->setFixedHeight(32);
+  clear_filter_btn_->setFixedHeight(UiStyle::ControlHeightPx());
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
     search_lower_.clear();

@@ -281,7 +281,7 @@ void MainWindow::setupUi() {
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
   horizontalLayout_tools->setSpacing(6);
-  horizontalLayout_tools->setContentsMargins(12, 6, 10, 6);
+  horizontalLayout_tools->setContentsMargins(20, 6, 10, 6);
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
@@ -295,6 +295,7 @@ void MainWindow::setupUi() {
                     QSize(32, 32), QIcon::Normal, QIcon::Off);
   view_menu_btn->setIcon(view_icon);
   view_menu_btn->setIconSize(QSize(24, 24));
+  view_menu_btn->setMinimumWidth(64);
   view_menu_btn->setPopupMode(QToolButton::InstantPopup);
   view_menu_btn->setMenu(ui->menuView);
   view_menu_btn->setToolTip(tr("面板与窗口"));

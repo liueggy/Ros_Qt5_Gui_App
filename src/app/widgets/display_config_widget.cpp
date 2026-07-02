@@ -142,9 +142,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   QLabel* page_title = new QLabel(tr("通道"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root,
-               tr("对应 config.json 中的 channel_config：通道类型（如 auto、rosbridge、ros1、ros2）"
-                  "以及使用 rosbridge 时的 ip 和端口配置。"));
+  AddHintLabel(root, tr("配置上位机与小车的通信方式，以及 ROSBridge 的地址和端口。"));
 
   connection_section_label_ = AddSectionHeader(root, tr("连接"));
 

@@ -9,6 +9,7 @@
 #include <QLineEdit>
 #include <QSlider>
 #include <QLabel>
+#include <QPainter>
 #include "display/manager/scene_manager.h"
 namespace Display {
 class DisplayManager;
@@ -42,6 +43,7 @@ class ViewManager : public QGraphicsView {
 
  protected:
   void resizeEvent(QResizeEvent *event) override;
+  void drawBackground(QPainter *painter, const QRectF &rect) override;
   void mouseMoveEvent(QMouseEvent *event) override;
 
   void enterEvent(QEvent *event) override;

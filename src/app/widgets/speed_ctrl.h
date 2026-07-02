@@ -175,10 +175,12 @@ class SpeedCtrlWidget : public QWidget {
     control_layout->setContentsMargins(12, 10, 12, 12);
     control_layout->setSpacing(10);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
-    verticalLayout_cmd_btn->setContentsMargins(16, 18, 16, 18);
-    verticalLayout_cmd_btn->setSpacing(12);
+    verticalLayout_cmd_btn->setContentsMargins(14, 16, 14, 16);
+    verticalLayout_cmd_btn->setSpacing(10);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
+    horizontalLayout_2->setSpacing(54);
+    horizontalLayout_2->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_u = new QPushButton();
     pushButton_u->setObjectName(QString::fromUtf8("pushButton_u"));
     pushButton_u->setText("u");
@@ -232,6 +234,8 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
     horizontalLayout_18->setObjectName(
         QString::fromUtf8("horizontalLayout_18"));
+    horizontalLayout_18->setSpacing(54);
+    horizontalLayout_18->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_j = new QPushButton();
     pushButton_j->setText("j");
     pushButton_j->setShortcut(QApplication::translate("Widget", "j", nullptr));
@@ -275,6 +279,8 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
     horizontalLayout_19->setObjectName(
         QString::fromUtf8("horizontalLayout_19"));
+    horizontalLayout_19->setSpacing(54);
+    horizontalLayout_19->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_m = new QPushButton();
     pushButton_m->setObjectName(QString::fromUtf8("pushButton_m"));
     pushButton_m->setText("m");

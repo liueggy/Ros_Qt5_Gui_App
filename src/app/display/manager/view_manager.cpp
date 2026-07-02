@@ -1,5 +1,6 @@
 #include "display/manager/view_manager.h"
 #include <QDebug>
+#include <cmath>
 #include <iostream>
 #include "display/display_occ_map.h"
 #include "display/manager/display_factory.h"
@@ -8,6 +9,7 @@
 #include "widgets/ui_style.h"
 namespace Display {
 ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
+  setBackgroundBrush(QColor(QStringLiteral("#ffffff")));
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setMouseTracking(true);  // 开启鼠标追踪，以便捕获鼠标移动事件
@@ -249,6 +251,43 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
     tool_size_value_label_->setText(QString::number(range, 'f', 1));
   });
 }
+
+void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
+  QGraphicsView::drawBackground(painter, rect);
+
+  painter->save();
+  painter->setRenderHint(QPainter::Antialiasing, false);
+
+  const qreal minor_step = 32.0;
+  const qreal major_step = minor_step * 4.0;
+  const qreal left = std::floor(rect.left() / minor_step) * minor_step;
+  const qreal top = std::floor(rect.top() / minor_step) * minor_step;
+
+  QPen minor_pen(QColor(229, 235, 244, 115));
+  minor_pen.setWidthF(0.0);
+  painter->setPen(minor_pen);
+  for (qreal x = left; x < rect.right(); x += minor_step) {
+    painter->drawLine(QPointF(x, rect.top()), QPointF(x, rect.bottom()));
+  }
+  for (qreal y = top; y < rect.bottom(); y += minor_step) {
+    painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
+  }
+
+  QPen major_pen(QColor(207, 216, 230, 120));
+  major_pen.setWidthF(0.0);
+  painter->setPen(major_pen);
+  const qreal major_left = std::floor(rect.left() / major_step) * major_step;
+  const qreal major_top = std::floor(rect.top() / major_step) * major_step;
+  for (qreal x = major_left; x < rect.right(); x += major_step) {
+    painter->drawLine(QPointF(x, rect.top()), QPointF(x, rect.bottom()));
+  }
+  for (qreal y = major_top; y < rect.bottom(); y += major_step) {
+    painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
+  }
+
+  painter->restore();
+}
+
 void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
   display_manager_ptr_ = display_manager;
   // 初始化滑动条值（默认0.1米）
