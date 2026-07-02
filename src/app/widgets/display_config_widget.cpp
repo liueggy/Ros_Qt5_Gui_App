@@ -430,14 +430,14 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
-  card_layout->setContentsMargins(12, 12, 12, 12);
-  card_layout->setSpacing(10);
+  card_layout->setContentsMargins(10, 10, 10, 10);
+  card_layout->setSpacing(8);
 
   image_table_ = new QTableWidget(0, 4, card);
   image_table_->setHorizontalHeaderLabels(
       QStringList() << tr("位置") << tr("话题") << tr("启用") << QString());
-  image_table_->setMinimumHeight(148);
-  image_table_->setMaximumHeight(190);
+  image_table_->setMinimumHeight(96);
+  image_table_->setMaximumHeight(182);
   image_table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   image_table_->horizontalHeader()->setMinimumSectionSize(64);
   image_table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
@@ -453,7 +453,7 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   image_table_->setSelectionBehavior(QAbstractItemView::SelectRows);
   image_table_->setSelectionMode(QAbstractItemView::SingleSelection);
   image_table_->setShowGrid(false);
-  image_table_->setAlternatingRowColors(true);
+  image_table_->setAlternatingRowColors(false);
   image_table_->setWordWrap(false);
   image_table_->setTextElideMode(Qt::ElideRight);
   image_table_->setStyleSheet(UiStyle::TableStyleSheet());
@@ -469,7 +469,8 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
 
   card_layout->addWidget(image_table_);
   card_layout->addWidget(image_add_btn_, 0, Qt::AlignLeft);
-  root->addWidget(card, 1);
+  root->addWidget(card, 0, Qt::AlignTop);
+  root->addStretch(1);
   return page;
 }
 
@@ -826,6 +827,31 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
   key_value_layout_->addItem(new QSpacerItem(1, 1, QSizePolicy::Minimum, QSizePolicy::Expanding));
 }
 
+void DisplayConfigWidget::UpdateImageTableHeight() {
+  if (!image_table_) {
+    return;
+  }
+
+  int visible_rows = image_table_->rowCount();
+  if (visible_rows < 1) {
+    visible_rows = 1;
+  }
+  if (visible_rows > 3) {
+    visible_rows = 3;
+  }
+
+  int header_height = image_table_->horizontalHeader() ? image_table_->horizontalHeader()->height() : 34;
+  if (header_height < 30) {
+    header_height = 34;
+  }
+  int row_height = image_table_->verticalHeader()->defaultSectionSize();
+  if (row_height < 32) {
+    row_height = 42;
+  }
+  const int frame_height = image_table_->frameWidth() * 2;
+  image_table_->setFixedHeight(header_height + visible_rows * row_height + frame_height + 4);
+}
+
 void DisplayConfigWidget::OnAddImageConfig() {
   int row = image_table_->rowCount();
   image_table_->insertRow(row);
@@ -858,11 +884,13 @@ void DisplayConfigWidget::OnAddImageConfig() {
   image_table_->setCellWidget(row, 2, enable_checkbox);
   image_table_->setCellWidget(row, 3, remove_btn);
 
+  UpdateImageTableHeight();
   OnImageConfigChanged(row);
 }
 
 void DisplayConfigWidget::OnRemoveImageConfig(int row) {
   image_table_->removeRow(row);
+  UpdateImageTableHeight();
 
   auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   if (row < static_cast<int>(config.images.size())) {
@@ -1071,6 +1099,7 @@ void DisplayConfigWidget::LoadConfig() {
     topic_item->setToolTip(topic_item->text());
   }
   image_table_->blockSignals(false);
+  UpdateImageTableHeight();
 
   robot_points_table_->blockSignals(true);
   robot_points_table_->setRowCount(0);

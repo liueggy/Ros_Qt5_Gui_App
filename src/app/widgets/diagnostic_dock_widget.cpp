@@ -412,15 +412,8 @@ void DiagnosticDockWidget::RebuildUi() {
   if (rows.empty()) {
     tree_->hide();
     empty_label_->show();
-    if (snapshot_.hardware.empty()) {
-      empty_label_->setText(has_filter ? tr("没有符合筛选的诊断项") : tr("暂无诊断数据"));
-    } else {
-      empty_label_->setText(has_filter ? tr("没有符合筛选的诊断项") : tr("暂无诊断数据"));
-    }
-    filter_hint_->setVisible(has_filter);
-    if (has_filter) {
-      filter_hint_->setText(tr("当前筛选无结果。请清除筛选或调整条件。"));
-    }
+    empty_label_->setText(has_filter ? tr("当前筛选无结果，请清除筛选或调整条件。") : tr("暂无诊断数据"));
+    filter_hint_->hide();
     return;
   }
 

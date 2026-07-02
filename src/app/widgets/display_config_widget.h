@@ -64,6 +64,7 @@ class DisplayConfigWidget : public QWidget {
   QWidget *CreateMapPage();
   QWidget *CreateKeyValuePage();
   void RefreshKeyValueTab();
+  void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
   void AutoSaveConfig();
 
