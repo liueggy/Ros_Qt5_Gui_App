@@ -76,26 +76,14 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_icon->setStyleSheet(QStringLiteral(
       "QLabel { background:#edf4ff; border:1px solid #d7e5fb; border-radius:20px; "
       "padding:0; margin-bottom:2px; }"));
-  auto* empty_title = new QLabel(tr("等待地图数据"), map_empty_state_);
+  auto* empty_title = new QLabel(tr("等待地图"), map_empty_state_);
   empty_title->setAlignment(Qt::AlignCenter);
   empty_title->setStyleSheet(QStringLiteral(
       "QLabel { color:#18212f; font-size:%1px; font-weight:800; "
       "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::FontTitlePx()));
-  auto* empty_hint = new QLabel(tr("连接小车后会自动显示建图数据；也可以从工具栏打开已有地图。"), map_empty_state_);
-  empty_hint->setAlignment(Qt::AlignCenter);
-  empty_hint->setWordWrap(true);
-  empty_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:0 6px 6px 6px;"));
-  auto* empty_steps = new QLabel(tr("连接小车  ·  打开地图  ·  开始定位"), map_empty_state_);
-  empty_steps->setAlignment(Qt::AlignCenter);
-  empty_steps->setStyleSheet(QStringLiteral(
-      "QLabel { color:#1f5fbf; background:#f3f7ff; border:1px solid #dbe7fb; "
-      "border-radius:11px; padding:8px 12px; font-size:%1px; font-weight:700; }")
-      .arg(UiStyle::FontSmallPx()));
   empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
-  empty_layout->addWidget(empty_hint);
-  empty_layout->addWidget(empty_steps);
-  map_empty_state_->setMaximumWidth(380);
+  map_empty_state_->setMaximumWidth(260);
   map_empty_state_->setStyleSheet(QStringLiteral(
       "QWidget { background:rgba(250,252,255,242); border:1px solid #dce6f5; border-radius:20px; } "
       "QLabel { background:transparent; border:none; }"));

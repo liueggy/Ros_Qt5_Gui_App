@@ -92,15 +92,6 @@ QLabel* DisplayConfigWidget::AddSectionHeader(QVBoxLayout* layout, const QString
   return lbl;
 }
 
-QLabel* DisplayConfigWidget::AddHintLabel(QVBoxLayout* layout, const QString& text) {
-  QLabel* lbl = new QLabel(text);
-  lbl->setObjectName(QStringLiteral("pageSubtitle"));
-  lbl->setWordWrap(true);
-  lbl->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:0 2px 14px 2px;"));
-  layout->addWidget(lbl);
-  return lbl;
-}
-
 void DisplayConfigWidget::InitUI() {
   main_layout_ = new QVBoxLayout(this);
   main_layout_->setContentsMargins(16, 14, 16, 14);
@@ -163,7 +154,6 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   QLabel* page_title = new QLabel(tr("连接小车"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("选择通信方式。小车启动后，可在这里重新连接，无需重启应用。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
@@ -172,11 +162,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   auto* card_title = new QLabel(tr("ROSBridge 连接"), card);
   card_title->setStyleSheet(CardTitleStyle());
-  auto* card_hint = new QLabel(tr("填写小车上 rosbridge_server 的地址和端口。连接失败时，先启动小车，再点击下方按钮重试。"), card);
-  card_hint->setWordWrap(true);
-  card_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   card_layout->addWidget(card_title);
-  card_layout->addWidget(card_hint);
 
   QHBoxLayout* type_layout = new QHBoxLayout();
   channel_type_label_ = new QLabel(tr("方式"));
@@ -333,7 +319,6 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
   QLabel* page_title = new QLabel(tr("显示与话题"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("选择地图、路径、雷达和目标点使用的话题，并控制它们是否显示在地图上。"));
 
   QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -439,7 +424,6 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   QLabel* page_title = new QLabel(tr("摄像头"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("管理摄像头画面面板的位置、图像话题和启用状态。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
@@ -494,7 +478,6 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   QLabel* page_title = new QLabel(tr("机器人外形"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("设置机器人在地图上的轮廓、颜色和透明度，让定位姿态更容易识别。"));
 
   QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -619,7 +602,6 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
   QLabel* page_title = new QLabel(tr("默认地图"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("选择启动时默认加载的 YAML 地图文件。留空时，可在工具栏手动打开地图。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
@@ -673,7 +655,6 @@ QWidget* DisplayConfigWidget::CreateKeyValuePage() {
   QLabel* page_title = new QLabel(tr("键值对"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("维护通道和图层共用的常用键值，例如 frame、命名空间或实验参数。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);

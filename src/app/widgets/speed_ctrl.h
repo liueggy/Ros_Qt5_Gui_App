@@ -175,13 +175,8 @@ class SpeedCtrlWidget : public QWidget {
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
     control_layout->setContentsMargins(12, 10, 12, 12);
     control_layout->setSpacing(8);
-    QLabel* control_hint = new QLabel(QStringLiteral("方向键控制移动，停止键立即归零。"));
-    control_hint->setWordWrap(true);
-    control_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet() +
-                                QStringLiteral("padding:0 2px 2px 2px;"));
-    control_layout->addWidget(control_hint);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
-    verticalLayout_cmd_btn->setContentsMargins(8, 10, 8, 10);
+    verticalLayout_cmd_btn->setContentsMargins(8, 6, 8, 10);
     verticalLayout_cmd_btn->setSpacing(8);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));

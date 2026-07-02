@@ -69,7 +69,6 @@ class DisplayConfigWidget : public QWidget {
 
   static QFrame *CreateSettingsCard(QWidget *parent);
   static QLabel *AddSectionHeader(QVBoxLayout *layout, const QString &title);
-  static QLabel *AddHintLabel(QVBoxLayout *layout, const QString &text);
 
   Display::DisplayManager *display_manager_{nullptr};
   QVBoxLayout *main_layout_{nullptr};

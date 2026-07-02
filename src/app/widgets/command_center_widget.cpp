@@ -127,11 +127,6 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   title->setObjectName(QStringLiteral("pageTitle"));
   title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
-  auto* subtitle = new QLabel(tr("摄像头、速度、状态和诊断集中管理。"), this);
-  subtitle->setObjectName(QStringLiteral("pageSubtitle"));
-  subtitle->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding-bottom:4px;"));
-  root->addWidget(subtitle);
-
   auto* camera_group = new QFrame(this);
   camera_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* camera_layout = new QVBoxLayout(camera_group);
@@ -241,7 +236,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addLayout(status_header);
   status_edit_ = new QPlainTextEdit(status_group);
   status_edit_->setReadOnly(true);
-  status_edit_->setPlaceholderText(tr("暂无状态。连接小车后点击“刷新状态”。"));
+  status_edit_->setPlaceholderText(tr("暂无状态"));
   status_edit_->setMaximumHeight(72);
   status_layout->addWidget(status_edit_);
   log_edit_ = new QPlainTextEdit(status_group);
