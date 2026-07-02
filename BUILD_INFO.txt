@@ -1,0 +1,8 @@
+Ros_Qt5_Gui_App Windows latest binary branch
+
+Source commit: b674e9943fd57ab14832814829d58cb1f20c63f0
+Short commit : b674e99
+Source branch: master
+Workflow run : https://github.com/liueggy/Ros_Qt5_Gui_App/actions/runs/28572636448
+Build time   : 2026-07-02 07:21:17 +00:00
+Target branch: windows-latest-bin
