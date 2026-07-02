@@ -28,8 +28,8 @@ QString LineEditStyle() {
 
 QString FieldLabelStyle() {
   return QStringLiteral(
-             "QLabel { color:#536277; font-size:%1px; font-weight:600; "
-             "background:transparent; border:none; padding:0 4px; }")
+             "QLabel { color:#435267; font-size:%1px; font-weight:700; "
+             "background:#f7faff; border:1px solid #dce6f5; border-radius:9px; padding:7px 10px; }")
       .arg(UiStyle::FontSmallPx());
 }
 
@@ -38,6 +38,13 @@ QString CardTitleStyle() {
              "QLabel { color:#18212f; font-size:%1px; font-weight:700; "
              "background:transparent; border:none; padding:0; }")
       .arg(UiStyle::FontBasePx());
+}
+
+QString CaptionLabelStyle() {
+  return QStringLiteral(
+             "QLabel { color:#6b7a90; font-size:%1px; font-weight:700; "
+             "background:transparent; border:none; padding:4px 2px 0 2px; }")
+      .arg(UiStyle::FontSmallPx());
 }
 
 }  // namespace
@@ -158,8 +165,6 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   root->addWidget(page_title);
   AddHintLabel(root, tr("选择通信方式。小车启动后，可在这里重新连接，无需重启应用。"));
 
-  connection_section_label_ = AddSectionHeader(root, tr("通信配置"));
-
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
   card_layout->setContentsMargins(16, 16, 16, 16);
@@ -167,7 +172,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   auto* card_title = new QLabel(tr("ROSBridge 连接"), card);
   card_title->setStyleSheet(CardTitleStyle());
-  auto* card_hint = new QLabel(tr("填写小车上 rosbridge_server 的地址和端口。"), card);
+  auto* card_hint = new QLabel(tr("填写小车上 rosbridge_server 的地址和端口。连接失败时，先启动小车，再点击下方按钮重试。"), card);
   card_hint->setWordWrap(true);
   card_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   card_layout->addWidget(card_title);
@@ -199,10 +204,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   card_layout->addLayout(type_layout);
 
   rosbridge_section_label_ = new QLabel(tr("目标地址"));
-  rosbridge_section_label_->setStyleSheet(
-      QStringLiteral("QLabel { color:#6b7a90; font-size:%1px; font-weight:700; "
-                     "padding:6px 4px 0 4px; background:transparent; border:none; }")
-          .arg(UiStyle::FontSmallPx()));
+  rosbridge_section_label_->setStyleSheet(CaptionLabelStyle());
   card_layout->addWidget(rosbridge_section_label_);
 
   QHBoxLayout* ip_layout = new QHBoxLayout();
@@ -253,9 +255,9 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   connection_status_card_ = new QFrame(page);
   connection_status_card_->setObjectName(QStringLiteral("connectionStatusCard"));
-  QVBoxLayout* connection_action_layout = new QVBoxLayout(connection_status_card_);
+  QHBoxLayout* connection_action_layout = new QHBoxLayout(connection_status_card_);
   connection_action_layout->setContentsMargins(16, 15, 16, 16);
-  connection_action_layout->setSpacing(10);
+  connection_action_layout->setSpacing(14);
   auto* connection_copy = new QVBoxLayout();
   connection_copy->setSpacing(6);
   connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
@@ -268,7 +270,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   reconnect_channel_btn_ = new QPushButton(tr("连接"), connection_status_card_);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
-  reconnect_channel_btn_->setMinimumWidth(0);
+  reconnect_channel_btn_->setMinimumWidth(106);
+  reconnect_channel_btn_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
   reconnect_channel_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   connect(reconnect_channel_btn_, &QPushButton::clicked, [this]() {
     if (reconnect_channel_btn_->property("connected").toBool()) {
@@ -277,8 +280,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
       emit ConnectRequested();
     }
   });
-  connection_action_layout->addLayout(connection_copy);
-  connection_action_layout->addWidget(reconnect_channel_btn_);
+  connection_action_layout->addLayout(connection_copy, 1);
+  connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignVCenter);
   root->addSpacing(12);
   root->addWidget(connection_status_card_);
   root->addStretch(1);
@@ -330,9 +333,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
   QLabel* page_title = new QLabel(tr("显示与话题"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root,
-               tr("对应 config.json 中的 display_config：显示名称、话题、可见性。"
-                  "左侧标签对应图层名称；可编辑每个图层的 ROS 话题。"));
+  AddHintLabel(root, tr("选择地图、路径、雷达和目标点使用的话题，并控制它们是否显示在地图上。"));
 
   QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -438,7 +439,7 @@ QWidget* DisplayConfigWidget::CreateImagePage() {
   QLabel* page_title = new QLabel(tr("摄像头"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("对应 config.json 中的 images：位置标识（dock id）、话题、启用状态。"));
+  AddHintLabel(root, tr("管理摄像头画面面板的位置、图像话题和启用状态。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
@@ -493,7 +494,7 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   QLabel* page_title = new QLabel(tr("机器人外形"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("对应 config.json 中的 robot_shape_config：顶点坐标、椭圆近似、颜色、不透明度。"));
+  AddHintLabel(root, tr("设置机器人在地图上的轮廓、颜色和透明度，让定位姿态更容易识别。"));
 
   QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
@@ -618,8 +619,7 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
   QLabel* page_title = new QLabel(tr("默认地图"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root,
-               tr("对应 config.json 中的 map_config.path：启动时加载的地图 YAML 文件路径。"));
+  AddHintLabel(root, tr("选择启动时默认加载的 YAML 地图文件。留空时，可在工具栏手动打开地图。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
@@ -673,8 +673,7 @@ QWidget* DisplayConfigWidget::CreateKeyValuePage() {
   QLabel* page_title = new QLabel(tr("键值对"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root,
-               tr("对应 config.json 中的 key_value：通道和应用选项的任意字符串键值对。"));
+  AddHintLabel(root, tr("维护通道和图层共用的常用键值，例如 frame、命名空间或实验参数。"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);

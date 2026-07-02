@@ -142,7 +142,9 @@ QString TableStyleSheet() {
 }
 
 QString CardStyleSheet() {
-  return QStringLiteral("QFrame { background:#ffffff; border:1px solid #dce4ef; border-radius:14px; }");
+  return QStringLiteral(
+      "QFrame { background:#ffffff; border:1px solid #dce4ef; border-radius:16px; }"
+      "QFrame:hover { border-color:#c9daf7; }");
 }
 
 QString MutedLabelStyleSheet() {

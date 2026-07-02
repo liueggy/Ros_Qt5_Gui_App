@@ -134,6 +134,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_stale_ = new QLabel();
   for (auto* lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
     lb->setMinimumHeight(30);
+    lb->setMaximumHeight(38);
     lb->setAlignment(Qt::AlignCenter);
     lb->setStyleSheet(QStringLiteral("padding:4px 10px;border-radius:11px;font-size:%1px;font-weight:600;").arg(UiStyle::FontSmallPx()));
   }
@@ -221,7 +222,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   tree_->setUniformRowHeights(false);
   root->addWidget(tree_, 1);
 
-  empty_label_ = new QLabel(tr("无诊断数据"));
+  empty_label_ = new QLabel(tr("暂无诊断数据"));
   empty_label_->setAlignment(Qt::AlignCenter);
   empty_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:24px;"));
   empty_label_->hide();
@@ -379,9 +380,9 @@ void DiagnosticDockWidget::RebuildUi() {
     tree_->hide();
     empty_label_->show();
     if (snapshot_.hardware.empty()) {
-      empty_label_->setText(has_filter ? tr("无匹配诊断") : tr("无诊断数据"));
+      empty_label_->setText(has_filter ? tr("没有符合筛选的诊断项") : tr("暂无诊断数据"));
     } else {
-      empty_label_->setText(has_filter ? tr("无匹配诊断") : tr("无诊断数据"));
+      empty_label_->setText(has_filter ? tr("没有符合筛选的诊断项") : tr("暂无诊断数据"));
     }
     filter_hint_->setVisible(has_filter);
     if (has_filter) {
