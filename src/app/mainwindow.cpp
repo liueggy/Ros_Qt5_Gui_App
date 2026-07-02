@@ -666,7 +666,7 @@ void MainWindow::setupUi() {
   display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
   settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_);
-  ConfigureDockWidget(settings_dock_, QSize(480, 420), QSize(520, 620));
+  ConfigureDockWidget(settings_dock_, QSize(400, 420), QSize(500, 620));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
   auto display_config_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
@@ -682,7 +682,7 @@ void MainWindow::setupUi() {
           });
   ads::CDockWidget* SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
-  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(480, 420), QSize(520, 500));
+  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(400, 420), QSize(500, 500));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                    SpeedCtrlDockWidget, display_config_area);
@@ -811,7 +811,7 @@ void MainWindow::setupUi() {
   command_center_widget_ = new CommandCenterWidget();
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
-  ConfigureDockWidget(command_center_dock_, QSize(480, 560), QSize(520, 720));
+  ConfigureDockWidget(command_center_dock_, QSize(420, 560), QSize(500, 720));
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(true);

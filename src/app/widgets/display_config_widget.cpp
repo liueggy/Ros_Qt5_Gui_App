@@ -31,7 +31,7 @@ QString LineEditStyle() {
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumWidth(480);
+  setMinimumWidth(440);
   ApplyGlobalStyle();
   InitUI();
 }
