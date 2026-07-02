@@ -124,19 +124,20 @@ int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentSta
 
 DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   auto* root = new QVBoxLayout(this);
-  root->setContentsMargins(10, 10, 10, 10);
-  root->setSpacing(8);
+  root->setContentsMargins(6, 6, 6, 6);
+  root->setSpacing(7);
 
   auto* summary_row = new QHBoxLayout();
+  summary_row->setSpacing(6);
   summary_ok_ = new QLabel();
   summary_warn_ = new QLabel();
   summary_error_ = new QLabel();
   summary_stale_ = new QLabel();
   for (auto* lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
-    lb->setMinimumHeight(30);
-    lb->setMaximumHeight(38);
+    lb->setMinimumHeight(28);
+    lb->setMaximumHeight(32);
     lb->setAlignment(Qt::AlignCenter);
-    lb->setStyleSheet(QStringLiteral("padding:4px 10px;border-radius:11px;font-size:%1px;font-weight:600;").arg(UiStyle::FontSmallPx()));
+    lb->setStyleSheet(QStringLiteral("padding:3px 9px;border-radius:10px;font-size:%1px;font-weight:600;").arg(UiStyle::FontSmallPx()));
   }
   summary_ok_->setStyleSheet(summary_ok_->styleSheet() +
                              QStringLiteral("background-color:rgba(46,125,50,0.12);color:#2e7d32;"));
@@ -153,8 +154,11 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addStretch();
   root->addLayout(summary_row);
 
+  auto* filter_tools = new QVBoxLayout();
+  filter_tools->setSpacing(7);
+
   auto* search_row = new QHBoxLayout();
-  search_row->setSpacing(8);
+  search_row->setSpacing(6);
   search_edit_ = new QLineEdit();
   search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
@@ -165,6 +169,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   refresh_btn_->setFixedHeight(UiStyle::ControlHeightPx());
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
   search_row->addWidget(refresh_btn_);
+  filter_tools->addLayout(search_row);
 
   filter_group_ = new QButtonGroup(this);
   filter_group_->setExclusive(true);
@@ -173,7 +178,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     int level;
   } chips[] = {{"全部", -1}, {"正常", 0}, {"警告", 1}, {"错误", 2}, {"过期", 3}};
   auto* chip_layout = new QHBoxLayout();
-  chip_layout->setSpacing(4);
+  chip_layout->setSpacing(5);
   for (int i = 0; i < 5; ++i) {
     auto* b = new QPushButton(tr(chips[i].label));
     filter_chip_buttons_[i] = b;
@@ -190,7 +195,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  clear_filter_btn_->setFixedHeight(UiStyle::ControlHeightPx());
+  clear_filter_btn_->setFixedHeight(34);
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
     search_lower_.clear();
@@ -203,10 +208,10 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     }
     RebuildUi();
   });
-  search_row->addWidget(clear_filter_btn_);
-  root->addLayout(search_row);
   chip_layout->addStretch();
-  root->addLayout(chip_layout);
+  chip_layout->addWidget(clear_filter_btn_);
+  filter_tools->addLayout(chip_layout);
+  root->addLayout(filter_tools);
 
   filter_hint_ = new QLabel();
   filter_hint_->setWordWrap(true);

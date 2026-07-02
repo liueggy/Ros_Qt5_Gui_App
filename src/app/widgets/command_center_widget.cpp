@@ -99,14 +99,6 @@ QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) 
   return title;
 }
 
-QLabel* AddCardHint(QVBoxLayout* layout, const QString& text, QWidget* parent) {
-  auto* hint = new QLabel(text, parent);
-  hint->setWordWrap(true);
-  hint->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:0 0 2px 0;"));
-  layout->addWidget(hint);
-  return hint;
-}
-
 QString FieldCaptionStyle() {
   return QStringLiteral(
              "QLabel { color:#536277; font-size:%1px; font-weight:700; "
@@ -135,7 +127,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   title->setObjectName(QStringLiteral("pageTitle"));
   title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
-  auto* subtitle = new QLabel(tr("常用动作放在上方，状态和诊断留在下方持续观察。"), this);
+  auto* subtitle = new QLabel(tr("摄像头、速度、状态和诊断集中管理。"), this);
   subtitle->setObjectName(QStringLiteral("pageSubtitle"));
   subtitle->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding-bottom:4px;"));
   root->addWidget(subtitle);
@@ -145,24 +137,31 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* camera_layout = new QVBoxLayout(camera_group);
   camera_layout->setContentsMargins(16, 14, 16, 16);
   camera_layout->setSpacing(10);
-  AddCardTitle(camera_layout, tr("摄像头控制"), camera_group);
-  AddCardHint(camera_layout, tr("控制前置摄像头服务，状态会随小车反馈刷新。"), camera_group);
+  auto* camera_header = new QHBoxLayout();
+  camera_header->setSpacing(8);
+  auto* camera_title = new QLabel(tr("摄像头"), camera_group);
+  camera_title->setStyleSheet(QStringLiteral(
+      "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
+      .arg(UiStyle::FontBasePx()));
+  camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
+  camera_state_label_->setAlignment(Qt::AlignCenter);
+  camera_state_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
+      "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
+      .arg(UiStyle::FontSmallPx()));
+  camera_header->addWidget(camera_title);
+  camera_header->addStretch();
+  camera_header->addWidget(camera_state_label_);
+  camera_layout->addLayout(camera_header);
   auto* camera_row = new QHBoxLayout();
   camera_row->setSpacing(10);
   auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
   auto* camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
   camera_start_btn->setStyleSheet(UiStyle::MainButtonStyleSheet());
   camera_stop_btn->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
-  camera_state_label_->setAlignment(Qt::AlignCenter);
-  camera_state_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
-      "border-radius:9px; padding:8px 10px; font-size:%1px; font-weight:700; }")
-      .arg(UiStyle::FontSmallPx()));
   camera_row->addWidget(camera_start_btn);
   camera_row->addWidget(camera_stop_btn);
   camera_row->addStretch();
-  camera_row->addWidget(camera_state_label_);
   camera_layout->addLayout(camera_row);
   root->addWidget(camera_group);
 
@@ -173,9 +172,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* speed_layout = new QVBoxLayout(speed_group);
   speed_layout->setContentsMargins(16, 14, 16, 16);
-  speed_layout->setSpacing(12);
+  speed_layout->setSpacing(10);
   AddCardTitle(speed_layout, tr("速度控制"), speed_group);
-  AddCardHint(speed_layout, tr("先选整车档位，必要时再精调单个动态参数。"), speed_group);
 
   auto* profile_row = new QHBoxLayout();
   profile_row->setSpacing(8);
@@ -189,7 +187,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_layout->addLayout(profile_row);
   connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
 
-  auto* param_caption = new QLabel(tr("精调参数"), speed_group);
+  auto* param_caption = new QLabel(tr("动态参数"), speed_group);
   param_caption->setStyleSheet(FieldCaptionStyle());
   speed_layout->addWidget(param_caption);
 
@@ -227,26 +225,29 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* status_layout = new QVBoxLayout(status_group);
   status_layout->setContentsMargins(16, 14, 16, 16);
-  status_layout->setSpacing(12);
-  AddCardTitle(status_layout, tr("运行状态"), status_group);
-  AddCardHint(status_layout, tr("刷新后显示模式、负载、摄像头和核心节点在线情况。"), status_group);
-  auto* status_btn_row = new QHBoxLayout();
-  status_btn_row->setSpacing(8);
+  status_layout->setSpacing(10);
+  auto* status_header = new QHBoxLayout();
+  status_header->setSpacing(8);
+  auto* status_title = new QLabel(tr("运行状态"), status_group);
+  status_title->setStyleSheet(QStringLiteral(
+      "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
+      .arg(UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
   auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
-  status_btn_row->addWidget(refresh_status_btn);
-  status_btn_row->addWidget(clear_btn);
-  status_btn_row->addStretch();
-  status_layout->addLayout(status_btn_row);
+  status_header->addWidget(status_title);
+  status_header->addStretch();
+  status_header->addWidget(refresh_status_btn);
+  status_header->addWidget(clear_btn);
+  status_layout->addLayout(status_header);
   status_edit_ = new QPlainTextEdit(status_group);
   status_edit_->setReadOnly(true);
   status_edit_->setPlaceholderText(tr("暂无状态。连接小车后点击“刷新状态”。"));
-  status_edit_->setMaximumHeight(88);
+  status_edit_->setMaximumHeight(72);
   status_layout->addWidget(status_edit_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
   log_edit_->setPlaceholderText(tr("暂无命令记录。"));
-  log_edit_->setMaximumHeight(96);
+  log_edit_->setMaximumHeight(70);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -257,9 +258,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   diagnostic_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
   diagnostic_layout->setContentsMargins(16, 14, 16, 16);
-  diagnostic_layout->setSpacing(12);
+  diagnostic_layout->setSpacing(10);
   AddCardTitle(diagnostic_layout, tr("系统诊断"), diagnostic_group);
-  AddCardHint(diagnostic_layout, tr("按级别筛选硬件与软件组件，异常会优先露出。"), diagnostic_group);
   diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
   diagnostic_layout->addWidget(diagnostic_widget_);
   root->addWidget(diagnostic_group, 2);

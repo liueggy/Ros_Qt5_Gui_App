@@ -67,14 +67,15 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
 
   map_empty_state_ = new QWidget(viewport());
   auto* empty_layout = new QVBoxLayout(map_empty_state_);
-  empty_layout->setContentsMargins(34, 28, 34, 30);
+  empty_layout->setContentsMargins(30, 26, 30, 28);
   empty_layout->setSpacing(10);
   auto* empty_icon = new QLabel(map_empty_state_);
-  empty_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/map.svg")).pixmap(44, 44));
+  empty_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/map.svg")).pixmap(34, 34));
   empty_icon->setAlignment(Qt::AlignCenter);
+  empty_icon->setFixedSize(68, 58);
   empty_icon->setStyleSheet(QStringLiteral(
       "QLabel { background:#edf4ff; border:1px solid #d7e5fb; border-radius:20px; "
-      "padding:10px; margin-bottom:2px; }"));
+      "padding:0; margin-bottom:2px; }"));
   auto* empty_title = new QLabel(tr("等待地图数据"), map_empty_state_);
   empty_title->setAlignment(Qt::AlignCenter);
   empty_title->setStyleSheet(QStringLiteral(
@@ -90,11 +91,11 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       "QLabel { color:#1f5fbf; background:#f3f7ff; border:1px solid #dbe7fb; "
       "border-radius:11px; padding:8px 12px; font-size:%1px; font-weight:700; }")
       .arg(UiStyle::FontSmallPx()));
-  empty_layout->addWidget(empty_icon);
+  empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
   empty_layout->addWidget(empty_hint);
   empty_layout->addWidget(empty_steps);
-  map_empty_state_->setMaximumWidth(430);
+  map_empty_state_->setMaximumWidth(380);
   map_empty_state_->setStyleSheet(QStringLiteral(
       "QWidget { background:rgba(250,252,255,242); border:1px solid #dce6f5; border-radius:20px; } "
       "QLabel { background:transparent; border:none; }"));
