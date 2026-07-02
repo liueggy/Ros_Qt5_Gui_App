@@ -44,10 +44,10 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
                     "DisplayConfigWidget QWidget { font-size:%1px; color:#18212f; }"
                     "DisplayConfigWidget QLabel#pageTitle { font-size:%3px; font-weight:700; color:#18212f; padding-bottom:5px; }"
                     "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#657386; padding-bottom:12px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav { background-color:transparent; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; min-height:24px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#edf4ff; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#2f6fed; font-weight:600; }"
+                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#eef4fb; border:1px solid #dce4ef; border-radius:14px; padding:8px; outline:none; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; padding:12px 12px; border-radius:10px; margin:3px 0; border:1px solid transparent; min-height:24px; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#f7fbff; border-color:#d7e4f6; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; border-color:#c9daf7; color:#2f6fed; font-weight:600; }"
                     "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dce4ef; border-radius:12px; }"
                     "DisplayConfigWidget QTableWidget { font-size:%1px; }"
                     "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
@@ -96,7 +96,7 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setFixedWidth(172);
+  nav_list_->setFixedWidth(180);
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Maximum);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
@@ -110,9 +110,9 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(160, 48));
+    nav_item->setSizeHint(QSize(162, 48));
   }
-  nav_list_->setFixedHeight(navItems.size() * 52 + 16);
+  nav_list_->setFixedHeight(navItems.size() * 54 + 18);
 
   page_stack_ = new QStackedWidget(this);
   page_stack_->setMinimumWidth(0);
@@ -128,7 +128,7 @@ void DisplayConfigWidget::InitUI() {
   connect(nav_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
   nav_list_->setCurrentRow(0);
 
-  body->addWidget(nav_list_, 0);
+  body->addWidget(nav_list_, 0, Qt::AlignTop);
   body->addWidget(page_stack_, 1);
   main_layout_->addLayout(body, 1);
 }

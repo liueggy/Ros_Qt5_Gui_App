@@ -57,9 +57,10 @@ QString PanelStyleSheet() {
   return QStringLiteral(
              "QWidget { color:#18212f; font-size:%1px; background:transparent; }"
              "QScrollArea { border:none; background:transparent; }"
-             "QGroupBox { border:1px solid rgba(32,33,36,0.10); border-radius:12px; margin-top:12px; "
-             "padding:12px; font-weight:600; color:#18212f; background:#ffffff; }"
-             "QGroupBox::title { subcontrol-origin: margin; left:12px; padding:0 6px; background:#ffffff; }"
+             "QGroupBox { border:1px solid #dce4ef; border-radius:14px; margin-top:0; "
+             "padding:14px; font-weight:600; color:#18212f; background:#ffffff; }"
+             "QGroupBox::title { subcontrol-origin: padding; subcontrol-position:top left; "
+             "padding:0; color:#18212f; background:transparent; }"
              "QLabel#pageTitle { font-size:%2px; font-weight:700; color:#18212f; }"
              "QLabel#pageSubtitle { font-size:%3px; color:#657386; }"
              "QPlainTextEdit { border:1px solid #cfd8e6; border-radius:10px; background:#f8fafd; padding:8px; "
@@ -135,7 +136,7 @@ QString TableStyleSheet() {
 }
 
 QString CardStyleSheet() {
-  return QStringLiteral("QFrame { background:#ffffff; border:1px solid #dce4ef; border-radius:12px; }");
+  return QStringLiteral("QFrame { background:#ffffff; border:1px solid #dce4ef; border-radius:14px; }");
 }
 
 QString MutedLabelStyleSheet() {
@@ -153,12 +154,12 @@ QString SectionLabelStyleSheet() {
 
 QString ToolButtonStyleSheet() {
   return QStringLiteral(
-             "QToolButton { border:none; border-radius:8px; background:transparent; color:#18212f; "
-             "padding:7px 12px; font-size:%1px; font-weight:600; min-height:62px; max-height:62px; }"
-             "QToolButton:hover { background:#eef4ff; color:#174ea6; }"
-             "QToolButton:pressed { background:#dce9ff; }"
-             "QToolButton:checked { background:#e4eeff; color:#174ea6; }"
-             "QToolButton::menu-indicator { subcontrol-position:bottom right; right:4px; bottom:3px; }")
+             "QToolButton { border:1px solid transparent; border-radius:10px; background:transparent; color:#18212f; "
+             "padding:6px 13px; font-size:%1px; font-weight:600; min-height:58px; max-height:58px; }"
+             "QToolButton:hover { background:#f3f7ff; border-color:#dbe7fb; color:#174ea6; }"
+             "QToolButton:pressed { background:#e7f0ff; border-color:#bcd3fb; }"
+             "QToolButton:checked { background:#edf4ff; border-color:#bcd3fb; color:#174ea6; }"
+             "QToolButton::menu-indicator { subcontrol-position:bottom right; right:5px; bottom:4px; }")
       .arg(FontBasePx());
 }
 

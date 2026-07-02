@@ -3,6 +3,7 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QJsonArray>
@@ -90,6 +91,16 @@ QJsonValue ParseJsonValue(const QString& text) {
   return text;
 }
 
+QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) {
+  auto* title = new QLabel(text, parent);
+  title->setStyleSheet(QStringLiteral(
+                           "QLabel { color:#18212f; font-size:%1px; font-weight:700; "
+                           "padding:0 0 4px 0; background:transparent; border:none; }")
+                           .arg(UiStyle::FontBasePx()));
+  layout->addWidget(title);
+  return title;
+}
+
 }  // namespace
 
 CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
@@ -116,25 +127,35 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   subtitle->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding-bottom:4px;"));
   root->addWidget(subtitle);
 
-  auto* camera_group = new QGroupBox(tr("摄像头"), this);
-  auto* camera_layout = new QHBoxLayout(camera_group);
+  auto* camera_group = new QFrame(this);
+  camera_group->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* camera_layout = new QVBoxLayout(camera_group);
+  camera_layout->setContentsMargins(16, 14, 16, 16);
+  camera_layout->setSpacing(12);
+  AddCardTitle(camera_layout, tr("摄像头"), camera_group);
+  auto* camera_row = new QHBoxLayout();
   auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
   auto* camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
   camera_start_btn->setStyleSheet(UiStyle::MainButtonStyleSheet());
   camera_stop_btn->setStyleSheet(UiStyle::DangerButtonStyleSheet());
   camera_state_label_ = new QLabel(tr("状态等待刷新"), camera_group);
   camera_state_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("font-weight:600;"));
-  camera_layout->addWidget(camera_start_btn);
-  camera_layout->addWidget(camera_stop_btn);
-  camera_layout->addStretch();
-  camera_layout->addWidget(camera_state_label_);
+  camera_row->addWidget(camera_start_btn);
+  camera_row->addWidget(camera_stop_btn);
+  camera_row->addStretch();
+  camera_row->addWidget(camera_state_label_);
+  camera_layout->addLayout(camera_row);
   root->addWidget(camera_group);
 
   connect(camera_start_btn, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
   connect(camera_stop_btn, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
 
-  auto* speed_group = new QGroupBox(tr("速度参数"), this);
+  auto* speed_group = new QFrame(this);
+  speed_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* speed_layout = new QVBoxLayout(speed_group);
+  speed_layout->setContentsMargins(16, 14, 16, 16);
+  speed_layout->setSpacing(12);
+  AddCardTitle(speed_layout, tr("速度参数"), speed_group);
 
   auto* profile_row = new QHBoxLayout();
   profile_combo_ = new QComboBox(speed_group);
@@ -176,8 +197,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(read_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::ReadSelectedSpeedParam);
   connect(write_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::WriteSelectedSpeedParam);
 
-  auto* status_group = new QGroupBox(tr("状态"), this);
+  auto* status_group = new QFrame(this);
+  status_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* status_layout = new QVBoxLayout(status_group);
+  status_layout->setContentsMargins(16, 14, 16, 16);
+  status_layout->setSpacing(12);
+  AddCardTitle(status_layout, tr("状态"), status_group);
   auto* status_btn_row = new QHBoxLayout();
   auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
   auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
@@ -200,8 +225,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(refresh_status_btn, &QPushButton::clicked, this, &CommandCenterWidget::SendStatusRequest);
   connect(clear_btn, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
 
-  auto* diagnostic_group = new QGroupBox(tr("诊断"), this);
+  auto* diagnostic_group = new QFrame(this);
+  diagnostic_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
+  diagnostic_layout->setContentsMargins(16, 14, 16, 16);
+  diagnostic_layout->setSpacing(12);
+  AddCardTitle(diagnostic_layout, tr("诊断"), diagnostic_group);
   diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
   diagnostic_layout->addWidget(diagnostic_widget_);
   root->addWidget(diagnostic_group, 2);

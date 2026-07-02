@@ -150,6 +150,7 @@ class SpeedCtrlWidget : public QWidget {
 
  public:
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
+    setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = QStringLiteral(
         "QPushButton { background:#ffffff; border:1px solid #e1e7f0; border-radius:10px; color:transparent; }"
         "QPushButton:hover { background:#eef5ff; border-color:#9ec1ff; }"
@@ -439,7 +440,6 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_stop_button->addStretch();
     control_layout->addLayout(horizontalLayout_stop_button);
     verticalLayout_speed_ctrl->addWidget(control_card, 0, Qt::AlignTop);
-    verticalLayout_speed_ctrl->addStretch(1);
 
     // QHBoxLayout *horizontalLayout_23 = new QHBoxLayout();
     // horizontalLayout_23->setObjectName(

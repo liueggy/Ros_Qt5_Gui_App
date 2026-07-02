@@ -280,22 +280,11 @@ void MainWindow::setupUi() {
 
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
-  horizontalLayout_tools->setSpacing(4);
-  horizontalLayout_tools->setContentsMargins(14, 5, 10, 5);
+  horizontalLayout_tools->setSpacing(6);
+  horizontalLayout_tools->setContentsMargins(12, 6, 10, 6);
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
-  auto* brand_icon = new QLabel(tools_strip);
-  brand_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/plug-connected.svg")).pixmap(24, 24));
-  brand_icon->setFixedSize(28, 28);
-  brand_icon->setAlignment(Qt::AlignCenter);
-  horizontalLayout_tools->addWidget(brand_icon);
-
-  auto* brand_title = new QLabel(tr("ROS Bridge 控制台"), tools_strip);
-  brand_title->setStyleSheet(
-      QStringLiteral("QLabel { color:#18212f; font-size:%1px; font-weight:700; padding-right:14px; }")
-          .arg(UiStyle::FontBasePx()));
-  horizontalLayout_tools->addWidget(brand_title);
   // 现代化工具栏样式
   QString modernToolButtonStyle = UiStyle::ToolButtonStyleSheet();
 
@@ -674,7 +663,7 @@ void MainWindow::setupUi() {
           });
   ads::CDockWidget* SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
-  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(400, 420), QSize(500, 500));
+  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(400, 360), QSize(500, 420));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                    SpeedCtrlDockWidget, settings_dock_area_);
