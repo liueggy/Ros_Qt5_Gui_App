@@ -165,6 +165,12 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   focus_robot_btn_->setIconSize(QSize(25, 25));
   bottom_layout->addWidget(focus_robot_btn_);
 
+  for (auto* button : {add_robot_pos_btn_, set_big_btn_, set_small_btn_, focus_robot_btn_}) {
+    button->setFixedSize(36, 36);
+    button->setIconSize(QSize(22, 22));
+    button->setStyleSheet(UiStyle::GhostIconButtonStyleSheet());
+  }
+
   main_layout->addLayout(bottom_layout);
 
   setViewportMargins(0, 5, 0, 0);
@@ -183,6 +189,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       "   border: none;"
       "   background-color: transparent;"
       "}");
+  display_laser_btn_->setFixedSize(36, 36);
+  display_laser_btn_->setStyleSheet(UiStyle::GhostIconButtonStyleSheet());
   display_btn_list_layout->addWidget(display_laser_btn_);
 
   // 将布局添加到视口的小部件上

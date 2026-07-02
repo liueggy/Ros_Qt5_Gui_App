@@ -72,6 +72,8 @@ void NavGoalTableView::AddItem() {
   QLabel* label_status = new QLabel("无");
   QPushButton* button_remove = new QPushButton("删除");
   QPushButton* button_run = new QPushButton("运行");
+  button_remove->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#c5221f")));
+  button_run->setStyleSheet(UiStyle::MainButtonStyleSheet());
   int row = table_model_->rowCount();
 
   connect(button_remove, &QPushButton::clicked, [this, row]() {
@@ -157,6 +159,8 @@ bool NavGoalTableView::LoadTaskChain(const std::string& name) {
     QLabel* label_status = new QLabel("无");
     QPushButton* button_remove = new QPushButton("删除");
     QPushButton* button_run = new QPushButton("运行");
+    button_remove->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#c5221f")));
+    button_run->setStyleSheet(UiStyle::MainButtonStyleSheet());
     int row = table_model_->rowCount();
 
     connect(button_remove, &QPushButton::clicked, [this, row]() {

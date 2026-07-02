@@ -9,6 +9,7 @@ int FontSmallPx();
 int FontMiniPx();
 int FontTitlePx();
 int ControlHeightPx();
+QString ApplicationStyleSheet();
 QString PanelStyleSheet();
 QString MainButtonStyleSheet();
 QString SecondaryButtonStyleSheet();

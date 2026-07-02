@@ -10,22 +10,23 @@ class QLineEdit;
 class QPushButton;
 class QTreeWidget;
 class QTreeWidgetItem;
+class QTimer;
 class QButtonGroup;
 
 class DiagnosticDockWidget : public QWidget {
   Q_OBJECT
 
  public:
-  explicit DiagnosticDockWidget(QWidget *parent = nullptr);
+  explicit DiagnosticDockWidget(QWidget* parent = nullptr);
 
-  void SetSnapshot(const basic::DiagnosticSnapshot &snapshot);
+  void SetSnapshot(const basic::DiagnosticSnapshot& snapshot);
 
  private:
   void RebuildUi();
   void UpdateSummary();
   void SaveExpandedState();
   void RestoreExpandedState();
-  static QString ItemKey(QTreeWidgetItem *item);
+  static QString ItemKey(QTreeWidgetItem* item);
   static QString FormatTimeMs(int64_t ms);
   QString LevelDisplayName(int level) const;
   static QColor LevelColor(int level);
@@ -35,16 +36,17 @@ class DiagnosticDockWidget : public QWidget {
   QSet<QString> expanded_items_;
   int filter_level_{-1};
 
-  QLabel *summary_ok_{nullptr};
-  QLabel *summary_warn_{nullptr};
-  QLabel *summary_error_{nullptr};
-  QLabel *summary_stale_{nullptr};
-  QLineEdit *search_edit_{nullptr};
-  QButtonGroup *filter_group_{nullptr};
-  QLabel *empty_label_{nullptr};
-  QLabel *filter_hint_{nullptr};
-  QTreeWidget *tree_{nullptr};
-  QPushButton *refresh_btn_{nullptr};
-  QPushButton *clear_filter_btn_{nullptr};
-  QPushButton *filter_chip_buttons_[5]{};
+  QLabel* summary_ok_{nullptr};
+  QLabel* summary_warn_{nullptr};
+  QLabel* summary_error_{nullptr};
+  QLabel* summary_stale_{nullptr};
+  QLineEdit* search_edit_{nullptr};
+  QButtonGroup* filter_group_{nullptr};
+  QLabel* empty_label_{nullptr};
+  QLabel* filter_hint_{nullptr};
+  QTreeWidget* tree_{nullptr};
+  QPushButton* refresh_btn_{nullptr};
+  QPushButton* clear_filter_btn_{nullptr};
+  QTimer* search_debounce_timer_{nullptr};
+  QPushButton* filter_chip_buttons_[5]{};
 };

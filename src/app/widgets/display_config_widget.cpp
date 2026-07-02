@@ -40,20 +40,21 @@ DisplayConfigWidget::~DisplayConfigWidget() {}
 
 void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
-                    "DisplayConfigWidget { background-color:#f7f8fa; }"
-                    "DisplayConfigWidget QWidget { font-size:%1px; color:#202124; }"
-                    "DisplayConfigWidget QLabel#pageTitle { font-size:%1px; font-weight:700; color:#202124; padding-bottom:4px; }"
-                    "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#5f6368; padding-bottom:12px; }"
+                    "DisplayConfigWidget { background-color:#f4f7fb; }"
+                    "DisplayConfigWidget QWidget { font-size:%1px; color:#18212f; }"
+                    "DisplayConfigWidget QLabel#pageTitle { font-size:%3px; font-weight:700; color:#18212f; padding-bottom:5px; }"
+                    "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#657386; padding-bottom:12px; }"
                     "DisplayConfigWidget QListWidget#settingsNav { background-color:transparent; border:none; border-radius:12px; padding:8px 6px; outline:none; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#3c4043; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; min-height:24px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#eef3fb; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#1a73e8; font-weight:600; }"
-                    "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dfe3ea; border-radius:12px; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; padding:12px 14px; border-radius:8px; margin:2px 0; border:none; min-height:24px; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#edf4ff; }"
+                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; color:#2f6fed; font-weight:600; }"
+                    "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dce4ef; border-radius:12px; }"
                     "DisplayConfigWidget QTableWidget { font-size:%1px; }"
                     "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
                     "DisplayConfigWidget QToolTip { background:#fff; color:#202124; border:1px solid rgba(0,0,0,0.12); padding:6px 8px; border-radius:4px; }")
-                    .arg(UiStyle::FontTitlePx())
-                    .arg(UiStyle::FontSmallPx()));
+                    .arg(UiStyle::FontBasePx())
+                    .arg(UiStyle::FontSmallPx())
+                    .arg(UiStyle::FontTitlePx()));
 }
 
 QFrame* DisplayConfigWidget::CreateSettingsCard(QWidget* parent) {
@@ -95,8 +96,8 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setMinimumWidth(168);
-  nav_list_->setMaximumWidth(190);
+  nav_list_->setMinimumWidth(184);
+  nav_list_->setMaximumWidth(220);
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
@@ -110,7 +111,7 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(156, 42));
+    nav_item->setSizeHint(QSize(176, 46));
   }
 
   page_stack_ = new QStackedWidget(this);
@@ -918,7 +919,7 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
     QString color_style = QStringLiteral("background-color: %1;").arg(color.name());
     robot_color_button_->setStyleSheet(
         QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 12px; }"
-                       "QPushButton:hover { border-color:#1a73e8; }") +
+                       "QPushButton:hover { border-color:#2f6fed; }") +
         color_style);
 
     auto& config = Config::ConfigManager::Instance()->GetRootConfig();
@@ -1058,7 +1059,7 @@ void DisplayConfigWidget::LoadConfig() {
       QString color_style = QStringLiteral("background-color: %1;").arg(robot_color_.name());
       robot_color_button_->setStyleSheet(
           QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 12px; }"
-                         "QPushButton:hover { border-color:#1a73e8; }") +
+                         "QPushButton:hover { border-color:#2f6fed; }") +
           color_style);
     }
   }

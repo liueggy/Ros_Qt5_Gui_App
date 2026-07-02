@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QTimer>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -123,8 +124,8 @@ int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentSta
 
 DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   auto* root = new QVBoxLayout(this);
-  root->setContentsMargins(8, 8, 8, 8);
-  root->setSpacing(6);
+  root->setContentsMargins(10, 10, 10, 10);
+  root->setSpacing(8);
 
   auto* summary_row = new QHBoxLayout();
   summary_ok_ = new QLabel();
@@ -149,7 +150,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addStretch();
   refresh_btn_ = new QPushButton(tr("刷新"));
   refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  refresh_btn_->setFixedHeight(26);
+  refresh_btn_->setFixedHeight(32);
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
   summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
@@ -173,7 +174,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     auto* b = new QPushButton(tr(chips[i].label));
     filter_chip_buttons_[i] = b;
     b->setCheckable(true);
-    b->setFixedHeight(26);
+    b->setFixedHeight(30);
     b->setProperty("diagLevel", chips[i].level);
     b->setStyleSheet(UiStyle::ChipStyleSheet());
     filter_group_->addButton(b);
@@ -186,7 +187,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  clear_filter_btn_->setFixedHeight(26);
+  clear_filter_btn_->setFixedHeight(32);
   connect(clear_filter_btn_, &QPushButton::clicked, this, [this]() {
     search_edit_->clear();
     search_lower_.clear();
@@ -222,9 +223,13 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   empty_label_->hide();
   root->addWidget(empty_label_);
 
+  search_debounce_timer_ = new QTimer(this);
+  search_debounce_timer_->setSingleShot(true);
+  search_debounce_timer_->setInterval(140);
+  connect(search_debounce_timer_, &QTimer::timeout, this, &DiagnosticDockWidget::RebuildUi);
   connect(search_edit_, &QLineEdit::textChanged, this, [this](const QString& t) {
     search_lower_ = t.toLower();
-    RebuildUi();
+    search_debounce_timer_->start();
   });
   connect(filter_group_, QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked), this,
           [this](QAbstractButton* b) {

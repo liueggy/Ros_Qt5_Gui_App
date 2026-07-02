@@ -46,7 +46,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 7;
+constexpr int kUiLayoutVersion = 8;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -256,60 +256,6 @@ void MainWindow::setupUi() {
 
   this->setFont(QApplication::font());
 
-  // 设置主窗体现代化样式
-  this->setStyleSheet(R"(
-    QMainWindow {
-      background-color: #f5f5f5;
-      color: #333333;
-    }
-    
-    QToolBar {
-      background-color: #ffffff;
-      border: none;
-      spacing: 8px;
-      padding: 4px;
-    }
-    
-    QStatusBar {
-      background-color: #ffffff;
-      border-top: 1px solid #e0e0e0;
-    }
-    
-    QMenuBar {
-      background-color: #ffffff;
-      border-bottom: 1px solid #e0e0e0;
-      color: #333333;
-    }
-    
-    QMenuBar::item {
-      background-color: transparent;
-      padding: 8px 12px;
-      border-radius: 4px;
-    }
-    
-    QMenuBar::item:selected {
-      background-color: #e3f2fd;
-      color: #1976d2;
-    }
-    
-    QMenu {
-      background-color: #ffffff;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      padding: 4px;
-    }
-    
-    QMenu::item {
-      padding: 8px 16px;
-      border-radius: 4px;
-    }
-    
-    QMenu::item:selected {
-      background-color: #e3f2fd;
-      color: #1976d2;
-    }
-  )");
-
   CDockManager::setConfigFlag(CDockManager::OpaqueSplitterResize, true);
   CDockManager::setConfigFlag(CDockManager::XmlCompressionEnabled, false);
   CDockManager::setConfigFlag(CDockManager::FocusHighlighting, true);
@@ -331,13 +277,14 @@ void MainWindow::setupUi() {
   tools_strip->setStyleSheet(R"(
     QWidget {
       background-color: #ffffff;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid #dce4ef;
     }
   )");
 
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
-  horizontalLayout_tools->setSpacing(6);
+  horizontalLayout_tools->setSpacing(8);
+  horizontalLayout_tools->setContentsMargins(12, 6, 10, 6);
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
@@ -348,7 +295,7 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(brand_icon);
 
   auto* brand_title = new QLabel(tr("ROS Bridge 控制台"), tools_strip);
-  brand_title->setStyleSheet(QStringLiteral("QLabel { color:#111827; font-size:15px; font-weight:700; padding-right:16px; }"));
+  brand_title->setStyleSheet(QStringLiteral("QLabel { color:#18212f; font-size:15px; font-weight:700; padding-right:16px; }"));
   horizontalLayout_tools->addWidget(brand_title);
   // 现代化工具栏样式
   QString modernToolButtonStyle = UiStyle::ToolButtonStyleSheet();
@@ -461,8 +408,10 @@ void MainWindow::setupUi() {
 
   // 温湿度显示
   horizontalLayout_tools->addSpacing(16);
-  QLabel* dht_icon = new QLabel(QStringLiteral("\U0001F321"), this);
-  dht_icon->setStyleSheet(QStringLiteral("font-size:%1px; padding:2px;").arg(UiStyle::FontBasePx()));
+  QLabel* dht_icon = new QLabel(this);
+  dht_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/temperature.svg")).pixmap(20, 20));
+  dht_icon->setFixedSize(24, 24);
+  dht_icon->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(dht_icon);
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
@@ -534,7 +483,7 @@ void MainWindow::setupUi() {
   tools_edit_map_widget->setStyleSheet(R"(
     QWidget {
       background-color: #ffffff;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #dce4ef;
       border-radius: 8px;
     }
   )");
@@ -610,7 +559,7 @@ void MainWindow::setupUi() {
   QFrame* separator = new QFrame();
   separator->setFrameShape(QFrame::HLine);
   separator->setFrameShadow(QFrame::Sunken);
-  separator->setStyleSheet("QFrame { background-color: #e0e0e0; }");
+  separator->setStyleSheet("QFrame { background-color: #dce4ef; }");
   layout_tools_edit_map->addWidget(separator);
 
   // 橡皮擦按钮
@@ -1167,7 +1116,7 @@ void MainWindow::ApplyDefaultDockSizes() {
     splitter->setSizes(sizes);
   };
 
-  resize_area(settings_dock_area_, 600);
+  resize_area(settings_dock_area_, 800);
   resize_area(command_center_dock_area_, 500);
 }
 

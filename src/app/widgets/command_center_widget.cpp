@@ -100,8 +100,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   scroll->setWidgetResizable(true);
   auto* body = new QWidget(scroll);
   auto* root = new QVBoxLayout(body);
-  root->setContentsMargins(12, 12, 12, 12);
-  root->setSpacing(10);
+  root->setContentsMargins(16, 16, 16, 16);
+  root->setSpacing(12);
   scroll->setWidget(body);
   outer->addWidget(scroll);
 
@@ -111,6 +111,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   title->setObjectName(QStringLiteral("pageTitle"));
   title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
+  auto* subtitle = new QLabel(tr("摄像头、速度参数、运行状态与诊断信息集中管理"), this);
+  subtitle->setObjectName(QStringLiteral("pageSubtitle"));
+  subtitle->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding-bottom:4px;"));
+  root->addWidget(subtitle);
 
   auto* camera_group = new QGroupBox(tr("摄像头"), this);
   auto* camera_layout = new QHBoxLayout(camera_group);

@@ -21,6 +21,7 @@
 #include <iostream>
 #include "logger/logger.h"
 #include "mainwindow.h"
+#include "widgets/ui_style.h"
 
 namespace {
 
@@ -59,6 +60,7 @@ void signalHandler(int signal) {
 int main(int argc, char* argv[]) {
   QApplication a(argc, argv);
   ApplyApplicationFont(&a);
+  a.setStyleSheet(UiStyle::ApplicationStyleSheet());
   g_app = &a;
 
   std::signal(SIGINT, signalHandler);
