@@ -155,12 +155,12 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
 
-  auto* filter_row = new QHBoxLayout();
+  auto* search_row = new QHBoxLayout();
   search_edit_ = new QLineEdit();
   search_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   search_edit_->setPlaceholderText(tr("搜索组件、消息或键值…"));
   search_edit_->setClearButtonEnabled(true);
-  filter_row->addWidget(search_edit_, 2);
+  search_row->addWidget(search_edit_, 1);
 
   filter_group_ = new QButtonGroup(this);
   filter_group_->setExclusive(true);
@@ -183,7 +183,6 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
       b->setChecked(true);
     }
   }
-  filter_row->addLayout(chip_layout, 3);
 
   clear_filter_btn_ = new QPushButton(tr("清除筛选"));
   clear_filter_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
@@ -200,8 +199,10 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     }
     RebuildUi();
   });
-  filter_row->addWidget(clear_filter_btn_);
-  root->addLayout(filter_row);
+  search_row->addWidget(clear_filter_btn_);
+  root->addLayout(search_row);
+  chip_layout->addStretch();
+  root->addLayout(chip_layout);
 
   filter_hint_ = new QLabel();
   filter_hint_->setWordWrap(true);
@@ -238,6 +239,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
           });
 
   UpdateSummary();
+  RebuildUi();
 }
 
 QString DiagnosticDockWidget::FormatTimeMs(int64_t ms) {

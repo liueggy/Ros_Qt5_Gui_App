@@ -96,6 +96,8 @@ class DisplayConfigWidget : public QWidget {
   QLineEdit *rosbridge_ip_edit_{nullptr};
   QLineEdit *rosbridge_port_edit_{nullptr};
   QPushButton *reconnect_channel_btn_{nullptr};
+  QFrame *connection_status_card_{nullptr};
+  QLabel *connection_status_title_{nullptr};
   QLabel *connection_status_label_{nullptr};
   QLineEdit *map_path_edit_{nullptr};
 

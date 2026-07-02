@@ -1,6 +1,7 @@
 #include "display/manager/view_manager.h"
 #include <QDebug>
 #include <iostream>
+#include "display/display_occ_map.h"
 #include "display/manager/display_factory.h"
 #include "display/manager/display_manager.h"
 #include "display/manager/scene_manager.h"
@@ -61,6 +62,29 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       new QSpacerItem(1, 1, QSizePolicy::Minimum, QSizePolicy::Expanding));
 
   center_layout->addLayout(left_bar_layout);
+
+  map_empty_state_ = new QWidget(viewport());
+  auto* empty_layout = new QVBoxLayout(map_empty_state_);
+  empty_layout->setContentsMargins(28, 24, 28, 24);
+  empty_layout->setSpacing(8);
+  auto* empty_icon = new QLabel(map_empty_state_);
+  empty_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/map.svg")).pixmap(44, 44));
+  empty_icon->setAlignment(Qt::AlignCenter);
+  auto* empty_title = new QLabel(tr("尚未加载地图"), map_empty_state_);
+  empty_title->setAlignment(Qt::AlignCenter);
+  empty_title->setStyleSheet(UiStyle::SectionLabelStyleSheet() + QStringLiteral("font-size:18px;"));
+  auto* empty_hint = new QLabel(tr("连接小车或从工具栏打开地图后，地图将在这里显示。"), map_empty_state_);
+  empty_hint->setAlignment(Qt::AlignCenter);
+  empty_hint->setWordWrap(true);
+  empty_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  empty_layout->addWidget(empty_icon);
+  empty_layout->addWidget(empty_title);
+  empty_layout->addWidget(empty_hint);
+  map_empty_state_->setMaximumWidth(360);
+  map_empty_state_->setStyleSheet(QStringLiteral(
+      "QWidget { background:rgba(248,250,253,235); border:1px solid #dfe6ef; border-radius:14px; } "
+      "QLabel { background:transparent; border:none; }"));
+  center_layout->addWidget(map_empty_state_, 0, Qt::AlignCenter);
   center_layout->addItem(
       new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
   main_layout->addLayout(center_layout);
@@ -234,6 +258,14 @@ void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
 
   // 连接编辑模式变化信号
   if (display_manager_ptr_) {
+    auto* map = static_cast<DisplayOccMap*>(
+        FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
+    if (map) {
+      map_empty_state_->setVisible(map->GetMapImage().isNull());
+      connect(map, &DisplayOccMap::signalMapReady, this, [this]() {
+        map_empty_state_->hide();
+      });
+    }
     connect(display_manager_ptr_, &DisplayManager::signalEditMapModeChanged,
             this, &ViewManager::OnEditMapModeChanged);
   }

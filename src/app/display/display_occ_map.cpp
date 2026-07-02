@@ -81,6 +81,7 @@ void DisplayOccMap::ParseOccupyMap() {
     // 更新边界矩形
     SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
     update();
+    emit signalMapReady();
     //以0 0点为中心
     double x, y;
     map_data_.xy2ScenePose(0, 0, x, y);
@@ -215,6 +216,7 @@ void DisplayOccMap::RestoreMapImageRegion(const QRectF &region, const QImage &im
 
 void DisplayOccMap::SetMapImage(const QImage &image) {
   map_image_ = image;
+  emit signalMapReady();
   update();
 }
 }  // namespace Display

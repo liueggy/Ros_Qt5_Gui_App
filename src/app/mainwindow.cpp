@@ -123,12 +123,9 @@ bool MainWindow::openChannel() {
           std::string error_msg = channel->GetConnectionError();
           std::string channel_name = channel->Name();
           if (channel_name == "ROSBridge") {
-            QString display_error = error_msg.empty()
-                                        ? "无法连接到 ROSBridge 服务器。"
-                                        : QString::fromStdString(error_msg);
             display_config_widget_->SetConnectionState(
                 false, false,
-                tr("小车当前离线：%1。启动小车后再点击“连接”。").arg(display_error));
+                tr("暂时无法连接 ROSBridge。请确认小车已启动且网络可达，然后重试。"));
             LOG_ERROR("ROSBridge connection failed: " << error_msg);
           } else {
             display_config_widget_->SetConnectionState(
@@ -657,7 +654,7 @@ void MainWindow::setupUi() {
   connect(display_config_widget_, &DisplayConfigWidget::DisconnectRequested,
           this, &MainWindow::closeChannel);
   settings_dock_ = new ads::CDockWidget(tr("设置"));
-  settings_dock_->setWidget(display_config_widget_);
+  settings_dock_->setWidget(display_config_widget_, ads::CDockWidget::ForceNoScrollArea);
   ConfigureDockWidget(settings_dock_, QSize(400, 420), QSize(500, 620));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
   settings_dock_area_ =

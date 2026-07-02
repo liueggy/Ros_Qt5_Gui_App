@@ -161,9 +161,13 @@ class SpeedCtrlWidget : public QWidget {
                                                                                               "QSlider::sub-page:horizontal { background:#2f6fed; border-radius:2px; }"
                                                                                               "QSlider::handle:horizontal { background:#2f6fed; width:14px; height:14px; margin:-5px 0; border-radius:7px; }"));
     QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
+    verticalLayout_speed_ctrl->setContentsMargins(12, 10, 12, 12);
+    verticalLayout_speed_ctrl->setSpacing(10);
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
+    verticalLayout_cmd_btn->setContentsMargins(16, 18, 16, 18);
+    verticalLayout_cmd_btn->setSpacing(12);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
     QPushButton* pushButton_u = new QPushButton();
@@ -326,8 +330,10 @@ class SpeedCtrlWidget : public QWidget {
 
     QWidget* cmdCtrlWidget = new QWidget();
     cmdCtrlWidget->setLayout(verticalLayout_cmd_btn);
+    cmdCtrlWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     QTabWidget* tabWidget = new QTabWidget;
+    tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     tabWidget->addTab(cmdCtrlWidget, "命令控制");
     verticalLayout_speed_ctrl->addWidget(tabWidget);

@@ -23,6 +23,7 @@ class ViewManager : public QGraphicsView {
   QLineEdit *label_pos_robot_;
   QSlider *tool_size_slider_;
   QLabel *tool_size_value_label_;
+  QWidget *map_empty_state_;
 
  public:
   ViewManager(QWidget *parent = nullptr);

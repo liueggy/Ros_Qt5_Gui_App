@@ -31,7 +31,7 @@ QString LineEditStyle() {
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
     : QWidget(parent), robot_color_(QColor(0, 0, 255)) {
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-  setMinimumWidth(500);
+  setMinimumWidth(0);
   ApplyGlobalStyle();
   InitUI();
 }
@@ -115,7 +115,7 @@ void DisplayConfigWidget::InitUI() {
   }
 
   page_stack_ = new QStackedWidget(this);
-  page_stack_->setMinimumWidth(260);
+  page_stack_->setMinimumWidth(0);
   page_stack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
   page_stack_->addWidget(CreateChannelPage());
@@ -228,14 +228,22 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   root->addWidget(card);
 
-  QHBoxLayout* connection_action_layout = new QHBoxLayout();
-  connection_action_layout->setContentsMargins(2, 12, 2, 0);
-  connection_action_layout->setSpacing(12);
-  connection_status_label_ = new QLabel(tr("尚未检测连接"), page);
+  connection_status_card_ = new QFrame(page);
+  connection_status_card_->setObjectName(QStringLiteral("connectionStatusCard"));
+  QHBoxLayout* connection_action_layout = new QHBoxLayout(connection_status_card_);
+  connection_action_layout->setContentsMargins(16, 14, 16, 14);
+  connection_action_layout->setSpacing(16);
+  auto* connection_copy = new QVBoxLayout();
+  connection_copy->setSpacing(4);
+  connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
+  connection_status_title_->setStyleSheet(UiStyle::SectionLabelStyleSheet());
+  connection_status_label_ = new QLabel(tr("正在检测小车通信状态。"), connection_status_card_);
   connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   connection_status_label_->setWordWrap(true);
+  connection_copy->addWidget(connection_status_title_);
+  connection_copy->addWidget(connection_status_label_);
 
-  reconnect_channel_btn_ = new QPushButton(tr("连接"), page);
+  reconnect_channel_btn_ = new QPushButton(tr("连接"), connection_status_card_);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
   reconnect_channel_btn_->setMinimumWidth(104);
   reconnect_channel_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
@@ -246,16 +254,18 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
       emit ConnectRequested();
     }
   });
-  connection_action_layout->addWidget(connection_status_label_, 1);
+  connection_action_layout->addLayout(connection_copy, 1);
   connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignRight);
-  root->addLayout(connection_action_layout);
+  root->addSpacing(12);
+  root->addWidget(connection_status_card_);
   root->addStretch(1);
   return page;
 }
 
 void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
                                              const QString& message) {
-  if (!reconnect_channel_btn_ || !connection_status_label_) {
+  if (!reconnect_channel_btn_ || !connection_status_label_ ||
+      !connection_status_title_ || !connection_status_card_) {
     return;
   }
   reconnect_channel_btn_->setProperty("connected", connected);
@@ -268,11 +278,24 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
   const QString color = connecting ? QStringLiteral("#b06000")
                                    : (connected ? QStringLiteral("#188038")
                                                 : QStringLiteral("#d93025"));
+  const QString background = connecting ? QStringLiteral("#fff8e8")
+                                        : (connected ? QStringLiteral("#eef9f1")
+                                                     : QStringLiteral("#fff3f2"));
+  const QString border = connecting ? QStringLiteral("#f5cf78")
+                                    : (connected ? QStringLiteral("#a9dbb5")
+                                                 : QStringLiteral("#f0b8b3"));
+  connection_status_title_->setText(connecting ? tr("正在连接")
+                                               : (connected ? tr("小车已连接")
+                                                            : tr("小车未连接")));
   connection_status_label_->setText(message);
   connection_status_label_->setStyleSheet(
-      QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:600; }")
+      QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:400; }")
           .arg(color)
           .arg(UiStyle::FontSmallPx()));
+  connection_status_card_->setStyleSheet(
+      QStringLiteral("QFrame#connectionStatusCard { background:%1; border:1px solid %2; "
+                     "border-radius:10px; }")
+          .arg(background, border));
 }
 
 QWidget* DisplayConfigWidget::CreateLayersPage() {
@@ -291,9 +314,9 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
   QScrollArea* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
-  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   QWidget* scroll_body = new QWidget;
-  scroll_body->setMinimumWidth(420);
+  scroll_body->setMinimumWidth(0);
   QVBoxLayout* sl = new QVBoxLayout(scroll_body);
   sl->setContentsMargins(0, 0, 8, 0);
   sl->setSpacing(4);
@@ -334,7 +357,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
 
       QLabel* name = new QLabel(tr(entry.second));
       name->setWordWrap(true);
-      name->setMinimumWidth(168);
+      name->setMinimumWidth(128);
       name->setMaximumWidth(240);
       name->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
       name->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
@@ -342,7 +365,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
 
       QLineEdit* topic_edit = new QLineEdit(row);
       topic_edit->setPlaceholderText(QStringLiteral("/topic/name"));
-      topic_edit->setMinimumWidth(180);
+      topic_edit->setMinimumWidth(140);
       topic_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
       topic_edit->setStyleSheet(LineEditStyle());
       display_topic_edits_[display_name] = topic_edit;
