@@ -12,6 +12,8 @@
 #include "virtual_display.h"
 namespace Display {
 class DisplayOccMap : public VirtualDisplay {
+  Q_OBJECT
+
  private:
   /* data */
  public:
