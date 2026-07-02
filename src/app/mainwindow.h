@@ -66,6 +66,7 @@ class MainWindow : public QMainWindow {
 
  protected:
   virtual void closeEvent(QCloseEvent *event) override;
+  void changeEvent(QEvent *event) override;
   bool eventFilter(QObject *watched, QEvent *event) override;
 
  private:
@@ -86,6 +87,7 @@ class MainWindow : public QMainWindow {
   QLabel *label_power_;
   ads::CDockAreaWidget *center_docker_area_;
   QWidget *custom_title_bar_{nullptr};
+  QPushButton *maximize_button_{nullptr};
   bool dragging_window_{false};
   QPoint drag_position_;
   std::map<std::string, RatioLayoutedFrame *> image_frame_map_;
@@ -112,5 +114,7 @@ class MainWindow : public QMainWindow {
   void registerChannel();
   void SaveState();
   bool LoadMap(const std::string& file_path);
+  void ApplyCenteredWindowGeometry();
+  void UpdateMaximizeButton();
 };
 #endif  // MAINWINDOW_H

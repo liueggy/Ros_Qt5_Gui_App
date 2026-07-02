@@ -18,6 +18,8 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QScreen>
+#include <QStyle>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include "AutoHideDockContainer.h"
@@ -42,7 +44,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 4;
+constexpr int kUiLayoutVersion = 5;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -74,6 +76,7 @@ MainWindow::MainWindow(QWidget* parent)
   qRegisterMetaType<TopologyMap>("TopologyMap");
   qRegisterMetaType<TopologyMap::PointInfo>("TopologyMap::PointInfo");
   setupUi();
+  ApplyCenteredWindowGeometry();
   QTimer::singleShot(30, this, [this]() { openChannel(); });
   QTimer::singleShot(50, [=]() {
     RestoreState();
@@ -213,6 +216,7 @@ void MainWindow::setupUi() {
   ui->setupUi(this);
   setWindowFlags((windowFlags() | Qt::FramelessWindowHint) & ~Qt::WindowTitleHint);
   setAttribute(Qt::WA_TranslucentBackground, false);
+  setMinimumSize(960, 640);
 
   this->setFont(QApplication::font());
 
@@ -453,28 +457,39 @@ void MainWindow::setupUi() {
   });
 
   horizontalLayout_tools->addSpacing(12);
-  QPushButton* min_btn = new QPushButton(QStringLiteral("-"), this);
-  QPushButton* max_btn = new QPushButton(QStringLiteral("\u25A1"), this);
-  QPushButton* close_btn = new QPushButton(QStringLiteral("\u00d7"), this);
+  QPushButton* min_btn = new QPushButton(this);
+  maximize_button_ = new QPushButton(this);
+  QPushButton* close_btn = new QPushButton(this);
+  min_btn->setIcon(style()->standardIcon(QStyle::SP_TitleBarMinButton));
+  close_btn->setIcon(style()->standardIcon(QStyle::SP_TitleBarCloseButton));
+  min_btn->setToolTip(tr("最小化"));
+  maximize_button_->setToolTip(tr("最大化"));
+  close_btn->setToolTip(tr("关闭"));
+  for (auto* button : {min_btn, maximize_button_, close_btn}) {
+    button->setFixedSize(36, 32);
+    button->setIconSize(QSize(16, 16));
+    button->setCursor(Qt::PointingHandCursor);
+    button->setFocusPolicy(Qt::NoFocus);
+  }
   min_btn->setStyleSheet(window_ctrl_btn_style);
-  max_btn->setStyleSheet(window_ctrl_btn_style);
+  maximize_button_->setStyleSheet(window_ctrl_btn_style);
   close_btn->setStyleSheet(window_ctrl_btn_style +
                            "\nQPushButton:hover { background-color: #ef5350; color: white; "
                            "border-color: #ef5350; }");
   connect(min_btn, &QPushButton::clicked, this, &QWidget::showMinimized);
-  connect(max_btn, &QPushButton::clicked, [this, max_btn]() {
+  connect(maximize_button_, &QPushButton::clicked, [this]() {
     if (isMaximized()) {
       showNormal();
-      max_btn->setText(QStringLiteral("\u25A1"));
     } else {
       showMaximized();
-      max_btn->setText(QStringLiteral("\u2750"));
     }
+    UpdateMaximizeButton();
   });
   connect(close_btn, &QPushButton::clicked, this, &QWidget::close);
   horizontalLayout_tools->addWidget(min_btn);
-  horizontalLayout_tools->addWidget(max_btn);
+  horizontalLayout_tools->addWidget(maximize_button_);
   horizontalLayout_tools->addWidget(close_btn);
+  UpdateMaximizeButton();
 
   SlotSetBatteryStatus(0, 0);
 
@@ -651,7 +666,7 @@ void MainWindow::setupUi() {
   display_config_widget_->SetChannelList(channel_manager_.DiscoveryChannelTypes());
   settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_);
-  ConfigureDockWidget(settings_dock_, QSize(420, 420), QSize(430, 620));
+  ConfigureDockWidget(settings_dock_, QSize(480, 420), QSize(520, 620));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
   auto display_config_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
@@ -667,7 +682,7 @@ void MainWindow::setupUi() {
           });
   ads::CDockWidget* SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
-  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(420, 420), QSize(430, 500));
+  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(480, 420), QSize(520, 500));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                    SpeedCtrlDockWidget, display_config_area);
@@ -796,7 +811,7 @@ void MainWindow::setupUi() {
   command_center_widget_ = new CommandCenterWidget();
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
-  ConfigureDockWidget(command_center_dock_, QSize(420, 560), QSize(450, 720));
+  ConfigureDockWidget(command_center_dock_, QSize(480, 560), QSize(520, 720));
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(true);
@@ -1022,6 +1037,40 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
   return QMainWindow::eventFilter(watched, event);
 }
 
+void MainWindow::changeEvent(QEvent* event) {
+  QMainWindow::changeEvent(event);
+  if (event->type() == QEvent::WindowStateChange) {
+    UpdateMaximizeButton();
+  }
+}
+
+void MainWindow::UpdateMaximizeButton() {
+  if (!maximize_button_) {
+    return;
+  }
+  const bool maximized = isMaximized();
+  maximize_button_->setIcon(style()->standardIcon(
+      maximized ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton));
+  maximize_button_->setToolTip(maximized ? tr("还原") : tr("最大化"));
+}
+
+void MainWindow::ApplyCenteredWindowGeometry() {
+  QScreen* target_screen = screen();
+  if (!target_screen) {
+    target_screen = QApplication::primaryScreen();
+  }
+  if (!target_screen) {
+    return;
+  }
+
+  const QRect available = target_screen->availableGeometry();
+  const QSize target_size(
+      qMin(available.width(), qMax(960, qRound(available.width() * 0.88))),
+      qMin(available.height(), qMax(640, qRound(available.height() * 0.90))));
+  resize(target_size);
+  move(available.center() - QPoint(target_size.width() / 2, target_size.height() / 2));
+}
+
 void MainWindow::signalCursorPose(QPointF pos) {
   basic::Point mapPos =
       display_manager_->mapPose2Word(basic::Point(pos.x(), pos.y()));
@@ -1061,12 +1110,24 @@ void MainWindow::RestoreState() {
   QSettings settings("state.ini", QSettings::IniFormat);
   if (settings.value("uiLayout/version", 0).toInt() != kUiLayoutVersion) {
     LOG_INFO("skip stale UI layout state, expected version " << kUiLayoutVersion);
+    ApplyCenteredWindowGeometry();
     return;
   }
-  this->restoreGeometry(settings.value("mainWindow/Geometry").toByteArray());
+  const bool geometry_restored =
+      this->restoreGeometry(settings.value("mainWindow/Geometry").toByteArray());
   this->restoreState(settings.value("mainWindow/State").toByteArray());
   dock_manager_->loadPerspectives(settings);
   dock_manager_->openPerspective("history");
+
+  QScreen* target_screen = screen();
+  if (!target_screen) {
+    target_screen = QApplication::primaryScreen();
+  }
+  if (!geometry_restored || !target_screen ||
+      !target_screen->availableGeometry().intersects(frameGeometry())) {
+    ApplyCenteredWindowGeometry();
+  }
+  UpdateMaximizeButton();
 }
 void MainWindow::updateOdomInfo(RobotState state) {
   // 转向灯
