@@ -152,18 +152,19 @@ class SpeedCtrlWidget : public QWidget {
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = QStringLiteral(
-        "QPushButton { background:#ffffff; border:1px solid #e1e7f0; border-radius:10px; color:transparent; }"
-        "QPushButton:hover { background:#eef5ff; border-color:#9ec1ff; }"
+        "QPushButton { background:#fbfdff; border:1px solid #dce6f5; border-radius:12px; color:transparent; }"
+        "QPushButton:hover { background:#eef5ff; border-color:#bcd3fb; }"
         "QPushButton:pressed { background:#dbeafe; border-color:#2f6fed; }");
+    const QSize moveButtonSize(56, 56);
     setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid #e5ebf3; border-radius:10px; background:#ffffff; top:-1px; }"
-                                                                                              "QTabBar::tab { padding:8px 20px; color:#4b5563; border:none; background:transparent; }"
+                                                                                              "QTabBar::tab { padding:7px 18px; color:#4b5563; border:none; background:transparent; }"
                                                                                               "QTabBar::tab:selected { color:#2f6fed; font-weight:700; border-bottom:2px solid #2f6fed; }"
                                                                                               "QSlider::groove:horizontal { height:5px; border-radius:2px; background:#e5eaf2; }"
                                                                                               "QSlider::sub-page:horizontal { background:#2f6fed; border-radius:2px; }"
                                                                                               "QSlider::handle:horizontal { background:#2f6fed; width:14px; height:14px; margin:-5px 0; border-radius:7px; }"));
     QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
-    verticalLayout_speed_ctrl->setContentsMargins(12, 10, 12, 12);
-    verticalLayout_speed_ctrl->setSpacing(10);
+    verticalLayout_speed_ctrl->setContentsMargins(10, 10, 10, 10);
+    verticalLayout_speed_ctrl->setSpacing(8);
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
     QFrame* control_card = new QFrame(this);
@@ -173,20 +174,25 @@ class SpeedCtrlWidget : public QWidget {
         "border-radius:12px; }"));
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
     control_layout->setContentsMargins(12, 10, 12, 12);
-    control_layout->setSpacing(10);
+    control_layout->setSpacing(8);
+    QLabel* control_hint = new QLabel(QStringLiteral("方向键控制移动，停止键立即归零。"));
+    control_hint->setWordWrap(true);
+    control_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet() +
+                                QStringLiteral("padding:0 2px 2px 2px;"));
+    control_layout->addWidget(control_hint);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
-    verticalLayout_cmd_btn->setContentsMargins(14, 16, 14, 16);
-    verticalLayout_cmd_btn->setSpacing(10);
+    verticalLayout_cmd_btn->setContentsMargins(8, 10, 8, 10);
+    verticalLayout_cmd_btn->setSpacing(8);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
-    horizontalLayout_2->setSpacing(54);
+    horizontalLayout_2->setSpacing(42);
     horizontalLayout_2->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_u = new QPushButton();
     pushButton_u->setObjectName(QString::fromUtf8("pushButton_u"));
     pushButton_u->setText("u");
     pushButton_u->setShortcut(QApplication::translate("Widget", "u", nullptr));
-    pushButton_u->setMinimumSize(QSize(64, 64));
-    pushButton_u->setMaximumSize(QSize(64, 64));
+    pushButton_u->setMinimumSize(moveButtonSize);
+    pushButton_u->setMaximumSize(moveButtonSize);
     pushButton_u->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up_left.png);}\n"
         "QPushButton{border:none;}\n"
@@ -201,8 +207,8 @@ class SpeedCtrlWidget : public QWidget {
     pushButton_i->setObjectName(QString::fromUtf8("pushButton_i"));
     pushButton_i->setText("i");
     pushButton_i->setShortcut(QApplication::translate("Widget", "i", nullptr));
-    pushButton_i->setMinimumSize(QSize(64, 64));
-    pushButton_i->setMaximumSize(QSize(64, 64));
+    pushButton_i->setMinimumSize(moveButtonSize);
+    pushButton_i->setMaximumSize(moveButtonSize);
     pushButton_i->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up.png);}\n"
         "QPushButton{border:none;}\n"
@@ -217,8 +223,8 @@ class SpeedCtrlWidget : public QWidget {
     pushButton_o->setObjectName(QString::fromUtf8("pushButton_o"));
     pushButton_o->setText("o");
     pushButton_o->setShortcut(QApplication::translate("Widget", "o", nullptr));
-    pushButton_o->setMinimumSize(QSize(64, 64));
-    pushButton_o->setMaximumSize(QSize(64, 64));
+    pushButton_o->setMinimumSize(moveButtonSize);
+    pushButton_o->setMaximumSize(moveButtonSize);
     pushButton_o->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up_right.png);}\n"
         "QPushButton{border:none;}\n"
@@ -234,14 +240,14 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
     horizontalLayout_18->setObjectName(
         QString::fromUtf8("horizontalLayout_18"));
-    horizontalLayout_18->setSpacing(54);
+    horizontalLayout_18->setSpacing(42);
     horizontalLayout_18->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_j = new QPushButton();
     pushButton_j->setText("j");
     pushButton_j->setShortcut(QApplication::translate("Widget", "j", nullptr));
     pushButton_j->setObjectName(QString::fromUtf8("pushButton_j"));
-    pushButton_j->setMinimumSize(QSize(64, 64));
-    pushButton_j->setMaximumSize(QSize(64, 64));
+    pushButton_j->setMinimumSize(moveButtonSize);
+    pushButton_j->setMaximumSize(moveButtonSize);
     pushButton_j->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/left.png);}\n"
         "QPushButton{border:none;}\n"
@@ -254,8 +260,8 @@ class SpeedCtrlWidget : public QWidget {
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
-    checkBox_use_all_->setMinimumSize(QSize(74, 38));
-    checkBox_use_all_->setMaximumSize(QSize(90, 38));
+    checkBox_use_all_->setMinimumSize(QSize(78, 36));
+    checkBox_use_all_->setMaximumSize(QSize(90, 36));
     checkBox_use_all_->setText("全向");
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
     checkBox_use_all_->setStyleSheet(QStringLiteral(
@@ -272,8 +278,8 @@ class SpeedCtrlWidget : public QWidget {
     pushButton_l->setObjectName(QString::fromUtf8("pushButton_l"));
     pushButton_l->setText("l");
     pushButton_l->setShortcut(QApplication::translate("Widget", "l", nullptr));
-    pushButton_l->setMinimumSize(QSize(64, 64));
-    pushButton_l->setMaximumSize(QSize(64, 64));
+    pushButton_l->setMinimumSize(moveButtonSize);
+    pushButton_l->setMaximumSize(moveButtonSize);
     pushButton_l->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/right.png);}\n"
         "QPushButton{border:none;}\n"
@@ -289,14 +295,14 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
     horizontalLayout_19->setObjectName(
         QString::fromUtf8("horizontalLayout_19"));
-    horizontalLayout_19->setSpacing(54);
+    horizontalLayout_19->setSpacing(42);
     horizontalLayout_19->setAlignment(Qt::AlignCenter);
     QPushButton* pushButton_m = new QPushButton();
     pushButton_m->setObjectName(QString::fromUtf8("pushButton_m"));
     pushButton_m->setText("m");
     pushButton_m->setShortcut(QApplication::translate("Widget", "m", nullptr));
-    pushButton_m->setMinimumSize(QSize(64, 64));
-    pushButton_m->setMaximumSize(QSize(64, 64));
+    pushButton_m->setMinimumSize(moveButtonSize);
+    pushButton_m->setMaximumSize(moveButtonSize);
     pushButton_m->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down_left.png);}\n"
         "QPushButton{border:none;}\n"
@@ -312,8 +318,8 @@ class SpeedCtrlWidget : public QWidget {
     pushButton_back->setText(",");
     pushButton_back->setShortcut(
         QApplication::translate("Widget", ",", nullptr));
-    pushButton_back->setMinimumSize(QSize(64, 64));
-    pushButton_back->setMaximumSize(QSize(64, 64));
+    pushButton_back->setMinimumSize(moveButtonSize);
+    pushButton_back->setMaximumSize(moveButtonSize);
     pushButton_back->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down.png);}\n"
         "QPushButton{border:none;}\n"
@@ -329,8 +335,8 @@ class SpeedCtrlWidget : public QWidget {
     pushButton_backr->setText(".");
     pushButton_backr->setShortcut(
         QApplication::translate("Widget", ".", nullptr));
-    pushButton_backr->setMinimumSize(QSize(64, 64));
-    pushButton_backr->setMaximumSize(QSize(64, 64));
+    pushButton_backr->setMinimumSize(moveButtonSize);
+    pushButton_backr->setMaximumSize(moveButtonSize);
     pushButton_backr->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down_right.png);}\n"
         "QPushButton{border:none;}\n"
@@ -384,6 +390,7 @@ class SpeedCtrlWidget : public QWidget {
     QLabel* label_14 = new QLabel();
     label_14->setObjectName(QString::fromUtf8("label_14"));
     label_14->setText("角速度:");
+    label_14->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#435267")));
     horizontalLayout_20->addWidget(label_14);
 
     horizontalSlider_raw_ = new QSlider();
@@ -399,6 +406,7 @@ class SpeedCtrlWidget : public QWidget {
     label_raw->setObjectName(QString::fromUtf8("label_raw"));
     label_raw->setText(QString::number(horizontalSlider_raw_->value() * 0.01) +
                        " deg/s");
+    label_raw->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
     connect(horizontalSlider_raw_, &QSlider::valueChanged,
             [label_raw](qreal value) {
               label_raw->setText(QString::number(rad2deg(value * 0.01)) +
@@ -418,6 +426,7 @@ class SpeedCtrlWidget : public QWidget {
     QLabel* label_9 = new QLabel();
     label_9->setObjectName(QString::fromUtf8("label_9"));
     label_9->setText("线速度:");
+    label_9->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#435267")));
     horizontalLayout_21->addWidget(label_9);
 
     horizontalSlider_linear_ = new QSlider();
@@ -434,6 +443,7 @@ class SpeedCtrlWidget : public QWidget {
     label_linear->setObjectName(QString::fromUtf8("label_linear"));
     label_linear->setText(
         QString::number(horizontalSlider_linear_->value() * 0.01) + " m/s");
+    label_linear->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
     connect(horizontalSlider_linear_, &QSlider::valueChanged,
             [label_linear](qreal value) {
               label_linear->setText(QString::number(value * 0.01) + " m/s");
