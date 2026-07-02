@@ -3,23 +3,23 @@
 namespace UiStyle {
 
 int FontBasePx() {
-  return 14;
+  return 18;
 }
 
 int FontSmallPx() {
-  return 14;
+  return 16;
 }
 
 int FontMiniPx() {
-  return 13;
+  return 14;
 }
 
 int FontTitlePx() {
-  return 20;
+  return 22;
 }
 
 int ControlHeightPx() {
-  return 38;
+  return 44;
 }
 
 QString ApplicationStyleSheet() {
@@ -31,6 +31,13 @@ QString ApplicationStyleSheet() {
              "QMenu::item { padding:8px 28px 8px 12px; border-radius:6px; }"
              "QMenu::item:selected { color:#174ea6; background:#eaf2ff; }"
              "QMenu::separator { height:1px; background:#e8edf5; margin:5px 8px; }"
+             "QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:top right; "
+             "width:34px; border:none; border-left:1px solid #e4e9f1; }"
+             "QComboBox::down-arrow { image:url(:/icons/tabler/arrow-down.svg); width:14px; height:14px; }"
+             "QComboBox QAbstractItemView { background:#ffffff; color:#18212f; border:1px solid #cfd8e6; "
+             "border-radius:8px; padding:6px; outline:none; selection-background-color:#eaf2ff; "
+             "selection-color:#174ea6; }"
+             "QComboBox QAbstractItemView::item { min-height:34px; padding:5px 10px; }"
              "QScrollBar:vertical { width:10px; margin:2px; border:none; background:transparent; }"
              "QScrollBar::handle:vertical { min-height:32px; border-radius:4px; background:#c5cfdd; }"
              "QScrollBar::handle:vertical:hover { background:#9eacbf; }"
@@ -146,11 +153,12 @@ QString SectionLabelStyleSheet() {
 
 QString ToolButtonStyleSheet() {
   return QStringLiteral(
-             "QToolButton { border:1px solid #e3eaf4; border-radius:9px; background:#ffffff; color:#18212f; "
-             "padding:8px 14px; font-size:%1px; font-weight:600; min-height:50px; max-height:50px; }"
-             "QToolButton:hover { background:#eaf2ff; border-color:#8ab4f8; color:#174ea6; }"
-             "QToolButton:pressed { background:#d2e3fc; border-color:#2f6fed; }"
-             "QToolButton:checked { background:#2f6fed; color:#ffffff; border-color:#2f6fed; }")
+             "QToolButton { border:none; border-radius:8px; background:transparent; color:#18212f; "
+             "padding:7px 12px; font-size:%1px; font-weight:600; min-height:62px; max-height:62px; }"
+             "QToolButton:hover { background:#eef4ff; color:#174ea6; }"
+             "QToolButton:pressed { background:#dce9ff; }"
+             "QToolButton:checked { background:#e4eeff; color:#174ea6; }"
+             "QToolButton::menu-indicator { subcontrol-position:bottom right; right:4px; bottom:3px; }")
       .arg(FontBasePx());
 }
 

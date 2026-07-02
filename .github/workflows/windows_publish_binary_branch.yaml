@@ -93,6 +93,7 @@ jobs:
           Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Path $publishDir | Out-Null
           Copy-Item "$binDir/*" $publishDir -Recurse -Force
+          Get-ChildItem $publishDir -Recurse -Filter *.lib | Remove-Item -Force
 
           $repo = $env:GITHUB_REPOSITORY
           $commit = $env:GITHUB_SHA

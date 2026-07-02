@@ -46,7 +46,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 8;
+constexpr int kUiLayoutVersion = 9;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -280,8 +280,8 @@ void MainWindow::setupUi() {
 
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
-  horizontalLayout_tools->setSpacing(8);
-  horizontalLayout_tools->setContentsMargins(12, 6, 10, 6);
+  horizontalLayout_tools->setSpacing(4);
+  horizontalLayout_tools->setContentsMargins(14, 5, 10, 5);
   horizontalLayout_tools->setObjectName(
       QString::fromUtf8(" horizontalLayout_tools"));
 
@@ -292,7 +292,9 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addWidget(brand_icon);
 
   auto* brand_title = new QLabel(tr("ROS Bridge 控制台"), tools_strip);
-  brand_title->setStyleSheet(QStringLiteral("QLabel { color:#18212f; font-size:15px; font-weight:700; padding-right:16px; }"));
+  brand_title->setStyleSheet(
+      QStringLiteral("QLabel { color:#18212f; font-size:%1px; font-weight:700; padding-right:14px; }")
+          .arg(UiStyle::FontBasePx()));
   horizontalLayout_tools->addWidget(brand_title);
   // 现代化工具栏样式
   QString modernToolButtonStyle = UiStyle::ToolButtonStyleSheet();
@@ -303,9 +305,10 @@ void MainWindow::setupUi() {
   view_icon.addFile(QString::fromUtf8(":/icons/tabler/menu-2.svg"),
                     QSize(32, 32), QIcon::Normal, QIcon::Off);
   view_menu_btn->setIcon(view_icon);
-  view_menu_btn->setIconSize(QSize(22, 22));
+  view_menu_btn->setIconSize(QSize(24, 24));
   view_menu_btn->setPopupMode(QToolButton::InstantPopup);
   view_menu_btn->setMenu(ui->menuView);
+  view_menu_btn->setToolTip(tr("面板与窗口"));
   view_menu_btn->setStyleSheet(modernToolButtonStyle);
   view_menu_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   horizontalLayout_tools->addWidget(view_menu_btn);
@@ -322,7 +325,7 @@ void MainWindow::setupUi() {
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   reloc_btn->setIcon(icon4);
   reloc_btn->setText("重定位");
-  reloc_btn->setIconSize(QSize(22, 22));
+  reloc_btn->setIconSize(QSize(24, 24));
   horizontalLayout_tools->addWidget(reloc_btn);
 
   QIcon icon5;
@@ -331,7 +334,7 @@ void MainWindow::setupUi() {
   QToolButton* edit_map_btn = new QToolButton();
   edit_map_btn->setIcon(icon5);
   edit_map_btn->setText("编辑地图");
-  edit_map_btn->setIconSize(QSize(22, 22));
+  edit_map_btn->setIconSize(QSize(24, 24));
   edit_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   edit_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(edit_map_btn);
@@ -342,7 +345,7 @@ void MainWindow::setupUi() {
   QToolButton* open_map_btn = new QToolButton();
   open_map_btn->setIcon(icon6);
   open_map_btn->setText("打开地图");
-  open_map_btn->setIconSize(QSize(22, 22));
+  open_map_btn->setIconSize(QSize(24, 24));
   open_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   open_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(open_map_btn);
@@ -354,18 +357,18 @@ void MainWindow::setupUi() {
   QToolButton* save_map_btn = new QToolButton();
   save_map_btn->setIcon(icon8);
   save_map_btn->setText("保存地图");
-  save_map_btn->setIconSize(QSize(22, 22));
+  save_map_btn->setIconSize(QSize(24, 24));
   save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(save_map_btn);
 
   QIcon icon7;
-  icon7.addFile(QString::fromUtf8(":/icons/tabler/device-floppy.svg"),
+  icon7.addFile(QString::fromUtf8(":/images/re_save.svg"),
                 QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* re_save_map_btn = new QToolButton();
   re_save_map_btn->setIcon(icon7);
   re_save_map_btn->setText("另存为");
-  re_save_map_btn->setIconSize(QSize(22, 22));
+  re_save_map_btn->setIconSize(QSize(24, 24));
   re_save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   re_save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(re_save_map_btn);
@@ -1114,7 +1117,7 @@ void MainWindow::ApplyDefaultDockSizes() {
   };
 
   resize_area(settings_dock_area_, 800);
-  resize_area(command_center_dock_area_, 500);
+  resize_area(command_center_dock_area_, 600);
 }
 
 void MainWindow::ConfigureFloatingOnOpen(ads::CDockWidget* dock,

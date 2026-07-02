@@ -86,6 +86,7 @@ jobs:
       - name: Package
         run: |
           cd build\install\bin
+          powershell "Get-ChildItem . -Recurse -Filter *.lib | Remove-Item -Force"
           powershell Compress-Archive -Path * -DestinationPath ros_qt5_gui_app_windows_x64.zip -Force
 
       - name: Upload Artifact

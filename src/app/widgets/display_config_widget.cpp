@@ -96,9 +96,8 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setMinimumWidth(184);
-  nav_list_->setMaximumWidth(220);
-  nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+  nav_list_->setFixedWidth(172);
+  nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Maximum);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
   const QVector<QPair<QString, QString>> navItems = {
@@ -111,8 +110,9 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(176, 46));
+    nav_item->setSizeHint(QSize(160, 48));
   }
+  nav_list_->setFixedHeight(navItems.size() * 52 + 16);
 
   page_stack_ = new QStackedWidget(this);
   page_stack_->setMinimumWidth(0);
