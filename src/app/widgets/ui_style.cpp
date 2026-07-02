@@ -7,11 +7,11 @@ int FontBasePx() {
 }
 
 int FontSmallPx() {
-  return 13;
+  return 14;
 }
 
 int FontMiniPx() {
-  return 12;
+  return 13;
 }
 
 int FontTitlePx() {

@@ -84,7 +84,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   map_empty_state_->setStyleSheet(QStringLiteral(
       "QWidget { background:rgba(248,250,253,235); border:1px solid #dfe6ef; border-radius:14px; } "
       "QLabel { background:transparent; border:none; }"));
-  center_layout->addWidget(map_empty_state_, 0, Qt::AlignCenter);
+  map_empty_state_->adjustSize();
+  map_empty_state_->raise();
   center_layout->addItem(
       new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
   main_layout->addLayout(center_layout);
@@ -314,6 +315,18 @@ void ViewManager::ShowToolSizeSlider(bool show) {
 void ViewManager::OnEditMapModeChanged(MapEditMode mode) {
   bool show = (mode == MapEditMode::kErase || mode == MapEditMode::kDrawWithPen);
   ShowToolSizeSlider(show);
+}
+
+void ViewManager::resizeEvent(QResizeEvent* event) {
+  QGraphicsView::resizeEvent(event);
+  if (!map_empty_state_) {
+    return;
+  }
+  map_empty_state_->adjustSize();
+  const QPoint center = viewport()->rect().center();
+  map_empty_state_->move(center.x() - map_empty_state_->width() / 2,
+                         center.y() - map_empty_state_->height() / 2);
+  map_empty_state_->raise();
 }
 
 void ViewManager::mouseMoveEvent(QMouseEvent* event) {

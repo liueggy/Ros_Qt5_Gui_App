@@ -165,6 +165,14 @@ class SpeedCtrlWidget : public QWidget {
     verticalLayout_speed_ctrl->setSpacing(10);
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
+    QFrame* control_card = new QFrame(this);
+    control_card->setObjectName(QStringLiteral("speedControlCard"));
+    control_card->setStyleSheet(QStringLiteral(
+        "QFrame#speedControlCard { background:#ffffff; border:1px solid #e1e7f0; "
+        "border-radius:12px; }"));
+    QVBoxLayout* control_layout = new QVBoxLayout(control_card);
+    control_layout->setContentsMargins(12, 10, 12, 12);
+    control_layout->setSpacing(10);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
     verticalLayout_cmd_btn->setContentsMargins(16, 18, 16, 18);
     verticalLayout_cmd_btn->setSpacing(12);
@@ -336,7 +344,7 @@ class SpeedCtrlWidget : public QWidget {
     tabWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
     tabWidget->addTab(cmdCtrlWidget, "命令控制");
-    verticalLayout_speed_ctrl->addWidget(tabWidget);
+    control_layout->addWidget(tabWidget);
 
     QWidget* widget_joyStick = new QWidget();
     QHBoxLayout* horizontalLayout_joyStick = new QHBoxLayout();
@@ -381,7 +389,10 @@ class SpeedCtrlWidget : public QWidget {
             });
     horizontalLayout_20->addWidget(label_raw);
 
-    verticalLayout_speed_ctrl->addLayout(horizontalLayout_20);
+    label_14->setFixedWidth(68);
+    label_raw->setMinimumWidth(86);
+    label_raw->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    control_layout->addLayout(horizontalLayout_20);
 
     // linear anglur
     QHBoxLayout* horizontalLayout_21 = new QHBoxLayout();
@@ -411,7 +422,10 @@ class SpeedCtrlWidget : public QWidget {
               label_linear->setText(QString::number(value * 0.01) + " m/s");
             });
     horizontalLayout_21->addWidget(label_linear);
-    verticalLayout_speed_ctrl->addLayout(horizontalLayout_21);
+    label_9->setFixedWidth(68);
+    label_linear->setMinimumWidth(86);
+    label_linear->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    control_layout->addLayout(horizontalLayout_21);
     QHBoxLayout* horizontalLayout_stop_button = new QHBoxLayout();
     QPushButton* btn_stop = new QPushButton();
     btn_stop->setObjectName(QString::fromUtf8("btn_stop"));
@@ -423,7 +437,9 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_stop_button->addStretch();
     horizontalLayout_stop_button->addWidget(btn_stop);
     horizontalLayout_stop_button->addStretch();
-    verticalLayout_speed_ctrl->addLayout(horizontalLayout_stop_button);
+    control_layout->addLayout(horizontalLayout_stop_button);
+    verticalLayout_speed_ctrl->addWidget(control_card, 0, Qt::AlignTop);
+    verticalLayout_speed_ctrl->addStretch(1);
 
     // QHBoxLayout *horizontalLayout_23 = new QHBoxLayout();
     // horizontalLayout_23->setObjectName(

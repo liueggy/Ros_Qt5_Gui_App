@@ -3,6 +3,7 @@
 #include <QGraphicsView>
 #include <QLayout>
 #include <QMouseEvent>
+#include <QResizeEvent>
 #include <QPushButton>
 #include <QToolButton>
 #include <QLineEdit>
@@ -40,6 +41,7 @@ class ViewManager : public QGraphicsView {
   void OnEditMapModeChanged(MapEditMode mode);
 
  protected:
+  void resizeEvent(QResizeEvent *event) override;
   void mouseMoveEvent(QMouseEvent *event) override;
 
   void enterEvent(QEvent *event) override;

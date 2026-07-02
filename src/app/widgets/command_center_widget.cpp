@@ -188,12 +188,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_edit_ = new QPlainTextEdit(status_group);
   status_edit_->setReadOnly(true);
   status_edit_->setPlaceholderText(tr("暂无运行状态，连接小车后点击“刷新状态”。"));
-  status_edit_->setMaximumHeight(120);
+  status_edit_->setMaximumHeight(105);
   status_layout->addWidget(status_edit_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
   log_edit_->setPlaceholderText(tr("暂无命令记录。"));
-  log_edit_->setMaximumHeight(150);
+  log_edit_->setMaximumHeight(120);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -204,7 +204,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
   diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
   diagnostic_layout->addWidget(diagnostic_widget_);
-  root->addWidget(diagnostic_group, 1);
+  root->addWidget(diagnostic_group, 2);
 
   SUBSCRIBE(MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { AppendResponse(json); }, Qt::QueuedConnection);
