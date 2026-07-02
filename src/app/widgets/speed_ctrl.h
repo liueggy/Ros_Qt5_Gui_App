@@ -254,8 +254,18 @@ class SpeedCtrlWidget : public QWidget {
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
-    checkBox_use_all_->setMaximumSize(QSize(90, 16777215));
+    checkBox_use_all_->setMinimumSize(QSize(74, 38));
+    checkBox_use_all_->setMaximumSize(QSize(90, 38));
     checkBox_use_all_->setText("全向");
+    checkBox_use_all_->setCursor(Qt::PointingHandCursor);
+    checkBox_use_all_->setStyleSheet(QStringLiteral(
+        "QCheckBox { color:#536277; font-size:%1px; font-weight:700; spacing:6px; "
+        "background:#f6f9fe; border:1px solid #dbe6f5; border-radius:10px; padding:7px 10px; }"
+        "QCheckBox:hover { background:#edf4ff; border-color:#bcd3fb; color:#1f5fbf; }"
+        "QCheckBox:checked { background:#e8f1ff; border-color:#2f6fed; color:#1f5fbf; }"
+        "QCheckBox::indicator { width:14px; height:14px; border:1px solid #c8d4e4; border-radius:4px; background:#ffffff; }"
+        "QCheckBox::indicator:checked { background:#2f6fed; border-color:#2f6fed; }")
+        .arg(UiStyle::FontSmallPx()));
     horizontalLayout_18->addWidget(checkBox_use_all_);
 
     QPushButton* pushButton_l = new QPushButton();

@@ -2,7 +2,6 @@
 
 #include <QComboBox>
 #include <QDateTime>
-#include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -118,11 +117,11 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 
   setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  auto* title = new QLabel(tr("运维面板"), this);
+  auto* title = new QLabel(tr("运行控制"), this);
   title->setObjectName(QStringLiteral("pageTitle"));
   title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
-  auto* subtitle = new QLabel(tr("摄像头、速度参数、运行状态与诊断信息集中管理"), this);
+  auto* subtitle = new QLabel(tr("摄像头、速度、状态和诊断集中在这里处理。"), this);
   subtitle->setObjectName(QStringLiteral("pageSubtitle"));
   subtitle->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding-bottom:4px;"));
   root->addWidget(subtitle);
@@ -132,13 +131,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* camera_layout = new QVBoxLayout(camera_group);
   camera_layout->setContentsMargins(16, 14, 16, 16);
   camera_layout->setSpacing(12);
-  AddCardTitle(camera_layout, tr("摄像头"), camera_group);
+  AddCardTitle(camera_layout, tr("摄像头控制"), camera_group);
   auto* camera_row = new QHBoxLayout();
   auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
   auto* camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
   camera_start_btn->setStyleSheet(UiStyle::MainButtonStyleSheet());
   camera_stop_btn->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  camera_state_label_ = new QLabel(tr("状态等待刷新"), camera_group);
+  camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
   camera_state_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("font-weight:600;"));
   camera_row->addWidget(camera_start_btn);
   camera_row->addWidget(camera_stop_btn);
@@ -155,20 +154,29 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* speed_layout = new QVBoxLayout(speed_group);
   speed_layout->setContentsMargins(16, 14, 16, 16);
   speed_layout->setSpacing(12);
-  AddCardTitle(speed_layout, tr("速度参数"), speed_group);
+  AddCardTitle(speed_layout, tr("速度档位"), speed_group);
 
   auto* profile_row = new QHBoxLayout();
+  profile_row->setSpacing(8);
   profile_combo_ = new QComboBox(speed_group);
   profile_combo_->addItem(tr("低速稳定"), "stable");
   profile_combo_->addItem(tr("均衡巡航"), "balanced");
   profile_combo_->addItem(tr("快速测试"), "fast");
-  auto* apply_profile_btn = new QPushButton(tr("应用档位"), speed_group);
+  auto* apply_profile_btn = new QPushButton(tr("应用"), speed_group);
   profile_row->addWidget(profile_combo_, 1);
   profile_row->addWidget(apply_profile_btn);
   speed_layout->addLayout(profile_row);
   connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
 
-  auto* param_layout = new QFormLayout();
+  auto* param_caption = new QLabel(tr("单项参数"), speed_group);
+  param_caption->setStyleSheet(QStringLiteral(
+                                   "QLabel { color:#6b7a90; font-size:%1px; font-weight:700; "
+                                   "background:transparent; border:none; padding:4px 0 0 0; }")
+                                   .arg(UiStyle::FontSmallPx()));
+  speed_layout->addWidget(param_caption);
+
+  auto* param_layout = new QVBoxLayout();
+  param_layout->setSpacing(8);
   speed_param_combo_ = new QComboBox(speed_group);
   speed_param_combo_->addItem(tr("最大前进速度 max_vel_x"), "dyn|/move_base/TebLocalPlannerROS|max_vel_x|0.45");
   speed_param_combo_->addItem(tr("最大角速度 max_vel_theta"), "dyn|/move_base/TebLocalPlannerROS|max_vel_theta|1.0");
@@ -176,8 +184,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   speed_param_combo_->addItem(tr("角加速度 acc_lim_theta"), "dyn|/move_base/TebLocalPlannerROS|acc_lim_theta|1.8");
   speed_value_edit_ = new QLineEdit(speed_group);
   speed_value_edit_->setPlaceholderText(tr("例如 0.45"));
-  param_layout->addRow(tr("参数"), speed_param_combo_);
-  param_layout->addRow(tr("值"), speed_value_edit_);
+  param_layout->addWidget(speed_param_combo_);
+  param_layout->addWidget(speed_value_edit_);
   speed_layout->addLayout(param_layout);
 
   auto* param_btn_row = new QHBoxLayout();
@@ -202,7 +210,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* status_layout = new QVBoxLayout(status_group);
   status_layout->setContentsMargins(16, 14, 16, 16);
   status_layout->setSpacing(12);
-  AddCardTitle(status_layout, tr("状态"), status_group);
+  AddCardTitle(status_layout, tr("运行状态"), status_group);
   auto* status_btn_row = new QHBoxLayout();
   auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
   auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
@@ -212,13 +220,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addLayout(status_btn_row);
   status_edit_ = new QPlainTextEdit(status_group);
   status_edit_->setReadOnly(true);
-  status_edit_->setPlaceholderText(tr("暂无运行状态，连接小车后点击“刷新状态”。"));
-  status_edit_->setMaximumHeight(105);
+  status_edit_->setPlaceholderText(tr("连接小车后点击“刷新状态”，这里会显示当前模式、负载和关键组件。"));
+  status_edit_->setMaximumHeight(96);
   status_layout->addWidget(status_edit_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
-  log_edit_->setPlaceholderText(tr("暂无命令记录。"));
-  log_edit_->setMaximumHeight(120);
+  log_edit_->setPlaceholderText(tr("命令发送后，响应会记录在这里。"));
+  log_edit_->setMaximumHeight(104);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -230,7 +238,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
   diagnostic_layout->setContentsMargins(16, 14, 16, 16);
   diagnostic_layout->setSpacing(12);
-  AddCardTitle(diagnostic_layout, tr("诊断"), diagnostic_group);
+  AddCardTitle(diagnostic_layout, tr("系统诊断"), diagnostic_group);
   diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
   diagnostic_layout->addWidget(diagnostic_widget_);
   root->addWidget(diagnostic_group, 2);

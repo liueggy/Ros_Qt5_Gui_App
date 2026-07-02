@@ -28,9 +28,16 @@ QString LineEditStyle() {
 
 QString FieldLabelStyle() {
   return QStringLiteral(
-             "QLabel { color:#435267; font-size:%1px; font-weight:700; "
+             "QLabel { color:#536277; font-size:%1px; font-weight:600; "
              "background:transparent; border:none; padding:0 4px; }")
       .arg(UiStyle::FontSmallPx());
+}
+
+QString CardTitleStyle() {
+  return QStringLiteral(
+             "QLabel { color:#18212f; font-size:%1px; font-weight:700; "
+             "background:transparent; border:none; padding:0; }")
+      .arg(UiStyle::FontBasePx());
 }
 
 }  // namespace
@@ -146,21 +153,29 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(0);
 
-  QLabel* page_title = new QLabel(tr("通道"));
+  QLabel* page_title = new QLabel(tr("连接小车"));
   page_title->setObjectName(QStringLiteral("pageTitle"));
   root->addWidget(page_title);
-  AddHintLabel(root, tr("配置上位机与小车的通信方式，以及 ROSBridge 的地址和端口。"));
+  AddHintLabel(root, tr("选择通信方式。小车启动后，可在这里重新连接，无需重启应用。"));
 
-  connection_section_label_ = AddSectionHeader(root, tr("连接"));
+  connection_section_label_ = AddSectionHeader(root, tr("通信配置"));
 
   QFrame* card = CreateSettingsCard(page);
   QVBoxLayout* card_layout = new QVBoxLayout(card);
-  card_layout->setContentsMargins(16, 14, 16, 16);
-  card_layout->setSpacing(14);
+  card_layout->setContentsMargins(16, 16, 16, 16);
+  card_layout->setSpacing(12);
+
+  auto* card_title = new QLabel(tr("ROSBridge 连接"), card);
+  card_title->setStyleSheet(CardTitleStyle());
+  auto* card_hint = new QLabel(tr("填写小车上 rosbridge_server 的地址和端口。"), card);
+  card_hint->setWordWrap(true);
+  card_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  card_layout->addWidget(card_title);
+  card_layout->addWidget(card_hint);
 
   QHBoxLayout* type_layout = new QHBoxLayout();
-  channel_type_label_ = new QLabel(tr("通道类型"));
-  channel_type_label_->setFixedWidth(76);
+  channel_type_label_ = new QLabel(tr("方式"));
+  channel_type_label_->setFixedWidth(58);
   channel_type_label_->setStyleSheet(FieldLabelStyle());
   channel_type_combo_ = new QComboBox(card);
   channel_type_combo_->setMinimumHeight(36);
@@ -183,8 +198,11 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   type_layout->addWidget(channel_type_combo_, 1);
   card_layout->addLayout(type_layout);
 
-  rosbridge_section_label_ = new QLabel(tr("ROSBridge"));
-  rosbridge_section_label_->setStyleSheet(UiStyle::SectionLabelStyleSheet() + QStringLiteral("padding-top:4px;"));
+  rosbridge_section_label_ = new QLabel(tr("目标地址"));
+  rosbridge_section_label_->setStyleSheet(
+      QStringLiteral("QLabel { color:#6b7a90; font-size:%1px; font-weight:700; "
+                     "padding:6px 4px 0 4px; background:transparent; border:none; }")
+          .arg(UiStyle::FontSmallPx()));
   card_layout->addWidget(rosbridge_section_label_);
 
   QHBoxLayout* ip_layout = new QHBoxLayout();
@@ -235,13 +253,13 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   connection_status_card_ = new QFrame(page);
   connection_status_card_->setObjectName(QStringLiteral("connectionStatusCard"));
-  QHBoxLayout* connection_action_layout = new QHBoxLayout(connection_status_card_);
-  connection_action_layout->setContentsMargins(16, 14, 16, 14);
-  connection_action_layout->setSpacing(16);
+  QVBoxLayout* connection_action_layout = new QVBoxLayout(connection_status_card_);
+  connection_action_layout->setContentsMargins(16, 15, 16, 16);
+  connection_action_layout->setSpacing(10);
   auto* connection_copy = new QVBoxLayout();
-  connection_copy->setSpacing(4);
+  connection_copy->setSpacing(6);
   connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
-  connection_status_title_->setStyleSheet(UiStyle::SectionLabelStyleSheet());
+  connection_status_title_->setStyleSheet(CardTitleStyle());
   connection_status_label_ = new QLabel(tr("正在检测小车通信状态。"), connection_status_card_);
   connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   connection_status_label_->setWordWrap(true);
@@ -250,7 +268,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   reconnect_channel_btn_ = new QPushButton(tr("连接"), connection_status_card_);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
-  reconnect_channel_btn_->setMinimumWidth(104);
+  reconnect_channel_btn_->setMinimumWidth(0);
   reconnect_channel_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   connect(reconnect_channel_btn_, &QPushButton::clicked, [this]() {
     if (reconnect_channel_btn_->property("connected").toBool()) {
@@ -259,8 +277,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
       emit ConnectRequested();
     }
   });
-  connection_action_layout->addLayout(connection_copy, 1);
-  connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignRight);
+  connection_action_layout->addLayout(connection_copy);
+  connection_action_layout->addWidget(reconnect_channel_btn_);
   root->addSpacing(12);
   root->addWidget(connection_status_card_);
   root->addStretch(1);
