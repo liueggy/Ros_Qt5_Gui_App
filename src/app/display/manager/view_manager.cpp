@@ -67,24 +67,36 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
 
   map_empty_state_ = new QWidget(viewport());
   auto* empty_layout = new QVBoxLayout(map_empty_state_);
-  empty_layout->setContentsMargins(28, 24, 28, 24);
-  empty_layout->setSpacing(8);
+  empty_layout->setContentsMargins(34, 28, 34, 30);
+  empty_layout->setSpacing(10);
   auto* empty_icon = new QLabel(map_empty_state_);
   empty_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/map.svg")).pixmap(44, 44));
   empty_icon->setAlignment(Qt::AlignCenter);
-  auto* empty_title = new QLabel(tr("尚未加载地图"), map_empty_state_);
+  empty_icon->setStyleSheet(QStringLiteral(
+      "QLabel { background:#edf4ff; border:1px solid #d7e5fb; border-radius:20px; "
+      "padding:10px; margin-bottom:2px; }"));
+  auto* empty_title = new QLabel(tr("等待地图数据"), map_empty_state_);
   empty_title->setAlignment(Qt::AlignCenter);
-  empty_title->setStyleSheet(UiStyle::SectionLabelStyleSheet() + QStringLiteral("font-size:18px;"));
-  auto* empty_hint = new QLabel(tr("连接小车或从工具栏打开地图后，地图将在这里显示。"), map_empty_state_);
+  empty_title->setStyleSheet(QStringLiteral(
+      "QLabel { color:#18212f; font-size:%1px; font-weight:800; "
+      "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::FontTitlePx()));
+  auto* empty_hint = new QLabel(tr("连接小车后会自动显示建图数据；也可以从工具栏打开已有地图。"), map_empty_state_);
   empty_hint->setAlignment(Qt::AlignCenter);
   empty_hint->setWordWrap(true);
-  empty_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  empty_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet() + QStringLiteral("padding:0 6px 6px 6px;"));
+  auto* empty_steps = new QLabel(tr("连接小车  ·  打开地图  ·  开始定位"), map_empty_state_);
+  empty_steps->setAlignment(Qt::AlignCenter);
+  empty_steps->setStyleSheet(QStringLiteral(
+      "QLabel { color:#1f5fbf; background:#f3f7ff; border:1px solid #dbe7fb; "
+      "border-radius:11px; padding:8px 12px; font-size:%1px; font-weight:700; }")
+      .arg(UiStyle::FontSmallPx()));
   empty_layout->addWidget(empty_icon);
   empty_layout->addWidget(empty_title);
   empty_layout->addWidget(empty_hint);
-  map_empty_state_->setMaximumWidth(360);
+  empty_layout->addWidget(empty_steps);
+  map_empty_state_->setMaximumWidth(430);
   map_empty_state_->setStyleSheet(QStringLiteral(
-      "QWidget { background:rgba(248,250,253,235); border:1px solid #dfe6ef; border-radius:14px; } "
+      "QWidget { background:rgba(250,252,255,242); border:1px solid #dce6f5; border-radius:20px; } "
       "QLabel { background:transparent; border:none; }"));
   map_empty_state_->adjustSize();
   map_empty_state_->raise();
@@ -257,13 +269,14 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
 
   painter->save();
   painter->setRenderHint(QPainter::Antialiasing, false);
+  painter->fillRect(rect, QColor(QStringLiteral("#fbfdff")));
 
   const qreal minor_step = 32.0;
   const qreal major_step = minor_step * 4.0;
   const qreal left = std::floor(rect.left() / minor_step) * minor_step;
   const qreal top = std::floor(rect.top() / minor_step) * minor_step;
 
-  QPen minor_pen(QColor(229, 235, 244, 62));
+  QPen minor_pen(QColor(224, 233, 244, 46));
   minor_pen.setWidthF(0.0);
   painter->setPen(minor_pen);
   for (qreal x = left; x < rect.right(); x += minor_step) {
@@ -273,7 +286,7 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
   }
 
-  QPen major_pen(QColor(207, 216, 230, 78));
+  QPen major_pen(QColor(194, 209, 230, 68));
   major_pen.setWidthF(0.0);
   painter->setPen(major_pen);
   const qreal major_left = std::floor(rect.left() / major_step) * major_step;
