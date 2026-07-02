@@ -133,16 +133,18 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_error_ = new QLabel();
   summary_stale_ = new QLabel();
   for (auto* lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
-    lb->setStyleSheet(QStringLiteral("padding:4px 8px;border-radius:10px;font-size:%1px;").arg(UiStyle::FontSmallPx()));
+    lb->setMinimumHeight(30);
+    lb->setAlignment(Qt::AlignCenter);
+    lb->setStyleSheet(QStringLiteral("padding:4px 10px;border-radius:11px;font-size:%1px;font-weight:600;").arg(UiStyle::FontSmallPx()));
   }
   summary_ok_->setStyleSheet(summary_ok_->styleSheet() +
-                             QStringLiteral("background-color:rgba(46,125,50,0.15);color:#2e7d32;"));
+                             QStringLiteral("background-color:rgba(46,125,50,0.12);color:#2e7d32;"));
   summary_warn_->setStyleSheet(summary_warn_->styleSheet() +
-                               QStringLiteral("background-color:rgba(245,124,0,0.15);color:#f57c00;"));
+                               QStringLiteral("background-color:rgba(245,124,0,0.12);color:#f57c00;"));
   summary_error_->setStyleSheet(summary_error_->styleSheet() +
-                                QStringLiteral("background-color:rgba(211,47,47,0.15);color:#d32f2f;"));
+                                QStringLiteral("background-color:rgba(211,47,47,0.12);color:#d32f2f;"));
   summary_stale_->setStyleSheet(summary_stale_->styleSheet() +
-                                QStringLiteral("background-color:rgba(97,97,97,0.15);color:#616161;"));
+                                QStringLiteral("background-color:rgba(97,97,97,0.12);color:#616161;"));
   summary_row->addWidget(summary_ok_);
   summary_row->addWidget(summary_warn_);
   summary_row->addWidget(summary_error_);

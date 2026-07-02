@@ -49,6 +49,12 @@ QString ApplicationStyleSheet() {
              "QTabBar::tab { min-height:30px; padding:6px 16px; color:#526174; background:transparent; border:none; }"
              "QTabBar::tab:hover { color:#2459a9; background:#eef4fd; }"
              "QTabBar::tab:selected { color:#1f5fbf; font-weight:600; border-bottom:2px solid #2f6fed; }"
+             "ads--CDockAreaTitleBar, ads--CDockAreaWidget, ads--CDockContainerWidget { background:#f4f7fb; }"
+             "ads--CDockWidgetTab { background:#f1f5fb; color:#435267; border:none; border-bottom:1px solid #dce4ef; padding:4px 10px; }"
+             "ads--CDockWidgetTab[activeTab=\"true\"] { background:#edf4ff; color:#1f5fbf; border-bottom:2px solid #2f6fed; font-weight:700; }"
+             "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
+             "ads--CTitleBarButton { background:transparent; border:none; border-radius:5px; padding:2px; }"
+             "ads--CTitleBarButton:hover { background:#eaf2ff; }"
              "QSplitter::handle { background:#dce4ef; }"
              "QSplitter::handle:hover { background:#8eb5f5; }")
       .arg(FontBasePx());

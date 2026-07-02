@@ -26,6 +26,13 @@ QString LineEditStyle() {
   return UiStyle::InputStyleSheet();
 }
 
+QString FieldLabelStyle() {
+  return QStringLiteral(
+             "QLabel { color:#435267; font-size:%1px; font-weight:700; "
+             "background:transparent; border:none; padding:0 4px; }")
+      .arg(UiStyle::FontSmallPx());
+}
+
 }  // namespace
 
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
@@ -153,8 +160,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   QHBoxLayout* type_layout = new QHBoxLayout();
   channel_type_label_ = new QLabel(tr("通道类型"));
-  channel_type_label_->setFixedWidth(88);
-  channel_type_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  channel_type_label_->setFixedWidth(76);
+  channel_type_label_->setStyleSheet(FieldLabelStyle());
   channel_type_combo_ = new QComboBox(card);
   channel_type_combo_->setMinimumHeight(36);
   channel_type_combo_->setStyleSheet(UiStyle::InputStyleSheet());
@@ -182,8 +189,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   QHBoxLayout* ip_layout = new QHBoxLayout();
   rosbridge_ip_label_ = new QLabel(tr("地址"));
-  rosbridge_ip_label_->setFixedWidth(88);
-  rosbridge_ip_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  rosbridge_ip_label_->setFixedWidth(76);
+  rosbridge_ip_label_->setStyleSheet(FieldLabelStyle());
   rosbridge_ip_edit_ = new QLineEdit(card);
   rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("192.168.31.50"));
   rosbridge_ip_edit_->setStyleSheet(LineEditStyle());
@@ -204,8 +211,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   QHBoxLayout* port_layout = new QHBoxLayout();
   rosbridge_port_label_ = new QLabel(tr("端口"));
-  rosbridge_port_label_->setFixedWidth(88);
-  rosbridge_port_label_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
+  rosbridge_port_label_->setFixedWidth(76);
+  rosbridge_port_label_->setStyleSheet(FieldLabelStyle());
   rosbridge_port_edit_ = new QLineEdit(card);
   rosbridge_port_edit_->setPlaceholderText(QStringLiteral("9090"));
   rosbridge_port_edit_->setStyleSheet(LineEditStyle());

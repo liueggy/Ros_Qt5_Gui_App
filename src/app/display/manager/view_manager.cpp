@@ -263,7 +263,7 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   const qreal left = std::floor(rect.left() / minor_step) * minor_step;
   const qreal top = std::floor(rect.top() / minor_step) * minor_step;
 
-  QPen minor_pen(QColor(229, 235, 244, 115));
+  QPen minor_pen(QColor(229, 235, 244, 62));
   minor_pen.setWidthF(0.0);
   painter->setPen(minor_pen);
   for (qreal x = left; x < rect.right(); x += minor_step) {
@@ -273,7 +273,7 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
   }
 
-  QPen major_pen(QColor(207, 216, 230, 120));
+  QPen major_pen(QColor(207, 216, 230, 78));
   major_pen.setWidthF(0.0);
   painter->setPen(major_pen);
   const qreal major_left = std::floor(rect.left() / major_step) * major_step;
