@@ -94,7 +94,7 @@ void NavGoalTableView::InsertRow(const QString& point_name,
     }
   });
   connect(button_run, &QPushButton::clicked, [this, comboBox]() {
-    const auto point =
+    auto point =
         topologyMap_.GetPoint(comboBox->currentText().toStdString());
     if (!point.name.empty()) {
       emit signalSendNavGoal(point.ToRobotPose());
