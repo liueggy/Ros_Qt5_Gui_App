@@ -1,7 +1,9 @@
 #include "widgets/command_center_widget.h"
 
 #include <QByteArray>
+#include <QComboBox>
 #include <QDateTime>
+#include <QLineEdit>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -120,6 +122,54 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   }
   network_layout->addLayout(network_row);
   root->addWidget(network_group);
+
+  auto* nav_group = new QFrame(this);
+  nav_group->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* nav_layout = new QVBoxLayout(nav_group);
+  nav_layout->setContentsMargins(16, 14, 16, 16);
+  nav_layout->setSpacing(10);
+  auto* nav_header = new QHBoxLayout();
+  nav_header->setSpacing(8);
+  auto* nav_title = new QLabel(tr("导航模式"), nav_group);
+  nav_title->setStyleSheet(QStringLiteral(
+                              "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
+                              .arg(UiStyle::FontBasePx()));
+  nav_mode_label_ = new QLabel(tr("等待刷新"), nav_group);
+  nav_mode_label_->setAlignment(Qt::AlignCenter);
+  nav_mode_label_->setStyleSheet(QStringLiteral(
+                                     "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
+                                     "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
+                                     .arg(UiStyle::FontSmallPx()));
+  nav_header->addWidget(nav_title);
+  nav_header->addStretch();
+  nav_header->addWidget(nav_mode_label_);
+  nav_layout->addLayout(nav_header);
+
+  map_combo_ = new QComboBox(nav_group);
+  map_combo_->setEditable(true);
+  map_combo_->setInsertPolicy(QComboBox::NoInsert);
+  map_combo_->lineEdit()->setPlaceholderText(tr("点击刷新地图，或输入板端 .yaml 路径"));
+  map_combo_->addItem(QStringLiteral("/root/catkin_ws/maps/navigation/latest.yaml"));
+  map_combo_->setToolTip(tr("板端地图 YAML 路径，用于 map_server + AMCL。"));
+  nav_layout->addWidget(map_combo_);
+
+  auto* nav_row = new QHBoxLayout();
+  nav_row->setSpacing(10);
+  mapping_btn_ = new QPushButton(tr("切回建图"), nav_group);
+  amcl_btn_ = new QPushButton(tr("开启AMCL"), nav_group);
+  auto* refresh_maps_btn = new QPushButton(tr("刷新地图"), nav_group);
+  mapping_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  amcl_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  refresh_maps_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  nav_row->addWidget(mapping_btn_);
+  nav_row->addWidget(amcl_btn_);
+  nav_row->addWidget(refresh_maps_btn);
+  nav_layout->addLayout(nav_row);
+  root->addWidget(nav_group);
+
+  connect(mapping_btn_, &QPushButton::clicked, this, &CommandCenterWidget::SwitchToMapping);
+  connect(amcl_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartAmclNavigation);
+  connect(refresh_maps_btn, &QPushButton::clicked, this, &CommandCenterWidget::RefreshMaps);
 
   auto* status_group = new QFrame(this);
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -240,6 +290,76 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
   }
 }
 
+
+void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
+  if (!nav_mode_label_) {
+    return;
+  }
+
+  QString text = tr("未知");
+  QString color = QStringLiteral("#657386");
+  QString bg = QStringLiteral("#f6f8fb");
+  QString border = QStringLiteral("#dce4ef");
+  const QString normalized = mode.trimmed();
+  if (normalized == QStringLiteral("mapping_slam")) {
+    text = tr("建图模式");
+    color = QStringLiteral("#8a5a00");
+    bg = QStringLiteral("#fff7e6");
+    border = QStringLiteral("#f4d28b");
+  } else if (normalized == QStringLiteral("static_nav")) {
+    text = tr("AMCL导航");
+    color = QStringLiteral("#174ea6");
+    bg = QStringLiteral("#eef5ff");
+    border = QStringLiteral("#bcd3fb");
+  } else if (!normalized.isEmpty()) {
+    text = normalized;
+  }
+
+  nav_mode_label_->setText(text);
+  nav_mode_label_->setStyleSheet(QStringLiteral(
+                                     "QLabel { color:%1; background:%2; border:1px solid %3; "
+                                     "border-radius:9px; padding:6px 10px; font-size:%4px; font-weight:700; }")
+                                     .arg(color, bg, border)
+                                     .arg(UiStyle::FontSmallPx()));
+
+  if (mapping_btn_) {
+    mapping_btn_->setEnabled(normalized != QStringLiteral("mapping_slam"));
+  }
+  if (amcl_btn_) {
+    amcl_btn_->setEnabled(normalized != QStringLiteral("static_nav"));
+  }
+}
+
+void CommandCenterWidget::UpdateMapChoices(const QJsonArray& maps) {
+  if (!map_combo_) {
+    return;
+  }
+  const QString current = SelectedMapFile();
+  map_combo_->blockSignals(true);
+  map_combo_->clear();
+  for (const auto& item : maps) {
+    const QString map = item.toString().trimmed();
+    if (!map.isEmpty()) {
+      map_combo_->addItem(map);
+    }
+  }
+  if (map_combo_->count() == 0) {
+    map_combo_->addItem(QStringLiteral("/root/catkin_ws/maps/navigation/latest.yaml"));
+  }
+  const int existing = map_combo_->findText(current);
+  if (existing >= 0) {
+    map_combo_->setCurrentIndex(existing);
+  } else if (!current.isEmpty()) {
+    map_combo_->insertItem(0, current);
+    map_combo_->setCurrentIndex(0);
+  }
+  map_combo_->blockSignals(false);
+}
+
+QString CommandCenterWidget::SelectedMapFile() const {
+  return map_combo_ ? map_combo_->currentText().trimmed() : QString();
+}
+
 QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
                                              const QString& paramsJson) const {
   QJsonParseError err;
@@ -278,13 +398,24 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
   if (err.error == QJsonParseError::NoError && doc.isObject()) {
     const QJsonObject obj = doc.object();
     const bool success = obj.value("success").toBool(false);
+    const QString command = obj.value("command").toString();
+    const QJsonObject details = obj.value("details").toObject();
+
+    if (success && command == QStringLiteral("list_maps")) {
+      UpdateMapChoices(details.value(QStringLiteral("maps")).toArray());
+    }
+    if (success && command == QStringLiteral("switch_nav_mode")) {
+      const QJsonObject status = details.value(QStringLiteral("status")).toObject();
+      SetNavigationModeText(status.value(QStringLiteral("mode")).toString());
+    }
+
     QString text = QString("%1\n命令: %2  目标: %3")
                        .arg(obj.value("message").toString())
-                       .arg(obj.value("command").toString())
+                       .arg(command)
                        .arg(obj.value("target").toString());
     if (obj.contains("details")) {
       text += "\n";
-      text += QString::fromUtf8(QJsonDocument(obj.value("details").toObject()).toJson(QJsonDocument::Compact));
+      text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
     SendStatusRequest();
@@ -323,6 +454,7 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   }
 
   const QString mode = obj.value("mode").toString(tr("未知"));
+  SetNavigationModeText(mode);
   QString load_text = tr("-");
   const QJsonArray load = obj.value("loadavg").toArray();
   if (load.size() >= 3) {
@@ -371,6 +503,32 @@ void CommandCenterWidget::SetStatusSummary(const QString& text, const QString& d
 
 void CommandCenterWidget::SendStatusRequest() {
   PublishJson(MakeRequestJson("status", "system"));
+}
+
+void CommandCenterWidget::RefreshMaps() {
+  PublishJson(MakeRequestJson("list_maps", "map"));
+}
+
+void CommandCenterWidget::StartAmclNavigation() {
+  const QString map_file = SelectedMapFile();
+  if (map_file.isEmpty()) {
+    AppendLog(tr("失败"), tr("请先选择或输入板端地图 YAML 路径。"));
+    return;
+  }
+  QJsonObject params;
+  params[QStringLiteral("mode")] = QStringLiteral("navigation");
+  params[QStringLiteral("map_file")] = map_file;
+  PublishJson(MakeRequestJson("switch_nav_mode", "navigation",
+                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+  SetNavigationModeText(tr("切换中"));
+}
+
+void CommandCenterWidget::SwitchToMapping() {
+  QJsonObject params;
+  params[QStringLiteral("mode")] = QStringLiteral("mapping");
+  PublishJson(MakeRequestJson("switch_nav_mode", "navigation",
+                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+  SetNavigationModeText(tr("切换中"));
 }
 
 void CommandCenterWidget::StartCamera() {
