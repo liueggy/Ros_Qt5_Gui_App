@@ -2,8 +2,10 @@
 #include <QComboBox>
 #include <QFileDialog>
 #include <QHeaderView>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QWidget>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include "algorithm.h"
@@ -17,11 +19,8 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   QStringList table_h_headers;
   table_h_headers << "点位名"
                   << "目标类型"
-                  << "任务状态"
-                  << "删除"
-                  << "运行";
+                  << "操作";
   QHeaderView* headerView = new QHeaderView(Qt::Horizontal);
-  headerView->setSectionResizeMode(QHeaderView::ResizeToContents);
   headerView->setSelectionBehavior(QAbstractItemView::SelectRows);
   headerView->setCascadingSectionResizes(false);
   setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -29,11 +28,15 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   setAlternatingRowColors(true);
   setShowGrid(false);
   verticalHeader()->setVisible(false);
-  verticalHeader()->setDefaultSectionSize(40);
+  verticalHeader()->setDefaultSectionSize(44);
   setStyleSheet(UiStyle::TableStyleSheet() + UiStyle::InputStyleSheet() + UiStyle::SecondaryButtonStyleSheet());
   this->setHorizontalHeader(headerView);
   // 添加数据模型
   table_model_->setHorizontalHeaderLabels(table_h_headers);
+  headerView->setSectionResizeMode(0, QHeaderView::Stretch);
+  headerView->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  headerView->setSectionResizeMode(2, QHeaderView::Fixed);
+  headerView->resizeSection(2, 96);
   connect(table_model_, &QStandardItemModel::itemChanged, this,
           &NavGoalTableView::onItemChanged);
 }
@@ -43,8 +46,6 @@ NavGoalTableView::~NavGoalTableView() {}
 void NavGoalTableView::onItemChanged(QStandardItem* item) {
   if (item->column() == 0) {
     qDebug() << "点位名: " << item->text();
-  } else if (item->column() == 2) {
-    qDebug() << "任务状态: " << item->checkState();
   }
 }
 void NavGoalTableView::UpdateTopologyMap(const TopologyMap& _topology_map) {
@@ -80,17 +81,27 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   targetType->addItem("压力表", "pressure_gauge");
   const int targetIndex = targetType->findData(expected_class);
   targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
-  QLabel* label_status = new QLabel("无");
-  QPushButton* button_remove = new QPushButton("删除");
-  QPushButton* button_run = new QPushButton("运行");
-  button_remove->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#c5221f")));
+  auto* action_cell = new QWidget(this);
+  auto* action_layout = new QHBoxLayout(action_cell);
+  action_layout->setContentsMargins(2, 2, 2, 2);
+  action_layout->setSpacing(4);
+  QPushButton* button_run = new QPushButton("去", action_cell);
+  QPushButton* button_remove = new QPushButton("删", action_cell);
+  button_run->setToolTip("运行到该点位");
+  button_remove->setToolTip("删除该点位");
+  button_run->setFixedSize(38, 30);
+  button_remove->setFixedSize(38, 30);
+  button_remove->setStyleSheet(UiStyle::SecondaryButtonStyleSheet() +
+                               QStringLiteral("QPushButton { color:#d93025; font-weight:700; }"));
   button_run->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  action_layout->addWidget(button_run);
+  action_layout->addWidget(button_remove);
   int row = table_model_->rowCount();
 
-  connect(button_remove, &QPushButton::clicked, [this, row]() {
-    QModelIndexList selectedIndexes = selectionModel()->selectedRows();
-    if (selectedIndexes.size() == 1) {
-      table_model_->removeRow(selectedIndexes[0].row());
+  connect(button_remove, &QPushButton::clicked, [this, action_cell]() {
+    const QModelIndex index = indexAt(action_cell->pos());
+    if (index.isValid()) {
+      table_model_->removeRow(index.row());
     }
   });
   connect(button_run, &QPushButton::clicked, [this, comboBox]() {
@@ -104,9 +115,7 @@ void NavGoalTableView::InsertRow(const QString& point_name,
 
   setIndexWidget(table_model_->index(row, 0), comboBox);
   setIndexWidget(table_model_->index(row, 1), targetType);
-  setIndexWidget(table_model_->index(row, 2), label_status);
-  setIndexWidget(table_model_->index(row, 3), button_remove);
-  setIndexWidget(table_model_->index(row, 4), button_run);
+  setIndexWidget(table_model_->index(row, 2), action_cell);
 }
 bool NavGoalTableView::LoadTaskChain(const std::string& name) {
   // 清空模型

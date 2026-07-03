@@ -40,12 +40,13 @@ class CommandCenterWidget : public QWidget {
   void PublishJson(const QString &json);
   void AppendLog(const QString &prefix, const QString &text);
   void SetCameraStateText(const QString &text);
+  void SetStatusSummary(const QString &text, const QString &detail = QString());
 
   QComboBox *profile_combo_{nullptr};
   QComboBox *speed_param_combo_{nullptr};
   QLineEdit *speed_value_edit_{nullptr};
   QLabel *camera_state_label_{nullptr};
-  QPlainTextEdit *status_edit_{nullptr};
+  QLabel *status_summary_label_{nullptr};
   QPlainTextEdit *log_edit_{nullptr};
   DiagnosticDockWidget *diagnostic_widget_{nullptr};
 };

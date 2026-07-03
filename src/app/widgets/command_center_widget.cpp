@@ -266,15 +266,18 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_header->addWidget(refresh_status_btn);
   status_header->addWidget(clear_btn);
   status_layout->addLayout(status_header);
-  status_edit_ = new QPlainTextEdit(status_group);
-  status_edit_->setReadOnly(true);
-  status_edit_->setPlaceholderText(tr("暂无状态"));
-  status_edit_->setMaximumHeight(72);
-  status_layout->addWidget(status_edit_);
+  status_summary_label_ = new QLabel(tr("暂无状态"), status_group);
+  status_summary_label_->setWordWrap(true);
+  status_summary_label_->setMinimumHeight(48);
+  status_summary_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
+      "border-radius:12px; padding:10px 12px; font-size:%1px; }")
+      .arg(UiStyle::FontSmallPx()));
+  status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
   log_edit_->setPlaceholderText(tr("暂无命令记录。"));
-  log_edit_->setMaximumHeight(70);
+  log_edit_->setMaximumHeight(58);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -379,40 +382,76 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   QJsonParseError err;
   QJsonDocument doc = QJsonDocument::fromJson(QString::fromStdString(json).toUtf8(), &err);
   if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-    status_edit_->setPlainText(QString::fromStdString(json));
+    SetStatusSummary(QString::fromStdString(json));
     return;
   }
 
   const QJsonObject obj = doc.object();
   const QJsonObject nodes = obj.value("nodes").toObject();
-  auto ok = [this, &nodes](const QString& name) { return nodes.value(name).toBool(false) ? tr("在线") : tr("离线"); };
+  auto is_online = [&nodes](const QString& name) { return nodes.value(name).toBool(false); };
   const QJsonObject camera = obj.value("camera").toObject();
   const bool camera_running = camera.value("running").toBool(false);
   SetCameraStateText(camera_running ? tr("摄像头在线") : tr("摄像头离线"));
 
-  QString text;
-  text += tr("模式: %1\n").arg(obj.value("mode").toString());
+  const QStringList core_nodes = {
+      QStringLiteral("/move_base"),
+      QStringLiteral("/rplidarNode"),
+      QStringLiteral("/stm32_base_driver"),
+      QStringLiteral("/rosbridge_websocket"),
+      QStringLiteral("/eggy_external_imu_odom_fuser"),
+  };
+  int online_count = 0;
+  for (const auto& node : core_nodes) {
+    if (is_online(node)) {
+      ++online_count;
+    }
+  }
+
+  const QString mode = obj.value("mode").toString(tr("未知"));
+  QString load_text = tr("-");
   const QJsonArray load = obj.value("loadavg").toArray();
   if (load.size() >= 3) {
-    text += tr("负载: %1 / %2 / %3\n")
-                .arg(load.at(0).toDouble())
-                .arg(load.at(1).toDouble())
-                .arg(load.at(2).toDouble());
+    load_text = QStringLiteral("%1/%2/%3")
+                    .arg(load.at(0).toDouble(), 0, 'f', 1)
+                    .arg(load.at(1).toDouble(), 0, 'f', 1)
+                    .arg(load.at(2).toDouble(), 0, 'f', 1);
   }
-  text += tr("摄像头: %1  PID: %2\n")
-              .arg(camera_running ? tr("在线") : tr("离线"))
-              .arg(camera.value("pid").toString("-"));
-  text += tr("move_base: %1  雷达: %2  底盘: %3\n")
-              .arg(ok("/move_base"), ok("/rplidarNode"), ok("/stm32_base_driver"));
-  text += tr("rosbridge: %1  Qt适配器: %2  里程计融合: %3")
-              .arg(ok("/rosbridge_websocket"), ok("/ros_qt5_gui_adapter"), ok("/eggy_external_imu_odom_fuser"));
-  status_edit_->setPlainText(text);
+
+  const QString summary =
+      tr("模式 %1 · 负载 %2 · 摄像头 %3 · 核心节点 %4/%5")
+          .arg(mode, load_text, camera_running ? tr("在线") : tr("离线"))
+          .arg(online_count)
+          .arg(core_nodes.size());
+
+  QString detail;
+  detail += tr("模式: %1\n").arg(mode);
+  detail += tr("负载: %1\n").arg(load_text);
+  detail += tr("摄像头: %1  PID: %2\n")
+                .arg(camera_running ? tr("在线") : tr("离线"))
+                .arg(camera.value("pid").toString("-"));
+  detail += tr("move_base: %1  雷达: %2  底盘: %3\n")
+                .arg(is_online("/move_base") ? tr("在线") : tr("离线"),
+                     is_online("/rplidarNode") ? tr("在线") : tr("离线"),
+                     is_online("/stm32_base_driver") ? tr("在线") : tr("离线"));
+  detail += tr("rosbridge: %1  Qt适配器: %2  里程计融合: %3")
+                .arg(is_online("/rosbridge_websocket") ? tr("在线") : tr("离线"),
+                     is_online("/ros_qt5_gui_adapter") ? tr("在线") : tr("离线"),
+                     is_online("/eggy_external_imu_odom_fuser") ? tr("在线") : tr("离线"));
+  SetStatusSummary(summary, detail);
 }
 
 void CommandCenterWidget::SetCameraStateText(const QString& text) {
   if (camera_state_label_) {
     camera_state_label_->setText(text);
   }
+}
+
+void CommandCenterWidget::SetStatusSummary(const QString& text, const QString& detail) {
+  if (!status_summary_label_) {
+    return;
+  }
+  status_summary_label_->setText(text.trimmed().isEmpty() ? tr("暂无状态") : text.trimmed());
+  status_summary_label_->setToolTip(detail.trimmed().isEmpty() ? text : detail);
 }
 
 void CommandCenterWidget::SendStatusRequest() {
