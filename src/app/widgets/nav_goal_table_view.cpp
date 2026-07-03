@@ -113,13 +113,13 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   action_layout->addWidget(button_remove);
   int row = table_model_->rowCount();
 
-  connect(button_remove, &QPushButton::clicked, [this, action_cell]() {
+  connect(button_remove, &QToolButton::clicked, [this, action_cell]() {
     const QModelIndex index = indexAt(action_cell->pos());
     if (index.isValid()) {
       table_model_->removeRow(index.row());
     }
   });
-  connect(button_run, &QPushButton::clicked, [this, comboBox]() {
+  connect(button_run, &QToolButton::clicked, [this, comboBox]() {
     auto point =
         topologyMap_.GetPoint(comboBox->currentText().toStdString());
     if (!point.name.empty()) {
