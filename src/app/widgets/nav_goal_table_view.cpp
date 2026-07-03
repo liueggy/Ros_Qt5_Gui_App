@@ -28,7 +28,8 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   setAlternatingRowColors(true);
   setShowGrid(false);
   verticalHeader()->setVisible(false);
-  verticalHeader()->setDefaultSectionSize(44);
+  verticalHeader()->setDefaultSectionSize(58);
+  headerView->setMinimumHeight(48);
   setStyleSheet(UiStyle::TableStyleSheet() + UiStyle::InputStyleSheet() + UiStyle::SecondaryButtonStyleSheet());
   this->setHorizontalHeader(headerView);
   // 添加数据模型
@@ -36,11 +37,11 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   headerView->setSectionResizeMode(0, QHeaderView::Stretch);
   headerView->setSectionResizeMode(1, QHeaderView::Fixed);
   headerView->setSectionResizeMode(2, QHeaderView::Fixed);
-  headerView->resizeSection(1, 124);
-  headerView->resizeSection(2, 128);
-  setColumnWidth(1, 124);
-  setColumnWidth(2, 128);
-  setMinimumWidth(430);
+  headerView->resizeSection(1, 132);
+  headerView->resizeSection(2, 150);
+  setColumnWidth(1, 132);
+  setColumnWidth(2, 150);
+  setMinimumWidth(500);
   connect(table_model_, &QStandardItemModel::itemChanged, this,
           &NavGoalTableView::onItemChanged);
 }
@@ -80,17 +81,19 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   comboBox->addItem("");
   comboBox->setCurrentText(point_name);
   comboBox->setMinimumWidth(180);
+  comboBox->setFixedHeight(UiStyle::ControlHeightPx());
   QComboBox* targetType = new QComboBox();
   targetType->addItem("自动识别", "any");
   targetType->addItem("水表", "water_meter");
   targetType->addItem("压力表", "pressure_gauge");
-  targetType->setMinimumWidth(112);
+  targetType->setFixedSize(122, UiStyle::ControlHeightPx());
   const int targetIndex = targetType->findData(expected_class);
   targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
   auto* action_cell = new QWidget(this);
   auto* action_layout = new QHBoxLayout(action_cell);
-  action_layout->setContentsMargins(4, 4, 4, 4);
-  action_layout->setSpacing(6);
+  action_layout->setContentsMargins(6, 6, 6, 6);
+  action_layout->setSpacing(8);
+  action_layout->setAlignment(Qt::AlignCenter);
   QToolButton* button_run = new QToolButton(action_cell);
   QToolButton* button_remove = new QToolButton(action_cell);
   button_run->setText("前往");
@@ -99,8 +102,8 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   button_remove->setToolTip("删除该点位");
   button_run->setCursor(Qt::PointingHandCursor);
   button_remove->setCursor(Qt::PointingHandCursor);
-  button_run->setFixedSize(54, 32);
-  button_remove->setFixedSize(54, 32);
+  button_run->setFixedSize(62, 36);
+  button_remove->setFixedSize(62, 36);
   button_run->setStyleSheet(QStringLiteral(
       "QToolButton { background:#2f6fed; color:white; border:none; border-radius:8px; "
       "font-weight:700; padding:0; }"

@@ -834,6 +834,8 @@ void MainWindow::setupUi() {
   QWidget* task_list_widget = new QWidget();
   nav_goal_table_view_ = new NavGoalTableView();
   QVBoxLayout* horizontalLayout_13 = new QVBoxLayout();
+  horizontalLayout_13->setContentsMargins(14, 14, 14, 14);
+  horizontalLayout_13->setSpacing(10);
   horizontalLayout_13->addWidget(nav_goal_table_view_);
   task_list_widget->setLayout(horizontalLayout_13);
   ads::CDockWidget* nav_goal_list_dock_widget = new ads::CDockWidget("任务");
@@ -855,7 +857,12 @@ void MainWindow::setupUi() {
   QHBoxLayout* horizontalLayout_14 = new QHBoxLayout();
   horizontalLayout_15->addWidget(btn_add_one_goal);
   horizontalLayout_14->addWidget(btn_start_task_chain);
-  horizontalLayout_14->addWidget(loop_task_checkbox);
+
+  QHBoxLayout* loop_task_layout = new QHBoxLayout();
+  loop_task_layout->setContentsMargins(0, 0, 0, 0);
+  loop_task_layout->addStretch();
+  loop_task_layout->addWidget(loop_task_checkbox);
+  loop_task_layout->addStretch();
 
   QPushButton* btn_load_task_chain = new QPushButton("加载任务链");
   QPushButton* btn_save_task_chain = new QPushButton("保存任务链");
@@ -888,14 +895,15 @@ void MainWindow::setupUi() {
 
   horizontalLayout_13->addLayout(horizontalLayout_15);
   horizontalLayout_13->addLayout(horizontalLayout_14);
+  horizontalLayout_13->addLayout(loop_task_layout);
   horizontalLayout_13->addLayout(horizontalLayout_16);
   horizontalLayout_13->addWidget(inspection_status_card);
   nav_goal_list_dock_widget->setWidget(task_list_widget);
-  ConfigureDockWidget(nav_goal_list_dock_widget, QSize(460, 420), QSize(500, 660));
+  ConfigureDockWidget(nav_goal_list_dock_widget, QSize(540, 420), QSize(560, 660));
   nav_goal_list_dock_widget->setMaximumSize(720, 9999);
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                nav_goal_list_dock_widget, center_docker_area_);
-  ConfigureFloatingOnOpen(nav_goal_list_dock_widget, QSize(720, 760));
+  ConfigureFloatingOnOpen(nav_goal_list_dock_widget, QSize(760, 760));
   nav_goal_list_dock_widget->toggleView(false);
   connect(nav_goal_table_view_, &NavGoalTableView::signalSendNavGoal,
           [this](const RobotPose& pose) {
