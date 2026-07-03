@@ -103,9 +103,6 @@ void DisplayManager::slotRobotScenePoseChanged(const RobotPose &pose) {
     robot_pose_.x = x;
     robot_pose_.y = y;
     robot_pose_.theta = pose.theta;
-    QPointF view_pos =
-        graphics_view_ptr_->mapFromScene(QPointF(pose.x, pose.y));
-    set_reloc_pose_widget_->move(QPoint(view_pos.x()+10, view_pos.y()+10));
     set_reloc_pose_widget_->SetPose(
         RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta));
   }
@@ -193,14 +190,30 @@ void DisplayManager::SetRelocMode(bool is_start) {
     FocusDisplay("");
     set_reloc_pose_widget_->SetPose(
         RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta));
-    auto current_scene = GetDisplay(DISPLAY_ROBOT)->scenePos();
-    QPointF view_pos = graphics_view_ptr_->mapFromScene(current_scene);
-    set_reloc_pose_widget_->move(QPoint(view_pos.x()+10, view_pos.y()+10));
+    set_reloc_pose_widget_->move(QPoint(18, 18));
     set_reloc_pose_widget_->show();
   } else {
     set_reloc_pose_widget_->hide();
   }
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_ROBOT, is_start);
+}
+
+void DisplayManager::SetRelocPositionFromScene(const QPointF &scene_pos) {
+  if (!is_reloc_mode_) {
+    return;
+  }
+  auto *map_display = GetDisplay(DISPLAY_MAP);
+  if (!map_display) {
+    return;
+  }
+  const QPointF map_pos = map_display->mapFromScene(scene_pos);
+  double x = 0.0;
+  double y = 0.0;
+  map_data_.ScenePose2xy(map_pos.x(), map_pos.y(), x, y);
+  robot_pose_.x = x;
+  robot_pose_.y = y;
+  slotSetRobotPose(robot_pose_);
+  set_reloc_pose_widget_->SetPose(robot_pose_);
 }
 void DisplayManager::FocusDisplay(const std::string &display_name) {
   FactoryDisplay::Instance()->SetFocusDisplay(display_name);

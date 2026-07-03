@@ -16,6 +16,7 @@
 #include "include/ros_topic.h"
 #include "include/types.h"
 #include "logger/logger.h"
+#include "msg/diagnostic_snapshot.h"
 #include "msg/msg_info.h"
 #include "point_type.h"
 #include "tf2_rosbridge.h"
@@ -86,6 +87,8 @@ class RosbridgeComm : public VirtualChannelNode {
   std::unordered_map<std::string, TransformData> tf_cache_;
   std::mutex tf_cache_mutex_;
   TF2Rosbridge tf2_;
+  basic::DiagnosticSnapshot diagnostic_snapshot_cache_;
+  std::mutex diagnostic_cache_mutex_;
 
   basic::OccupancyMap occ_map_;
   basic::RobotPose m_currPose;

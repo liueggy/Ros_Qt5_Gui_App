@@ -37,13 +37,19 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
   pal.setColor(QPalette::Base, QColor(255, 255, 255));
   setPalette(pal);
 
+  QLabel* hint = new QLabel("单击地图选位置，再用数值微调");
+  hint->setStyleSheet("color: #64748b; font-size: 12px;");
+  layout->addWidget(hint);
+
   QHBoxLayout* layout_x = new QHBoxLayout();
   layout_x->setSpacing(6);
   QLabel* label_x = new QLabel("X:");
   label_x->setMinimumSize(20, 20);
   spinBox_x_ = new QDoubleSpinBox();
   spinBox_x_->setRange(-10000, 10000);
+  spinBox_x_->setDecimals(3);
   spinBox_x_->setSingleStep(0.1);
+  spinBox_x_->setSuffix(" m");
   layout_x->addWidget(label_x);
   layout_x->addWidget(spinBox_x_);
 
@@ -53,7 +59,9 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
   label_y->setMinimumSize(20, 20);
   spinBox_y_ = new QDoubleSpinBox();
   spinBox_y_->setRange(-10000, 10000);
+  spinBox_y_->setDecimals(3);
   spinBox_y_->setSingleStep(0.1);
+  spinBox_y_->setSuffix(" m");
   layout_y->addWidget(label_y);
   layout_y->addWidget(spinBox_y_);
 
@@ -63,7 +71,9 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
   label_z->setMinimumSize(40, 20);
   spinBox_theta_ = new QDoubleSpinBox();
   spinBox_theta_->setRange(-180, 180);
+  spinBox_theta_->setDecimals(1);
   spinBox_theta_->setSingleStep(1);
+  spinBox_theta_->setSuffix(" °");
   layout_z->addWidget(label_z);
   layout_z->addWidget(spinBox_theta_);
 

@@ -11,6 +11,8 @@
 #include <QApplication>
 #include <QButtonGroup>
 #include <QDebug>
+#include <QDateTime>
+#include <QDir>
 #include <QEvent>
 #include <QFile>
 #include <QFileInfo>
@@ -23,6 +25,7 @@
 #include <QScreen>
 #include <QSplitter>
 #include <QStyle>
+#include <QUuid>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -1077,64 +1080,10 @@ void MainWindow::setupUi() {
   connect(reloc_btn, &QToolButton::clicked,
           [this]() { display_manager_->StartReloc(); });
 
-  connect(re_save_map_btn, &QToolButton::clicked, [this]() {
-    QString fileName = QFileDialog::getSaveFileName(nullptr, "保存地图文件",
-                                                    "", "地图文件 (*.yaml,*.pgm,*.pgm.json)",
-                                                    nullptr, QFileDialog::DontUseNativeDialog);
-    if (!fileName.isEmpty()) {
-      // 用户选择了文件夹，可以在这里进行相应的操作
-      LOG_INFO("用户选择的保存地图路径：" << fileName.toStdString());
-
-      // 保存占用栅格地图
-      auto occ_map = display_manager_->GetOccupancyMap();
-      occ_map.Save(fileName.toStdString());
-      // 让 Qt 立即使用编辑后的地图
-      display_manager_->UpdateOCCMap(occ_map);
-
-      // 保存拓扑地图
-      auto topology_map = display_manager_->GetTopologyMap();
-
-      std::string topology_path = fileName.toStdString();
-      // 替换扩展名为.topology
-      size_t last_dot = topology_path.find_last_of(".");
-      if (last_dot != std::string::npos) {
-        topology_path = topology_path.substr(0, last_dot) + ".topology";
-      } else {
-        topology_path += ".topology";
-      }
-      Config::ConfigManager::Instance()->WriteTopologyMap(topology_path, topology_map);
-
-      // 显示保存成功对话框
-      QMessageBox::information(this, "保存成功",
-                               "地图文件已成功保存到:\n" + fileName,
-                               QMessageBox::Ok);
-    } else {
-      // 用户取消了选择
-      LOG_INFO("取消保存地图");
-    }
-  });
-
-  connect(save_map_btn, &QToolButton::clicked, [this]() {
-    // 保存占用栅格地图
-    auto occ_map = display_manager_->GetOccupancyMap();
-    occ_map.Save(map_path_);
-    // 让 Qt 立即使用编辑后的地图
-    display_manager_->UpdateOCCMap(occ_map);
-
-    // 保存拓扑地图
-    auto topology_map = display_manager_->GetTopologyMap();
-
-    std::string topology_path = map_path_ + ".topology";
-    Config::ConfigManager::Instance()->WriteTopologyMap(topology_path, topology_map);
-
-    // 发送到ROS
-    PUBLISH(MSG_ID_TOPOLOGY_MAP_UPDATE, topology_map);
-
-    // 显示保存成功对话框
-    QMessageBox::information(this, "保存成功",
-                             "地图文件已成功保存到:\n" + QString::fromStdString(map_path_),
-                             QMessageBox::Ok);
-  });
+  connect(re_save_map_btn, &QToolButton::clicked,
+          this, &MainWindow::SaveMapToLocalAndRobot);
+  connect(save_map_btn, &QToolButton::clicked,
+          this, &MainWindow::SaveMapToLocalAndRobot);
 
   connect(open_map_btn, &QToolButton::clicked, [this]() {
     QStringList filters;
@@ -1468,6 +1417,86 @@ void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
   Q_UNUSED(voltage);
   // ROS BatteryState.percentage is 0.0-1.0; QProgressBar needs 0-100
   battery_bar_->setValue(static_cast<int>(percent * 100));
+}
+
+void MainWindow::SaveMapToLocalAndRobot() {
+  bool accepted = false;
+  const QString default_name =
+      QString("map_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
+  const QString map_name =
+      QInputDialog::getText(this, tr("保存地图"), tr("地图名称（字母、数字、下划线或短横线）："),
+                            QLineEdit::Normal, default_name, &accepted).trimmed();
+  if (!accepted || map_name.isEmpty()) {
+    return;
+  }
+  for (const QChar ch : map_name) {
+    const ushort code = ch.unicode();
+    const bool ascii_alnum =
+        (code >= '0' && code <= '9') || (code >= 'A' && code <= 'Z') ||
+        (code >= 'a' && code <= 'z');
+    if (!(ascii_alnum || ch == '_' || ch == '-')) {
+      QMessageBox::warning(this, tr("名称无效"),
+                           tr("地图名称只能包含字母、数字、下划线和短横线。"));
+      return;
+    }
+  }
+
+  const QString initial_dir =
+      QFileInfo(QString::fromStdString(map_path_)).absolutePath();
+  const QString directory =
+      QFileDialog::getExistingDirectory(this, tr("选择 Windows 保存目录"),
+                                        initial_dir,
+                                        QFileDialog::ShowDirsOnly |
+                                            QFileDialog::DontResolveSymlinks);
+  if (directory.isEmpty()) {
+    return;
+  }
+
+  const QString base_path = QDir(directory).filePath(map_name);
+  auto occ_map = display_manager_->GetOccupancyMap();
+  occ_map.Save(base_path.toStdString());
+  const QString yaml_path = base_path + ".yaml";
+  const QString pgm_path = base_path + ".pgm";
+  if (!QFileInfo::exists(yaml_path) || !QFileInfo::exists(pgm_path)) {
+    QMessageBox::critical(this, tr("保存失败"),
+                          tr("未能生成地图的 YAML/PGM 文件，请检查目录写入权限。"));
+    return;
+  }
+
+  display_manager_->UpdateOCCMap(occ_map);
+  const auto topology_map = display_manager_->GetTopologyMap();
+  Config::ConfigManager::Instance()->WriteTopologyMap(
+      (base_path + ".topology").toStdString(), topology_map);
+  PUBLISH(MSG_ID_TOPOLOGY_MAP_UPDATE, topology_map);
+  map_path_ = base_path.toStdString();
+
+  QFile yaml_file(yaml_path);
+  QFile pgm_file(pgm_path);
+  if (!yaml_file.open(QIODevice::ReadOnly) || !pgm_file.open(QIODevice::ReadOnly)) {
+    QMessageBox::warning(this, tr("本地已保存"),
+                         tr("地图已保存到 Windows，但读取文件上传到小车时失败。"));
+    return;
+  }
+
+  nlohmann::json request;
+  request["request_id"] =
+      QString("qt-map-%1-%2")
+          .arg(QDateTime::currentMSecsSinceEpoch())
+          .arg(QUuid::createUuid().toString(QUuid::WithoutBraces))
+          .toStdString();
+  request["command"] = "upload_map";
+  request["target"] = "navigation";
+  request["params"] = {
+      {"map_name", map_name.toStdString()},
+      {"yaml_b64", yaml_file.readAll().toBase64().toStdString()},
+      {"pgm_b64", pgm_file.readAll().toBase64().toStdString()},
+      {"activate", false}};
+  PUBLISH(MSG_ID_COMMAND_REQUEST, request.dump());
+
+  QMessageBox::information(
+      this, tr("地图已保存"),
+      tr("Windows 本地保存完成：\n%1\n\n已向小车发送同名地图；上传结果可在运维面板日志中查看。")
+          .arg(yaml_path));
 }
 
 bool MainWindow::LoadMap(const std::string& file_path) {

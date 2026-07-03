@@ -370,6 +370,16 @@ void ViewManager::resizeEvent(QResizeEvent* event) {
   map_empty_state_->raise();
 }
 
+void ViewManager::mousePressEvent(QMouseEvent* event) {
+  if (event->button() == Qt::LeftButton && display_manager_ptr_ &&
+      display_manager_ptr_->IsRelocMode()) {
+    display_manager_ptr_->SetRelocPositionFromScene(mapToScene(event->pos()));
+    event->accept();
+    return;
+  }
+  QGraphicsView::mousePressEvent(event);
+}
+
 void ViewManager::mouseMoveEvent(QMouseEvent* event) {
   // 根据需要设置不同的鼠标指针样式
   // if (someCondition)

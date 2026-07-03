@@ -122,6 +122,7 @@ class MainWindow : public QMainWindow {
   void closeChannel();
   void registerChannel();
   void SaveState();
+  void SaveMapToLocalAndRobot();
   bool LoadMap(const std::string& file_path);
   void ApplyCenteredWindowGeometry();
   void ApplyDefaultDockSizes();

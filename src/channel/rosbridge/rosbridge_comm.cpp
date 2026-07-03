@@ -1105,7 +1105,36 @@ void RosbridgeComm::DiagnosticCallback(const ROSBridgePublishMsg& msg) {
     }
     snapshot.hardware[hardware_id][name] = std::move(comp);
   }
-  PUBLISH(MSG_ID_DIAGNOSTIC, snapshot);
+  basic::DiagnosticSnapshot merged;
+  {
+    std::lock_guard<std::mutex> lock(diagnostic_cache_mutex_);
+    for (const auto& hardware : snapshot.hardware) {
+      for (const auto& component : hardware.second) {
+        diagnostic_snapshot_cache_.hardware[hardware.first][component.first] =
+            component.second;
+      }
+    }
+    constexpr int64_t kDiagnosticExpiryMs = 6000;
+    for (auto hardware = diagnostic_snapshot_cache_.hardware.begin();
+         hardware != diagnostic_snapshot_cache_.hardware.end();) {
+      for (auto component = hardware->second.begin();
+           component != hardware->second.end();) {
+        if (stamp_ms - component->second.last_update_ms >
+            kDiagnosticExpiryMs) {
+          component = hardware->second.erase(component);
+        } else {
+          ++component;
+        }
+      }
+      if (hardware->second.empty()) {
+        hardware = diagnostic_snapshot_cache_.hardware.erase(hardware);
+      } else {
+        ++hardware;
+      }
+    }
+    merged = diagnostic_snapshot_cache_;
+  }
+  PUBLISH(MSG_ID_DIAGNOSTIC, merged);
 }
 
 void RosbridgeComm::CommandResponseCallback(const ROSBridgePublishMsg& msg) {

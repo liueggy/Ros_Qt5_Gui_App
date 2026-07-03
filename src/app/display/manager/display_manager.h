@@ -104,6 +104,8 @@ class DisplayManager : public QObject {
   void UpdateRobotPose(const RobotPose &pose);
   bool SetDisplayConfig(const std::string &config_name, const std::any &data);
   void SetRelocMode(bool is_move);
+  bool IsRelocMode() const { return is_reloc_mode_; }
+  void SetRelocPositionFromScene(const QPointF &scene_pos);
   void SetNavGoalMode(bool is_start);
   OccupancyMap &GetMap();
   RobotPose GetRobotPose() { return robot_pose_; }
