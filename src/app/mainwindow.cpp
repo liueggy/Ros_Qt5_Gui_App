@@ -367,8 +367,9 @@ void MainWindow::registerChannel() {
         const auto obj = nlohmann::json::parse(json_str);
         const std::string state = obj.value("state", std::string("unknown"));
         const bool running = state == "running";
-        terminal_widget_->SetCommandRunning(running);
-        if (!running && state != "idle") {
+        if (running) {
+          terminal_widget_->SetCommandRunning(true);
+        } else if (state != "idle") {
           QString status = QString::fromStdString(state);
           if (obj.contains("exit_code") && !obj["exit_code"].is_null()) {
             status += tr("，退出码 %1").arg(obj["exit_code"].get<int>());
@@ -377,6 +378,9 @@ void MainWindow::registerChannel() {
             status += tr("：%1").arg(QString::fromStdString(obj["error"].get<std::string>()));
           }
           terminal_widget_->AppendStatus(status);
+          terminal_widget_->SetCommandRunning(false);
+        } else {
+          terminal_widget_->SetCommandRunning(false);
         }
       } catch (const std::exception&) {
         terminal_widget_->AppendStatus(QString::fromStdString(json_str));
@@ -576,15 +580,16 @@ void MainWindow::setupUi() {
   battery_bar_->setRange(0, 100);
   battery_bar_->setValue(0);
   battery_bar_->setFormat(QStringLiteral("%p%"));
-  battery_bar_->setFixedSize(QSize(54, 24));
+  battery_bar_->setFixedSize(QSize(68, 22));
   battery_bar_->setStyleSheet(QStringLiteral(
-                                  "QProgressBar#battery_bar_ { border:none; background:transparent; text-align:center; "
+                                  "QProgressBar#battery_bar_ { border:1px solid #b8cdf2; background:#edf3fb; "
+                                  "border-radius:7px; text-align:center; "
                                   "color:#18212f; font-size:%1px; font-weight:700; }"
-                                  "QProgressBar#battery_bar_::chunk { background:#dce9ff; border-radius:7px; margin:3px 0; }")
+                                  "QProgressBar#battery_bar_::chunk { background:#79a7f8; border-radius:6px; }")
                                   .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(
-      QStringLiteral(":/icons/tabler/battery.svg"), battery_bar_, tr("电池电量"), 92, tools_strip));
+      QStringLiteral(":/icons/tabler/battery.svg"), battery_bar_, tr("电池电量"), 110, tools_strip));
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
   label_dht11_temp_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
@@ -596,7 +601,7 @@ void MainWindow::setupUi() {
   label_dht11_humi_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
   label_dht11_humi_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(
-      QStringLiteral(":/icons/tabler/droplet.svg"), label_dht11_humi_, tr("环境湿度"), 100, tools_strip));
+      QStringLiteral(":/icons/tabler/droplet.svg"), label_dht11_humi_, tr("环境湿度"), 114, tools_strip));
 
   // 语音命令提示
   horizontalLayout_tools->addSpacing(8);

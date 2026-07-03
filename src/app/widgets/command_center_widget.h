@@ -9,6 +9,7 @@
 class DiagnosticDockWidget;
 class QLabel;
 class QPlainTextEdit;
+class QToolButton;
 
 class CommandCenterWidget : public QWidget {
   Q_OBJECT
@@ -38,8 +39,8 @@ class CommandCenterWidget : public QWidget {
   void SetStatusSummary(const QString& text, const QString& detail = QString());
 
   QLabel* camera_state_label_{nullptr};
-  QLabel* wifi_status_label_{nullptr};
-  QLabel* cellular_status_label_{nullptr};
+  QToolButton* wifi_status_label_{nullptr};
+  QToolButton* cellular_status_label_{nullptr};
   QLabel* status_summary_label_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};

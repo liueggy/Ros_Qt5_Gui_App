@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -13,7 +14,9 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSizePolicy>
 #include <QStringList>
+#include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -99,14 +102,21 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   AddCardTitle(network_layout, tr("网络状态"), network_group);
   auto* network_row = new QHBoxLayout();
   network_row->setSpacing(10);
-  wifi_status_label_ = new QLabel(tr("WiFi 未连接 · -"), network_group);
-  cellular_status_label_ = new QLabel(tr("4G 未连接 · -"), network_group);
-  for (auto* label : {wifi_status_label_, cellular_status_label_}) {
-    label->setStyleSheet(QStringLiteral(
-                             "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
-                             "border-radius:9px; padding:7px 10px; font-size:%1px; }")
-                             .arg(UiStyle::FontSmallPx()));
-    network_row->addWidget(label, 1);
+  wifi_status_label_ = new QToolButton(network_group);
+  cellular_status_label_ = new QToolButton(network_group);
+  wifi_status_label_->setIcon(QIcon(QStringLiteral(":/icons/tabler/wifi.svg")));
+  cellular_status_label_->setIcon(
+      QIcon(QStringLiteral(":/icons/tabler/antenna-bars-5.svg")));
+  wifi_status_label_->setText(tr("WiFi\n未连接"));
+  cellular_status_label_->setText(tr("4G\n未连接"));
+  for (auto* status : {wifi_status_label_, cellular_status_label_}) {
+    status->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    status->setIconSize(QSize(26, 26));
+    status->setMinimumHeight(58);
+    status->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    status->setFocusPolicy(Qt::NoFocus);
+    status->setCursor(Qt::ArrowCursor);
+    network_row->addWidget(status, 1);
   }
   network_layout->addLayout(network_row);
   root->addWidget(network_group);
@@ -193,15 +203,40 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
 
   if (wifi_status_label_) {
     wifi_status_label_->setText(
-        tr("WiFi %1 · %2")
-            .arg(wifi_connected ? tr("已连接") : tr("未连接"),
-                 wifi_name.isEmpty() ? tr("-") : wifi_name));
+        tr("WiFi  %1\n%2")
+            .arg(wifi_connected ? tr("● 已连接") : tr("○ 未连接"),
+                 wifi_name.isEmpty() ? tr("无连接名称") : wifi_name));
+    wifi_status_label_->setStyleSheet(
+        QStringLiteral(
+            "QToolButton { color:%1; background:%2; border:1px solid %3; "
+            "border-radius:11px; padding:8px 12px; text-align:left; "
+            "font-size:%4px; font-weight:700; }")
+            .arg(wifi_connected ? QStringLiteral("#176b3a")
+                                : QStringLiteral("#657386"),
+                 wifi_connected ? QStringLiteral("#eef9f2")
+                                : QStringLiteral("#f6f8fb"),
+                 wifi_connected ? QStringLiteral("#b9e2c8")
+                                : QStringLiteral("#dce4ef"))
+            .arg(UiStyle::FontSmallPx()));
   }
   if (cellular_status_label_) {
     cellular_status_label_->setText(
-        tr("4G %1 · %2")
-            .arg(cellular_connected ? tr("已连接") : tr("未连接"),
-                 cellular_operator.isEmpty() ? tr("-") : cellular_operator));
+        tr("4G  %1\n%2")
+            .arg(cellular_connected ? tr("● 已连接") : tr("○ 未连接"),
+                 cellular_operator.isEmpty() ? tr("未知运营商")
+                                             : cellular_operator));
+    cellular_status_label_->setStyleSheet(
+        QStringLiteral(
+            "QToolButton { color:%1; background:%2; border:1px solid %3; "
+            "border-radius:11px; padding:8px 12px; text-align:left; "
+            "font-size:%4px; font-weight:700; }")
+            .arg(cellular_connected ? QStringLiteral("#174ea6")
+                                    : QStringLiteral("#657386"),
+                 cellular_connected ? QStringLiteral("#eef5ff")
+                                    : QStringLiteral("#f6f8fb"),
+                 cellular_connected ? QStringLiteral("#bcd3fb")
+                                    : QStringLiteral("#dce4ef"))
+            .arg(UiStyle::FontSmallPx()));
   }
 }
 
