@@ -3,8 +3,8 @@
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QHBoxLayout>
-#include <QLabel>
-#include <QPushButton>
+#include <QSize>
+#include <QToolButton>
 #include <QWidget>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -34,9 +34,13 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   // 添加数据模型
   table_model_->setHorizontalHeaderLabels(table_h_headers);
   headerView->setSectionResizeMode(0, QHeaderView::Stretch);
-  headerView->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  headerView->setSectionResizeMode(1, QHeaderView::Fixed);
   headerView->setSectionResizeMode(2, QHeaderView::Fixed);
-  headerView->resizeSection(2, 96);
+  headerView->resizeSection(1, 124);
+  headerView->resizeSection(2, 128);
+  setColumnWidth(1, 124);
+  setColumnWidth(2, 128);
+  setMinimumWidth(430);
   connect(table_model_, &QStandardItemModel::itemChanged, this,
           &NavGoalTableView::onItemChanged);
 }
@@ -75,25 +79,36 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   }
   comboBox->addItem("");
   comboBox->setCurrentText(point_name);
+  comboBox->setMinimumWidth(180);
   QComboBox* targetType = new QComboBox();
   targetType->addItem("自动识别", "any");
   targetType->addItem("水表", "water_meter");
   targetType->addItem("压力表", "pressure_gauge");
+  targetType->setMinimumWidth(112);
   const int targetIndex = targetType->findData(expected_class);
   targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
   auto* action_cell = new QWidget(this);
   auto* action_layout = new QHBoxLayout(action_cell);
-  action_layout->setContentsMargins(2, 2, 2, 2);
-  action_layout->setSpacing(4);
-  QPushButton* button_run = new QPushButton("去", action_cell);
-  QPushButton* button_remove = new QPushButton("删", action_cell);
+  action_layout->setContentsMargins(4, 4, 4, 4);
+  action_layout->setSpacing(6);
+  QToolButton* button_run = new QToolButton(action_cell);
+  QToolButton* button_remove = new QToolButton(action_cell);
+  button_run->setText("前往");
+  button_remove->setText("删除");
   button_run->setToolTip("运行到该点位");
   button_remove->setToolTip("删除该点位");
-  button_run->setFixedSize(38, 30);
-  button_remove->setFixedSize(38, 30);
-  button_remove->setStyleSheet(UiStyle::SecondaryButtonStyleSheet() +
-                               QStringLiteral("QPushButton { color:#d93025; font-weight:700; }"));
-  button_run->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  button_run->setCursor(Qt::PointingHandCursor);
+  button_remove->setCursor(Qt::PointingHandCursor);
+  button_run->setFixedSize(54, 32);
+  button_remove->setFixedSize(54, 32);
+  button_run->setStyleSheet(QStringLiteral(
+      "QToolButton { background:#2f6fed; color:white; border:none; border-radius:8px; "
+      "font-weight:700; padding:0; }"
+      "QToolButton:hover { background:#245ed8; }"));
+  button_remove->setStyleSheet(QStringLiteral(
+      "QToolButton { background:#fff7f7; color:#d93025; border:1px solid #ffd3d0; "
+      "border-radius:8px; font-weight:700; padding:0; }"
+      "QToolButton:hover { background:#ffeceb; }"));
   action_layout->addWidget(button_run);
   action_layout->addWidget(button_remove);
   int row = table_model_->rowCount();

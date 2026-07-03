@@ -891,11 +891,11 @@ void MainWindow::setupUi() {
   horizontalLayout_13->addLayout(horizontalLayout_16);
   horizontalLayout_13->addWidget(inspection_status_card);
   nav_goal_list_dock_widget->setWidget(task_list_widget);
-  ConfigureDockWidget(nav_goal_list_dock_widget, QSize(340, 360), QSize(380, 620));
-  nav_goal_list_dock_widget->setMaximumSize(520, 9999);
+  ConfigureDockWidget(nav_goal_list_dock_widget, QSize(460, 420), QSize(500, 660));
+  nav_goal_list_dock_widget->setMaximumSize(720, 9999);
   dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                nav_goal_list_dock_widget, center_docker_area_);
-  ConfigureFloatingOnOpen(nav_goal_list_dock_widget, QSize(680, 760));
+  ConfigureFloatingOnOpen(nav_goal_list_dock_widget, QSize(720, 760));
   nav_goal_list_dock_widget->toggleView(false);
   connect(nav_goal_table_view_, &NavGoalTableView::signalSendNavGoal,
           [this](const RobotPose& pose) {
