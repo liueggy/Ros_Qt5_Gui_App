@@ -1,25 +1,25 @@
 #ifndef ROSBRIDGE_COMM_H
 #define ROSBRIDGE_COMM_H
 
-#include "virtual_channel_node.h"
-#include "include/ros_bridge.h"
-#include "include/ros_topic.h"
-#include "include/client/socket_websocket_connection.h"
-#include "include/messages/rosbridge_publish_msg.h"
-#include "include/types.h"
-#include "algorithm.h"
-#include "point_type.h"
-#include "core/framework/framework.h"
-#include "config/config_manager.h"
-#include "logger/logger.h"
-#include "msg/msg_info.h"
-#include "tf2_rosbridge.h"
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <string>
-#include <atomic>
-#include <mutex>
+#include "algorithm.h"
+#include "config/config_manager.h"
+#include "core/framework/framework.h"
+#include "include/client/socket_websocket_connection.h"
+#include "include/messages/rosbridge_publish_msg.h"
+#include "include/ros_bridge.h"
+#include "include/ros_topic.h"
+#include "include/types.h"
+#include "logger/logger.h"
+#include "msg/msg_info.h"
+#include "point_type.h"
+#include "tf2_rosbridge.h"
+#include "virtual_channel_node.h"
 
 using namespace rosbridge2cpp;
 
@@ -33,13 +33,14 @@ class RosbridgeComm : public VirtualChannelNode {
   bool Stop() override;
   void Process() override;
   std::string Name() override { return "ROSBridge"; };
-  void PubRelocPose(const basic::RobotPose &pose);
-  void PubNavGoal(const basic::RobotPose &pose);
-  void PubRobotSpeed(const basic::RobotSpeed &speed);
-  void PubTopologyMapUpdate(const TopologyMap &topology_map);
-  void PubCommandRequest(const std::string &json_request);
-  void PubInspectionRequest(const std::string &json_request);
-  
+  void PubRelocPose(const basic::RobotPose& pose);
+  void PubNavGoal(const basic::RobotPose& pose);
+  void PubRobotSpeed(const basic::RobotSpeed& speed);
+  void PubTopologyMapUpdate(const TopologyMap& topology_map);
+  void PubCommandRequest(const std::string& json_request);
+  void PubStringRequest(const MsgId& id, const std::string& json_request);
+  void PubInspectionRequest(const std::string& json_request);
+
   bool IsConnecting() const override { return connecting_; }
   bool IsConnectionFailed() const override { return connection_failed_; }
   std::string GetConnectionError() const override {
@@ -48,43 +49,44 @@ class RosbridgeComm : public VirtualChannelNode {
   }
 
  private:
-  void MapCallback(const ROSBridgePublishMsg &msg);
-  void LocalCostMapCallback(const ROSBridgePublishMsg &msg);
-  void GlobalCostMapCallback(const ROSBridgePublishMsg &msg);
-  void LaserCallback(const ROSBridgePublishMsg &msg);
-  void PathCallback(const ROSBridgePublishMsg &msg);
-  void LocalPathCallback(const ROSBridgePublishMsg &msg);
-  void BatteryCallback(const ROSBridgePublishMsg &msg);
-  void OdomCallback(const ROSBridgePublishMsg &msg);
-  void RobotFootprintCallback(const ROSBridgePublishMsg &msg);
-  void TopologyMapCallback(const ROSBridgePublishMsg &msg);
-  void DiagnosticCallback(const ROSBridgePublishMsg &msg);
-  void CommandResponseCallback(const ROSBridgePublishMsg &msg);
-  void CommandStatusCallback(const ROSBridgePublishMsg &msg);
-  void InspectionStatusCallback(const ROSBridgePublishMsg &msg);
-  void InspectionResultCallback(const ROSBridgePublishMsg &msg);
-  void AutoExploreStatusCallback(const ROSBridgePublishMsg &msg);
-  void Dht11TempCallback(const ROSBridgePublishMsg &msg);
-  void Dht11HumiCallback(const ROSBridgePublishMsg &msg);
-  void VoiceCommandCallback(const ROSBridgePublishMsg &msg);
-  void ImageCallback(const ROSBridgePublishMsg &msg, const std::string &location);
-  void TfCallback(const ROSBridgePublishMsg &msg);
+  void MapCallback(const ROSBridgePublishMsg& msg);
+  void LocalCostMapCallback(const ROSBridgePublishMsg& msg);
+  void GlobalCostMapCallback(const ROSBridgePublishMsg& msg);
+  void LaserCallback(const ROSBridgePublishMsg& msg);
+  void PathCallback(const ROSBridgePublishMsg& msg);
+  void LocalPathCallback(const ROSBridgePublishMsg& msg);
+  void BatteryCallback(const ROSBridgePublishMsg& msg);
+  void OdomCallback(const ROSBridgePublishMsg& msg);
+  void RobotFootprintCallback(const ROSBridgePublishMsg& msg);
+  void TopologyMapCallback(const ROSBridgePublishMsg& msg);
+  void DiagnosticCallback(const ROSBridgePublishMsg& msg);
+  void CommandResponseCallback(const ROSBridgePublishMsg& msg);
+  void CommandStatusCallback(const ROSBridgePublishMsg& msg);
+  void StringMessageCallback(const ROSBridgePublishMsg& msg, const MsgId& id);
+  void InspectionStatusCallback(const ROSBridgePublishMsg& msg);
+  void InspectionResultCallback(const ROSBridgePublishMsg& msg);
+  void AutoExploreStatusCallback(const ROSBridgePublishMsg& msg);
+  void Dht11TempCallback(const ROSBridgePublishMsg& msg);
+  void Dht11HumiCallback(const ROSBridgePublishMsg& msg);
+  void VoiceCommandCallback(const ROSBridgePublishMsg& msg);
+  void ImageCallback(const ROSBridgePublishMsg& msg, const std::string& location);
+  void TfCallback(const ROSBridgePublishMsg& msg);
 
-  basic::RobotPose GetTransform(const std::string &from, const std::string &to);
+  basic::RobotPose GetTransform(const std::string& from, const std::string& to);
   void GetRobotPose();
 
  private:
   std::unique_ptr<SocketWebSocketConnection> websocket_connection_;
   std::unique_ptr<ROSBridge> ros_bridge_;
-  
+
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> publishers_;
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> subscribers_;
   std::unordered_map<std::string, ROSCallbackHandle<FunVrROSPublishMsg>> callback_handles_;
-  
+
   std::unordered_map<std::string, TransformData> tf_cache_;
   std::mutex tf_cache_mutex_;
   TF2Rosbridge tf2_;
-  
+
   basic::OccupancyMap occ_map_;
   basic::RobotPose m_currPose;
   std::atomic_bool init_flag_{false};
@@ -93,13 +95,13 @@ class RosbridgeComm : public VirtualChannelNode {
   std::string connection_error_msg_;
   mutable std::mutex error_msg_mutex_;
   std::thread connection_thread_;
-  
+
   std::string rosbridge_ip_;
   int rosbridge_port_;
-  
+
   void ConnectAsync();
   void ReconnectLoop();
-  
+
   std::atomic_bool reconnect_enabled_{true};
   std::atomic_bool reconnecting_{false};
   std::thread reconnect_thread_;
@@ -107,4 +109,3 @@ class RosbridgeComm : public VirtualChannelNode {
 };
 
 #endif  // ROSBRIDGE_COMM_H
-

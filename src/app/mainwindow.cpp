@@ -46,6 +46,7 @@
 #include "widgets/command_center_widget.h"
 #include "widgets/display_config_widget.h"
 #include "widgets/speed_ctrl.h"
+#include "widgets/terminal_widget.h"
 #include "widgets/ui_style.h"
 using namespace ads;
 namespace {
@@ -120,13 +121,11 @@ QString FormatInspectionStatus(const std::string& json_text) {
     QStringList parts;
     parts << stage;
     if (data.contains("waypoint_id")) {
-      parts << QStringLiteral("点位: %1").arg(
-          QString::fromStdString(data.value("waypoint_id", std::string())));
+      parts << QStringLiteral("点位: %1").arg(QString::fromStdString(data.value("waypoint_id", std::string())));
     }
     if (data.contains("extra") && data["extra"].is_object() &&
         data["extra"].contains("waypoint") && data["extra"]["waypoint"].is_object()) {
-      parts << QStringLiteral("点位: %1").arg(QString::fromStdString(
-          data["extra"]["waypoint"].value("id", std::string())));
+      parts << QStringLiteral("点位: %1").arg(QString::fromStdString(data["extra"]["waypoint"].value("id", std::string())));
     }
     if (data.value("intercepted", false)) {
       parts << QStringLiteral("已由视觉截获目标");
@@ -147,12 +146,10 @@ QString FormatInspectionResult(const std::string& json_text) {
     const bool ok = data.value("ok", false);
     lines << (ok ? QStringLiteral("巡检完成") : QStringLiteral("巡检未完成"));
     if (data.contains("error")) {
-      lines << QStringLiteral("错误: %1").arg(
-          QString::fromStdString(data.value("error", std::string())));
+      lines << QStringLiteral("错误: %1").arg(QString::fromStdString(data.value("error", std::string())));
     }
-    const auto points = data.contains("points") ? data["points"] :
-                        data.contains("results") ? data["results"] :
-                        nlohmann::json::array();
+    const auto points = data.contains("points") ? data["points"] : data.contains("results") ? data["results"]
+                                                                                            : nlohmann::json::array();
     if (points.is_array()) {
       int index = 1;
       for (const auto& point : points) {
@@ -340,13 +337,58 @@ void MainWindow::registerChannel() {
     }
   });
 
+  SUBSCRIBE(MSG_ID_NETWORK_STATUS, [this](const std::string& json_str) {
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      if (command_center_widget_) {
+        command_center_widget_->SetNetworkStatus(json_str);
+      } }, Qt::QueuedConnection);
+  });
+
+  SUBSCRIBE(MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      if (!terminal_widget_) {
+        return;
+      }
+      try {
+        const auto obj = nlohmann::json::parse(json_str);
+        terminal_widget_->AppendOutput(
+            QString::fromStdString(obj.value("data", std::string())));
+      } catch (const std::exception&) {
+        terminal_widget_->AppendOutput(QString::fromStdString(json_str));
+      } }, Qt::QueuedConnection);
+  });
+
+  SUBSCRIBE(MSG_ID_SHELL_STATUS, [this](const std::string& json_str) {
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      if (!terminal_widget_) {
+        return;
+      }
+      try {
+        const auto obj = nlohmann::json::parse(json_str);
+        const std::string state = obj.value("state", std::string("unknown"));
+        const bool running = state == "running";
+        terminal_widget_->SetCommandRunning(running);
+        if (!running && state != "idle") {
+          QString status = QString::fromStdString(state);
+          if (obj.contains("exit_code") && !obj["exit_code"].is_null()) {
+            status += tr("，退出码 %1").arg(obj["exit_code"].get<int>());
+          }
+          if (obj.contains("error")) {
+            status += tr("：%1").arg(QString::fromStdString(obj["error"].get<std::string>()));
+          }
+          terminal_widget_->AppendStatus(status);
+        }
+      } catch (const std::exception&) {
+        terminal_widget_->AppendStatus(QString::fromStdString(json_str));
+        terminal_widget_->SetCommandRunning(false);
+      } }, Qt::QueuedConnection);
+  });
+
   SUBSCRIBE(MSG_ID_INSPECTION_STATUS, [this](const std::string& json_str) {
     if (!inspection_status_label_) {
       return;
     }
-    QMetaObject::invokeMethod(this, [this, json_str]() {
-      inspection_status_label_->setText(FormatInspectionStatus(json_str));
-    }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, [this, json_str]() { inspection_status_label_->setText(FormatInspectionStatus(json_str)); }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE(MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
@@ -356,8 +398,7 @@ void MainWindow::registerChannel() {
       }
       if (inspection_start_button_) {
         inspection_start_button_->setText(QStringLiteral("开始任务链"));
-      }
-    }, Qt::QueuedConnection);
+      } }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE(MSG_ID_AUTO_EXPLORE_STATUS, [this](const std::string& json_str) {
@@ -537,20 +578,13 @@ void MainWindow::setupUi() {
   battery_bar_->setFormat(QStringLiteral("%p%"));
   battery_bar_->setFixedSize(QSize(54, 24));
   battery_bar_->setStyleSheet(QStringLiteral(
-      "QProgressBar#battery_bar_ { border:none; background:transparent; text-align:center; "
-      "color:#18212f; font-size:%1px; font-weight:700; }"
-      "QProgressBar#battery_bar_::chunk { background:#dce9ff; border-radius:7px; margin:3px 0; }")
-      .arg(UiStyle::FontSmallPx()));
+                                  "QProgressBar#battery_bar_ { border:none; background:transparent; text-align:center; "
+                                  "color:#18212f; font-size:%1px; font-weight:700; }"
+                                  "QProgressBar#battery_bar_::chunk { background:#dce9ff; border-radius:7px; margin:3px 0; }")
+                                  .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(
       QStringLiteral(":/icons/tabler/battery.svg"), battery_bar_, tr("电池电量"), 92, tools_strip));
-
-  label_power_ = new QLabel(QStringLiteral("--.-- V"));
-  label_power_->setObjectName(QString::fromUtf8("label_power_"));
-  label_power_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
-  label_power_->setAlignment(Qt::AlignCenter);
-  horizontalLayout_tools->addWidget(CreateTopStatusPill(
-      QStringLiteral(":/icons/tabler/bolt.svg"), label_power_, tr("电池电压"), 102, tools_strip));
 
   label_dht11_temp_ = new QLabel(QStringLiteral("--.- °C"), this);
   label_dht11_temp_->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
@@ -992,6 +1026,24 @@ void MainWindow::setupUi() {
   command_center_dock_->toggleView(true);
   ui->menuView->addAction(command_center_dock_->toggleViewAction());
 
+  //////////////////////////////////////////////////////模拟终端
+  terminal_widget_ = new TerminalWidget();
+  terminal_dock_ = new ads::CDockWidget("模拟终端");
+  terminal_dock_->setWidget(terminal_widget_);
+  ConfigureDockWidget(terminal_dock_, QSize(620, 420), QSize(860, 580));
+  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+                               terminal_dock_, center_docker_area_);
+  terminal_dock_->toggleView(false);
+  ConfigureFloatingOnOpen(terminal_dock_, QSize(860, 580));
+  ui->menuView->addAction(terminal_dock_->toggleViewAction());
+  connect(terminal_widget_, &TerminalWidget::CommandRequested, this,
+          [](const QString& request) {
+            PUBLISH(MSG_ID_SHELL_REQUEST, request.toStdString());
+          });
+  connect(terminal_widget_, &TerminalWidget::TerminateRequested, this, []() {
+    PUBLISH(MSG_ID_SHELL_CANCEL, std::string("{}"));
+  });
+
   //////////////////////////////////////////////////////图片
   for (auto one_image : Config::ConfigManager::Instance()->GetRootConfig().images) {
     LOG_INFO("init image window location:" << one_image.location << " topic:" << one_image.topic);
@@ -1408,10 +1460,9 @@ void MainWindow::updateOdomInfo(RobotState state) {
   }
 }
 void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
+  Q_UNUSED(voltage);
   // ROS BatteryState.percentage is 0.0-1.0; QProgressBar needs 0-100
   battery_bar_->setValue(static_cast<int>(percent * 100));
-  const double displayed_voltage = voltage > 12.0 ? 12.0 : voltage;
-  label_power_->setText(QString::number(displayed_voltage, 'f', 2) + " V");
 }
 
 bool MainWindow::LoadMap(const std::string& file_path) {

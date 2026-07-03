@@ -1,27 +1,21 @@
 #include "widgets/command_center_widget.h"
 
-#include <QComboBox>
+#include <QByteArray>
 #include <QDateTime>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
-#include <QJsonValue>
 #include <QLabel>
-#include <QLineEdit>
 #include <QMetaObject>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QSize>
 #include <QStringList>
-#include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
-#include <QVariant>
 
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
@@ -29,68 +23,6 @@
 #include "widgets/ui_style.h"
 
 namespace {
-
-QJsonObject MakeDynItem(const QString& ns, const QString& name, double value) {
-  QJsonObject item;
-  item["namespace"] = ns;
-  item["name"] = name;
-  item["value"] = value;
-  return item;
-}
-
-QJsonArray BuildSpeedProfileItems(const QString& profile) {
-  double max_vel_x = 0.45;
-  double max_vel_y = 0.0;
-  double max_vel_theta = 1.0;
-  double acc_x = 1.2;
-  double acc_y = 0.0;
-  double acc_theta = 1.8;
-
-  if (profile == "balanced") {
-    max_vel_x = 0.60;
-    max_vel_theta = 1.10;
-    acc_x = 1.4;
-    acc_theta = 2.0;
-  } else if (profile == "fast") {
-    max_vel_x = 0.80;
-    max_vel_theta = 1.20;
-    acc_x = 1.6;
-    acc_theta = 2.2;
-  }
-
-  const QString teb = "/move_base/TebLocalPlannerROS";
-  QJsonArray items;
-  items.append(MakeDynItem(teb, "max_vel_x", max_vel_x));
-  items.append(MakeDynItem(teb, "max_vel_y", max_vel_y));
-  items.append(MakeDynItem(teb, "max_vel_theta", max_vel_theta));
-  items.append(MakeDynItem(teb, "acc_lim_x", acc_x));
-  items.append(MakeDynItem(teb, "acc_lim_y", acc_y));
-  items.append(MakeDynItem(teb, "acc_lim_theta", acc_theta));
-  return items;
-}
-
-QJsonValue ParseJsonValue(const QString& text) {
-  QJsonParseError err;
-  QJsonDocument value_doc = QJsonDocument::fromJson(text.toUtf8(), &err);
-  if (err.error == QJsonParseError::NoError && !value_doc.isNull()) {
-    return QJsonValue::fromVariant(value_doc.toVariant());
-  }
-
-  bool ok_int = false;
-  const int int_value = text.toInt(&ok_int);
-  bool ok_double = false;
-  const double double_value = text.toDouble(&ok_double);
-  if (text == "true" || text == "false") {
-    return text == "true";
-  }
-  if (ok_int && !text.contains('.')) {
-    return int_value;
-  }
-  if (ok_double) {
-    return double_value;
-  }
-  return text;
-}
 
 QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) {
   auto* title = new QLabel(text, parent);
@@ -100,13 +32,6 @@ QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) 
                            .arg(UiStyle::FontBasePx()));
   layout->addWidget(title);
   return title;
-}
-
-QString FieldCaptionStyle() {
-  return QStringLiteral(
-             "QLabel { color:#536277; font-size:%1px; font-weight:700; "
-             "background:transparent; border:none; padding:2px 0; }")
-      .arg(UiStyle::FontSmallPx());
 }
 
 }  // namespace
@@ -139,14 +64,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->setSpacing(8);
   auto* camera_title = new QLabel(tr("摄像头"), camera_group);
   camera_title->setStyleSheet(QStringLiteral(
-      "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
-      .arg(UiStyle::FontBasePx()));
+                                  "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
+                                  .arg(UiStyle::FontBasePx()));
   camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
   camera_state_label_->setAlignment(Qt::AlignCenter);
   camera_state_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
-      "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
-      .arg(UiStyle::FontSmallPx()));
+                                         "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
+                                         "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
+                                         .arg(UiStyle::FontSmallPx()));
   camera_header->addWidget(camera_title);
   camera_header->addStretch();
   camera_header->addWidget(camera_state_label_);
@@ -166,87 +91,25 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(camera_start_btn, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
   connect(camera_stop_btn, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
 
-  auto* speed_group = new QFrame(this);
-  speed_group->setStyleSheet(UiStyle::CardStyleSheet());
-  auto* speed_layout = new QVBoxLayout(speed_group);
-  speed_layout->setContentsMargins(16, 14, 16, 16);
-  speed_layout->setSpacing(10);
-  AddCardTitle(speed_layout, tr("速度控制"), speed_group);
-
-  auto* profile_row = new QHBoxLayout();
-  profile_row->setSpacing(8);
-  profile_combo_ = new QComboBox(speed_group);
-  profile_combo_->addItem(tr("低速稳定"), "stable");
-  profile_combo_->addItem(tr("均衡巡航"), "balanced");
-  profile_combo_->addItem(tr("快速测试"), "fast");
-  auto* apply_profile_btn = new QPushButton(tr("应用"), speed_group);
-  profile_row->addWidget(profile_combo_, 1);
-  profile_row->addWidget(apply_profile_btn);
-  speed_layout->addLayout(profile_row);
-  connect(apply_profile_btn, &QPushButton::clicked, this, &CommandCenterWidget::ApplySpeedProfile);
-
-  auto* advanced_speed_btn = new QToolButton(speed_group);
-  advanced_speed_btn->setText(tr("高级参数"));
-  advanced_speed_btn->setCheckable(true);
-  advanced_speed_btn->setChecked(false);
-  advanced_speed_btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-  advanced_speed_btn->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
-  advanced_speed_btn->setIconSize(QSize(16, 16));
-  advanced_speed_btn->setCursor(Qt::PointingHandCursor);
-  advanced_speed_btn->setStyleSheet(QStringLiteral(
-      "QToolButton { color:#1f5fbf; background:transparent; border:none; "
-      "font-size:%1px; font-weight:700; padding:5px 2px; }"
-      "QToolButton:hover { color:#174ea6; background:rgba(47,111,237,0.08); border-radius:8px; }")
-      .arg(UiStyle::FontSmallPx()));
-  speed_layout->addWidget(advanced_speed_btn, 0, Qt::AlignLeft);
-
-  auto* advanced_speed_panel = new QFrame(speed_group);
-  advanced_speed_panel->setStyleSheet(QStringLiteral(
-      "QFrame { background:#f8fbff; border:1px solid #e3ebf7; border-radius:12px; }"));
-  auto* advanced_speed_layout = new QVBoxLayout(advanced_speed_panel);
-  advanced_speed_layout->setContentsMargins(12, 12, 12, 12);
-  advanced_speed_layout->setSpacing(8);
-  advanced_speed_panel->hide();
-
-  auto* param_caption = new QLabel(tr("动态参数"), speed_group);
-  param_caption->setStyleSheet(FieldCaptionStyle());
-  advanced_speed_layout->addWidget(param_caption);
-
-  auto* param_layout = new QVBoxLayout();
-  param_layout->setSpacing(8);
-  speed_param_combo_ = new QComboBox(speed_group);
-  speed_param_combo_->addItem(tr("最大前进速度 max_vel_x"), "dyn|/move_base/TebLocalPlannerROS|max_vel_x|0.45");
-  speed_param_combo_->addItem(tr("最大角速度 max_vel_theta"), "dyn|/move_base/TebLocalPlannerROS|max_vel_theta|1.0");
-  speed_param_combo_->addItem(tr("前进加速度 acc_lim_x"), "dyn|/move_base/TebLocalPlannerROS|acc_lim_x|1.2");
-  speed_param_combo_->addItem(tr("角加速度 acc_lim_theta"), "dyn|/move_base/TebLocalPlannerROS|acc_lim_theta|1.8");
-  speed_value_edit_ = new QLineEdit(speed_group);
-  speed_value_edit_->setPlaceholderText(tr("例如 0.45"));
-  param_layout->addWidget(speed_param_combo_);
-  param_layout->addWidget(speed_value_edit_);
-  advanced_speed_layout->addLayout(param_layout);
-
-  auto* param_btn_row = new QHBoxLayout();
-  auto* read_param_btn = new QPushButton(tr("读取"), speed_group);
-  auto* write_param_btn = new QPushButton(tr("写入"), speed_group);
-  param_btn_row->addWidget(read_param_btn);
-  param_btn_row->addWidget(write_param_btn);
-  param_btn_row->addStretch();
-  advanced_speed_layout->addLayout(param_btn_row);
-  speed_layout->addWidget(advanced_speed_panel);
-  root->addWidget(speed_group);
-  connect(advanced_speed_btn, &QToolButton::toggled, [advanced_speed_btn, advanced_speed_panel](bool checked) {
-    advanced_speed_btn->setIcon(QIcon(checked ? QStringLiteral(":/icons/tabler/arrow-down.svg")
-                                              : QStringLiteral(":/icons/tabler/arrow-right.svg")));
-    advanced_speed_panel->setVisible(checked);
-  });
-
-  connect(speed_param_combo_, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int index) {
-    const QStringList parts = speed_param_combo_->itemData(index).toString().split('|');
-    speed_value_edit_->setText(parts.value(3));
-  });
-  speed_param_combo_->setCurrentIndex(0);
-  connect(read_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::ReadSelectedSpeedParam);
-  connect(write_param_btn, &QPushButton::clicked, this, &CommandCenterWidget::WriteSelectedSpeedParam);
+  auto* network_group = new QFrame(this);
+  network_group->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* network_layout = new QVBoxLayout(network_group);
+  network_layout->setContentsMargins(16, 12, 16, 14);
+  network_layout->setSpacing(8);
+  AddCardTitle(network_layout, tr("网络状态"), network_group);
+  auto* network_row = new QHBoxLayout();
+  network_row->setSpacing(10);
+  wifi_status_label_ = new QLabel(tr("WiFi 未连接 · -"), network_group);
+  cellular_status_label_ = new QLabel(tr("4G 未连接 · -"), network_group);
+  for (auto* label : {wifi_status_label_, cellular_status_label_}) {
+    label->setStyleSheet(QStringLiteral(
+                             "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
+                             "border-radius:9px; padding:7px 10px; font-size:%1px; }")
+                             .arg(UiStyle::FontSmallPx()));
+    network_row->addWidget(label, 1);
+  }
+  network_layout->addLayout(network_row);
+  root->addWidget(network_group);
 
   auto* status_group = new QFrame(this);
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -257,8 +120,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_header->setSpacing(8);
   auto* status_title = new QLabel(tr("运行状态"), status_group);
   status_title->setStyleSheet(QStringLiteral(
-      "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
-      .arg(UiStyle::FontBasePx()));
+                                  "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
+                                  .arg(UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
   auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
   status_header->addWidget(status_title);
@@ -270,9 +133,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_summary_label_->setWordWrap(true);
   status_summary_label_->setMinimumHeight(48);
   status_summary_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
-      "border-radius:12px; padding:10px 12px; font-size:%1px; }")
-      .arg(UiStyle::FontSmallPx()));
+                                           "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
+                                           "border-radius:12px; padding:10px 12px; font-size:%1px; }")
+                                           .arg(UiStyle::FontSmallPx()));
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
@@ -308,6 +171,40 @@ void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot&
   }
 }
 
+void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
+  QJsonParseError error;
+  const QJsonDocument document =
+      QJsonDocument::fromJson(QByteArray::fromStdString(json), &error);
+  const QJsonObject root =
+      error.error == QJsonParseError::NoError && document.isObject()
+          ? document.object()
+          : QJsonObject();
+  const QJsonObject wifi = root.value(QStringLiteral("wifi")).toObject();
+  const QJsonObject cellular =
+      root.contains(QStringLiteral("cellular"))
+          ? root.value(QStringLiteral("cellular")).toObject()
+          : root.value(QStringLiteral("4g")).toObject();
+  const bool wifi_connected = wifi.value(QStringLiteral("connected")).toBool(false);
+  const bool cellular_connected =
+      cellular.value(QStringLiteral("connected")).toBool(false);
+  const QString wifi_name = wifi.value(QStringLiteral("name")).toString().trimmed();
+  const QString cellular_operator =
+      cellular.value(QStringLiteral("operator")).toString().trimmed();
+
+  if (wifi_status_label_) {
+    wifi_status_label_->setText(
+        tr("WiFi %1 · %2")
+            .arg(wifi_connected ? tr("已连接") : tr("未连接"),
+                 wifi_name.isEmpty() ? tr("-") : wifi_name));
+  }
+  if (cellular_status_label_) {
+    cellular_status_label_->setText(
+        tr("4G %1 · %2")
+            .arg(cellular_connected ? tr("已连接") : tr("未连接"),
+                 cellular_operator.isEmpty() ? tr("-") : cellular_operator));
+  }
+}
+
 QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
                                              const QString& paramsJson) const {
   QJsonParseError err;
@@ -325,23 +222,6 @@ QString CommandCenterWidget::MakeRequestJson(const QString& command, const QStri
   root["target"] = target;
   root["params"] = params;
   return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Compact));
-}
-
-QString CommandCenterWidget::SpeedParamPayloadToJson(const QString& command) const {
-  const QStringList parts = speed_param_combo_->currentData().toString().split('|');
-  QJsonObject params;
-  params["namespace"] = parts.value(1);
-  params["name"] = parts.value(2);
-
-  if (command == "dyn_set") {
-    const QString value_text = speed_value_edit_->text().trimmed().isEmpty()
-                                   ? parts.value(3)
-                                   : speed_value_edit_->text().trimmed();
-    params["value"] = ParseJsonValue(value_text);
-  }
-
-  return MakeRequestJson(command, parts.value(1),
-                         QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact)));
 }
 
 void CommandCenterWidget::PublishJson(const QString& json) {
@@ -466,23 +346,6 @@ void CommandCenterWidget::StartCamera() {
 void CommandCenterWidget::StopCamera() {
   SetCameraStateText(tr("正在停止..."));
   PublishJson(MakeRequestJson("camera_stop", "camera"));
-}
-
-void CommandCenterWidget::ReadSelectedSpeedParam() {
-  PublishJson(SpeedParamPayloadToJson("dyn_get"));
-}
-
-void CommandCenterWidget::WriteSelectedSpeedParam() {
-  PublishJson(SpeedParamPayloadToJson("dyn_set"));
-}
-
-void CommandCenterWidget::ApplySpeedProfile() {
-  const QString profile = profile_combo_->currentData().toString();
-  QJsonObject params;
-  params["profile"] = profile;
-  params["items"] = BuildSpeedProfileItems(profile);
-  PublishJson(MakeRequestJson("dyn_set_many", "speed_profile",
-                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
 }
 
 void CommandCenterWidget::ClearLog() {

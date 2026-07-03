@@ -1,20 +1,22 @@
 #pragma once
 #include "str_enum.h"
 
-#define SOME_ENUM(OneValue)                                                    \
-  OneValue(kOccupancyMap, ) OneValue(kLocalCostMap, )                          \
-      OneValue(kGlobalCostMap, ) OneValue(kRobotPose, ) OneValue(kLaserScan, ) \
-          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, ) \
-              OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )            \
-                  OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, ) \
-                  OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, ) \
-                  OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )        \
-                  OneValue(kCommandRequest, ) OneValue(kCommandResponse, )      \
-                  OneValue(kCommandStatus, )                                    \
-                  OneValue(kInspectionRequest, ) OneValue(kInspectionStatus, )  \
-                  OneValue(kInspectionResult, ) OneValue(kAutoExploreStatus, )  \
-                  OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
-                  OneValue(kVoiceCommand, )
+#define SOME_ENUM(OneValue)                                                                              \
+  OneValue(kOccupancyMap, ) OneValue(kLocalCostMap, )                                                    \
+      OneValue(kGlobalCostMap, ) OneValue(kRobotPose, ) OneValue(kLaserScan, )                           \
+          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, )                           \
+              OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )                                      \
+                  OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, )                \
+                      OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, )           \
+                          OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )                         \
+                              OneValue(kCommandRequest, ) OneValue(kCommandResponse, )                   \
+                                  OneValue(kCommandStatus, )                                             \
+                                      OneValue(kInspectionRequest, ) OneValue(kInspectionStatus, )       \
+                                          OneValue(kInspectionResult, ) OneValue(kAutoExploreStatus, )   \
+                                              OneValue(kDht11Temp, ) OneValue(kDht11Humi, )              \
+                                                  OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )   \
+                                                      OneValue(kShellRequest, ) OneValue(kShellOutput, ) \
+                                                          OneValue(kShellStatus, ) OneValue(kShellCancel, )
 
 DECLARE_ENUM(MsgId, SOME_ENUM)
 DEFINE_ENUM(MsgId, SOME_ENUM)
@@ -47,6 +49,11 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_DHT11_TEMP ToString(MsgId::kDht11Temp)
 #define MSG_ID_DHT11_HUMI ToString(MsgId::kDht11Humi)
 #define MSG_ID_VOICE_COMMAND ToString(MsgId::kVoiceCommand)
+#define MSG_ID_NETWORK_STATUS ToString(MsgId::kNetworkStatus)
+#define MSG_ID_SHELL_REQUEST ToString(MsgId::kShellRequest)
+#define MSG_ID_SHELL_OUTPUT ToString(MsgId::kShellOutput)
+#define MSG_ID_SHELL_STATUS ToString(MsgId::kShellStatus)
+#define MSG_ID_SHELL_CANCEL ToString(MsgId::kShellCancel)
 
 #define DISPLAY_ROBOT ToString(MsgId::kRobotPose)
 #define DISPLAY_MAP ToString(MsgId::kOccupancyMap)

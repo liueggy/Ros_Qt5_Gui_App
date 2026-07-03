@@ -1,9 +1,10 @@
 #include "diagnostic_dock_widget.h"
 
-#include <QColor>
-#include <QDateTime>
-#include <QFont>
+#include <algorithm>
+#include <vector>
+
 #include <QHBoxLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
 #include <QTreeWidget>
@@ -13,24 +14,25 @@
 
 namespace {
 
-int MaxLevelInMap(const std::map<std::string, basic::DiagnosticComponentState>& m) {
-  int max_level = 0;
-  for (const auto& e : m) {
-    if (e.second.level > max_level) {
-      max_level = e.second.level;
-    }
-  }
-  return max_level;
-}
+struct ModuleEntry {
+  QString hardware;
+  QString name;
+  const basic::DiagnosticComponentState* state;
+};
 
-int64_t LatestUpdateMs(const std::map<std::string, basic::DiagnosticComponentState>& m) {
-  int64_t t = 0;
-  for (const auto& e : m) {
-    if (e.second.last_update_ms > t) {
-      t = e.second.last_update_ms;
-    }
+int SeverityRank(int level) {
+  switch (level) {
+    case 2:
+      return 0;
+    case 3:
+      return 1;
+    case 1:
+      return 2;
+    case 0:
+      return 3;
+    default:
+      return 0;
   }
-  return t;
 }
 
 }  // namespace
@@ -42,42 +44,29 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   auto* summary_row = new QHBoxLayout();
   summary_row->setSpacing(6);
-  summary_ok_ = new QLabel();
-  summary_warn_ = new QLabel();
-  summary_error_ = new QLabel();
-  summary_stale_ = new QLabel();
-  for (auto* lb : {summary_ok_, summary_warn_, summary_error_, summary_stale_}) {
-    lb->setMinimumHeight(28);
-    lb->setMaximumHeight(32);
-    lb->setAlignment(Qt::AlignCenter);
-    lb->setStyleSheet(QStringLiteral("padding:3px 9px;border-radius:10px;font-size:%1px;font-weight:600;").arg(UiStyle::FontSmallPx()));
-  }
-  summary_ok_->setStyleSheet(summary_ok_->styleSheet() +
-                             QStringLiteral("background-color:rgba(46,125,50,0.12);color:#2e7d32;"));
-  summary_warn_->setStyleSheet(summary_warn_->styleSheet() +
-                               QStringLiteral("background-color:rgba(245,124,0,0.12);color:#f57c00;"));
-  summary_error_->setStyleSheet(summary_error_->styleSheet() +
-                                QStringLiteral("background-color:rgba(211,47,47,0.12);color:#d32f2f;"));
-  summary_stale_->setStyleSheet(summary_stale_->styleSheet() +
-                                QStringLiteral("background-color:rgba(97,97,97,0.12);color:#616161;"));
-  summary_row->addWidget(summary_ok_);
-  summary_row->addWidget(summary_warn_);
-  summary_row->addWidget(summary_error_);
-  summary_row->addWidget(summary_stale_);
-  summary_row->addStretch();
+  overall_status_ = new QLabel();
+  overall_status_->setMinimumHeight(34);
+  overall_status_->setAlignment(Qt::AlignCenter);
+  summary_row->addWidget(overall_status_, 1);
   refresh_btn_ = new QPushButton(tr("刷新"));
   refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   refresh_btn_->setFixedHeight(34);
-  connect(refresh_btn_, &QPushButton::clicked, this, [this]() { RebuildUi(); });
+  connect(refresh_btn_, &QPushButton::clicked, this, [this]() {
+    SaveExpandedState();
+    RebuildUi();
+  });
   summary_row->addWidget(refresh_btn_);
   root->addLayout(summary_row);
 
   tree_ = new QTreeWidget();
   tree_->setStyleSheet(UiStyle::TableStyleSheet());
-  tree_->setColumnCount(2);
-  tree_->setHeaderLabels({tr("名称 / 键"), tr("状态 / 值")});
+  tree_->setColumnCount(3);
+  tree_->setHeaderLabels({tr("模块"), tr("状态"), tr("消息")});
   tree_->setAlternatingRowColors(true);
-  tree_->setUniformRowHeights(false);
+  tree_->setUniformRowHeights(true);
+  tree_->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+  tree_->header()->setSectionResizeMode(2, QHeaderView::Stretch);
   root->addWidget(tree_, 1);
 
   empty_label_ = new QLabel(tr("暂无诊断数据"));
@@ -86,16 +75,8 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   empty_label_->hide();
   root->addWidget(empty_label_);
 
-  UpdateSummary();
+  UpdateOverallStatus();
   RebuildUi();
-}
-
-QString DiagnosticDockWidget::FormatTimeMs(int64_t ms) {
-  if (ms <= 0) {
-    return QStringLiteral("-");
-  }
-  QDateTime dt = QDateTime::fromMSecsSinceEpoch(ms);
-  return dt.toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
 }
 
 QString DiagnosticDockWidget::LevelDisplayName(int level) const {
@@ -131,19 +112,8 @@ QColor DiagnosticDockWidget::LevelColor(int level) {
 void DiagnosticDockWidget::SetSnapshot(const basic::DiagnosticSnapshot& snapshot) {
   SaveExpandedState();
   snapshot_ = snapshot;
-  UpdateSummary();
+  UpdateOverallStatus();
   RebuildUi();
-}
-
-QString DiagnosticDockWidget::ItemKey(QTreeWidgetItem* item) {
-  if (!item) {
-    return QString();
-  }
-  QStringList parts;
-  for (auto* current = item; current; current = current->parent()) {
-    parts.prepend(current->text(0));
-  }
-  return parts.join(QStringLiteral("/"));
 }
 
 void DiagnosticDockWidget::SaveExpandedState() {
@@ -152,15 +122,9 @@ void DiagnosticDockWidget::SaveExpandedState() {
   }
   expanded_items_.clear();
   for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
-    auto* hw_item = tree_->topLevelItem(i);
-    if (hw_item->isExpanded()) {
-      expanded_items_.insert(ItemKey(hw_item));
-    }
-    for (int j = 0; j < hw_item->childCount(); ++j) {
-      auto* comp_item = hw_item->child(j);
-      if (comp_item->isExpanded()) {
-        expanded_items_.insert(ItemKey(comp_item));
-      }
+    auto* module_item = tree_->topLevelItem(i);
+    if (module_item->isExpanded()) {
+      expanded_items_.insert(module_item->data(0, Qt::UserRole).toString());
     }
   }
 }
@@ -170,38 +134,45 @@ void DiagnosticDockWidget::RestoreExpandedState() {
     return;
   }
   for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
-    auto* hw_item = tree_->topLevelItem(i);
-    hw_item->setExpanded(expanded_items_.contains(ItemKey(hw_item)));
-    for (int j = 0; j < hw_item->childCount(); ++j) {
-      auto* comp_item = hw_item->child(j);
-      comp_item->setExpanded(expanded_items_.contains(ItemKey(comp_item)));
-    }
+    auto* module_item = tree_->topLevelItem(i);
+    module_item->setExpanded(
+        expanded_items_.contains(module_item->data(0, Qt::UserRole).toString()));
   }
 }
 
-void DiagnosticDockWidget::UpdateSummary() {
-  int c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+void DiagnosticDockWidget::UpdateOverallStatus() {
+  int total = 0;
+  int abnormal = 0;
+  int overall_level = 0;
   for (const auto& hw : snapshot_.hardware) {
     for (const auto& comp : hw.second) {
-      int lv = comp.second.level;
-      if (lv < 0 || lv > 3) {
-        continue;
+      ++total;
+      if (comp.second.level != 0) {
+        ++abnormal;
       }
-      if (lv == 0) {
-        ++c0;
-      } else if (lv == 1) {
-        ++c1;
-      } else if (lv == 2) {
-        ++c2;
-      } else {
-        ++c3;
+      if (SeverityRank(comp.second.level) < SeverityRank(overall_level)) {
+        overall_level = comp.second.level;
       }
     }
   }
-  summary_ok_->setText(tr("%1 正常").arg(c0));
-  summary_warn_->setText(tr("%1 警告").arg(c1));
-  summary_error_->setText(tr("%1 错误").arg(c2));
-  summary_stale_->setText(tr("%1 过期").arg(c3));
+  const QString text = total == 0
+                           ? tr("总体状态：暂无数据")
+                           : tr("总体状态：%1 · %2 个模块 · %3 个异常")
+                                 .arg(LevelDisplayName(overall_level))
+                                 .arg(total)
+                                 .arg(abnormal);
+  const QColor color = total == 0 ? QColor(QStringLiteral("#616161"))
+                                  : LevelColor(overall_level);
+  overall_status_->setText(text);
+  overall_status_->setStyleSheet(
+      QStringLiteral("QLabel { color:%1; background:rgba(%2,%3,%4,0.10); "
+                     "border-radius:10px; padding:6px 10px; font-size:%5px; "
+                     "font-weight:700; }")
+          .arg(color.name())
+          .arg(color.red())
+          .arg(color.green())
+          .arg(color.blue())
+          .arg(UiStyle::FontSmallPx()));
 }
 
 void DiagnosticDockWidget::RebuildUi() {
@@ -216,53 +187,37 @@ void DiagnosticDockWidget::RebuildUi() {
   tree_->show();
   empty_label_->hide();
 
-  for (const auto& entry : snapshot_.hardware) {
-    const std::string& hid = entry.first;
-    const auto& states = entry.second;
-    int max_lv = MaxLevelInMap(states);
-    QString display_hid = hid == "unknown_hardware" ? tr("未知硬件") : QString::fromStdString(hid);
-    auto* hw_item = new QTreeWidgetItem(tree_);
-    QFont f = hw_item->font(0);
-    f.setBold(true);
-    hw_item->setFont(0, f);
-    hw_item->setText(0, display_hid);
-    hw_item->setForeground(1, LevelColor(max_lv));
-    hw_item->setText(1, tr("状态: %1 | 组件: %2 | 最新: %3")
-                            .arg(LevelDisplayName(max_lv))
-                            .arg(static_cast<int>(states.size()))
-                            .arg(FormatTimeMs(LatestUpdateMs(states))));
-
-    for (const auto& ce : states) {
-      const std::string& comp_name = ce.first;
-      const basic::DiagnosticComponentState& st = ce.second;
-      auto* comp_item = new QTreeWidgetItem(hw_item);
-      comp_item->setText(0, QString::fromStdString(comp_name));
-      comp_item->setForeground(1, LevelColor(st.level));
-      QString msg = QString::fromStdString(st.message);
-      if (msg == QStringLiteral("data_stale")) {
-        msg = tr("数据过期");
-      }
-      comp_item->setText(1, tr("状态: %1 | %2 | 更新: %3")
-                                .arg(LevelDisplayName(st.level))
-                                .arg(msg)
-                                .arg(FormatTimeMs(st.last_update_ms)));
-
-      if (!st.key_values.empty()) {
-        for (const auto& kv : st.key_values) {
-          auto* kv_item = new QTreeWidgetItem(comp_item);
-          kv_item->setText(0, QString::fromStdString(kv.first));
-          kv_item->setText(1, QString::fromStdString(kv.second));
-        }
-      } else {
-        auto* empty_item = new QTreeWidgetItem(comp_item);
-        empty_item->setText(0, tr("（无键值详情）"));
-        empty_item->setText(1, FormatTimeMs(st.last_update_ms));
-      }
+  std::vector<ModuleEntry> modules;
+  for (const auto& hardware : snapshot_.hardware) {
+    for (const auto& component : hardware.second) {
+      modules.push_back({QString::fromStdString(hardware.first),
+                         QString::fromStdString(component.first), &component.second});
     }
   }
-  if (expanded_items_.isEmpty()) {
-    tree_->expandToDepth(0);
-  } else {
-    RestoreExpandedState();
+  std::stable_sort(modules.begin(), modules.end(), [](const ModuleEntry& left, const ModuleEntry& right) {
+    return SeverityRank(left.state->level) < SeverityRank(right.state->level);
+  });
+
+  for (const auto& module : modules) {
+    const auto& state = *module.state;
+    auto* module_item = new QTreeWidgetItem(tree_);
+    module_item->setData(0, Qt::UserRole, module.hardware + "/" + module.name);
+    module_item->setText(0, module.name);
+    module_item->setToolTip(0, tr("硬件：%1").arg(module.hardware));
+    module_item->setText(1, LevelDisplayName(state.level));
+    module_item->setForeground(1, LevelColor(state.level));
+    QString message = QString::fromStdString(state.message);
+    if (message == QStringLiteral("data_stale")) {
+      message = tr("数据过期");
+    }
+    module_item->setText(2, message.trimmed().isEmpty() ? tr("-") : message);
+    module_item->setToolTip(2, module_item->text(2));
+
+    for (const auto& kv : state.key_values) {
+      auto* detail_item = new QTreeWidgetItem(module_item);
+      detail_item->setText(0, QString::fromStdString(kv.first));
+      detail_item->setText(2, QString::fromStdString(kv.second));
+    }
   }
+  RestoreExpandedState();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QSet>
 #include <QString>
 #include <QWidget>
@@ -8,7 +9,6 @@
 class QLabel;
 class QPushButton;
 class QTreeWidget;
-class QTreeWidgetItem;
 
 class DiagnosticDockWidget : public QWidget {
   Q_OBJECT
@@ -20,21 +20,16 @@ class DiagnosticDockWidget : public QWidget {
 
  private:
   void RebuildUi();
-  void UpdateSummary();
+  void UpdateOverallStatus();
   void SaveExpandedState();
   void RestoreExpandedState();
-  static QString ItemKey(QTreeWidgetItem* item);
-  static QString FormatTimeMs(int64_t ms);
   QString LevelDisplayName(int level) const;
   static QColor LevelColor(int level);
 
   basic::DiagnosticSnapshot snapshot_;
   QSet<QString> expanded_items_;
 
-  QLabel* summary_ok_{nullptr};
-  QLabel* summary_warn_{nullptr};
-  QLabel* summary_error_{nullptr};
-  QLabel* summary_stale_{nullptr};
+  QLabel* overall_status_{nullptr};
   QLabel* empty_label_{nullptr};
   QTreeWidget* tree_{nullptr};
   QPushButton* refresh_btn_{nullptr};
