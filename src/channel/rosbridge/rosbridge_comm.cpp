@@ -179,10 +179,8 @@ bool RosbridgeComm::Start() {
   }
 
   connecting_ = true;
-  // 启动异步连接线程
-  connection_thread_ = std::thread(&RosbridgeComm::ConnectAsync, this);
-
-  return true;
+  ConnectAsync();
+  return init_flag_ && !connection_failed_;
 }
 
 void RosbridgeComm::ConnectAsync() {
@@ -222,16 +220,24 @@ void RosbridgeComm::ConnectAsync() {
   // 连接到ROSBridge服务器
   LOG_INFO("Attempting to connect to ROSBridge server at " << rosbridge_ip_ << ":" << rosbridge_port_);
   if (!ros_bridge_->Init(rosbridge_ip_, rosbridge_port_)) {
-    std::lock_guard<std::mutex> lock(error_msg_mutex_);
-    connection_error_msg_ =
-        "Failed to connect to ROSBridge server " + rosbridge_ip_ + ":" + std::to_string(rosbridge_port_) +
-        "\n\nPlease check:\n"
-        "1. ROSBridge server is running\n"
-        "2. IP and port are correct\n"
-        "3. Network is reachable";
+    {
+      std::lock_guard<std::mutex> lock(error_msg_mutex_);
+      connection_error_msg_ =
+          "Failed to connect to ROSBridge server " + rosbridge_ip_ + ":" +
+          std::to_string(rosbridge_port_) +
+          "\n\nPlease check:\n"
+          "1. ROSBridge server is running\n"
+          "2. IP and port are correct\n"
+          "3. Network is reachable";
+    }
     LOG_ERROR("Failed to connect to ROSBridge server!");
     connection_failed_ = true;
     connecting_ = false;
+    ros_bridge_.reset();
+    if (websocket_connection_) {
+      websocket_connection_->Disconnect();
+    }
+    websocket_connection_.reset();
     return;
   }
 
