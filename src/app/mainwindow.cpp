@@ -102,7 +102,12 @@ QString InspectionStageText(const std::string& stage) {
       {"target_intercept", QStringLiteral("识别到目标，切换视觉靠近")},
       {"servo_starting", QStringLiteral("启动视觉靠近")},
       {"servo_running", QStringLiteral("视觉靠近中")},
+      {"target_confirmed", QStringLiteral("目标已确认")},
       {"kimi_running", QStringLiteral("Kimi 读数中")},
+      {"kimi_complete", QStringLiteral("Kimi 分析完成")},
+      {"localization_checking", QStringLiteral("正在确认定位精度")},
+      {"localization_stable", QStringLiteral("定位已稳定")},
+      {"relocalizing", QStringLiteral("正在自动重定位")},
       {"returning_home", QStringLiteral("正在返航")},
       {"complete", QStringLiteral("巡检完成")},
       {"cancelled", QStringLiteral("已取消")},
@@ -134,6 +139,29 @@ QString FormatInspectionStatus(const std::string& json_text) {
     }
     if (data.value("intercepted", false)) {
       parts << QStringLiteral("已由视觉截获目标");
+    }
+    if (data.contains("extra") && data["extra"].is_object()) {
+      const auto extra = data["extra"];
+      const auto target = extra.contains("target") ? extra["target"] : nlohmann::json();
+      if (target.is_object()) {
+        const QString cls = QString::fromStdString(
+            target.value("class_name", target.value("target_class", std::string())));
+        const double score = target.value("score", -1.0);
+        if (!cls.isEmpty()) {
+          parts << (score >= 0.0
+                        ? QStringLiteral("目标: %1/%2").arg(cls).arg(score, 0, 'f', 2)
+                        : QStringLiteral("目标: %1").arg(cls));
+        }
+      }
+      const auto localization =
+          extra.contains("localization") ? extra["localization"] : nlohmann::json();
+      if (localization.is_object() && localization.contains("quality") &&
+          localization["quality"].is_object()) {
+        const auto quality = localization["quality"];
+        parts << QStringLiteral("定位方差 xy=%1 yaw=%2")
+                     .arg(quality.value("xy_variance", 0.0), 0, 'f', 2)
+                     .arg(quality.value("yaw_variance", 0.0), 0, 'f', 2);
+      }
     }
     if (!message.isEmpty()) {
       parts << message;
@@ -176,15 +204,39 @@ QString FormatInspectionResult(const std::string& json_text) {
           point_parts << QStringLiteral("靠近:%1").arg(
               servo.value("ok", false) ? QStringLiteral("完成") : QStringLiteral("未完成"));
         }
+        if (point.contains("target") && point["target"].is_object()) {
+          const auto target = point["target"];
+          const QString cls = QString::fromStdString(
+              target.value("class_name", target.value("target_class", std::string())));
+          const double score = target.value("score", -1.0);
+          if (!cls.isEmpty()) {
+            point_parts << (score >= 0.0
+                                ? QStringLiteral("目标:%1/%2").arg(cls).arg(score, 0, 'f', 2)
+                                : QStringLiteral("目标:%1").arg(cls));
+          }
+        }
         if (point.contains("kimi") && point["kimi"].is_object()) {
           const auto kimi = point["kimi"];
-          point_parts << QStringLiteral("读数:%1").arg(
+          point_parts << QStringLiteral("Kimi:%1").arg(
               kimi.value("ok", false) ? QStringLiteral("完成") : QStringLiteral("未完成"));
-          if (kimi.contains("result")) {
-            const auto result = kimi["result"];
-            if (result.is_object() && result.contains("summary")) {
-              point_parts << QString::fromStdString(result.value("summary", std::string()));
-            }
+          const auto api = kimi.contains("api") ? kimi["api"] : kimi.contains("result") ? kimi["result"]
+                                                                                        : nlohmann::json();
+          if (api.is_object() && api.contains("summary")) {
+            point_parts << QString::fromStdString(api.value("summary", std::string()));
+          } else if (kimi.contains("error")) {
+            point_parts << QStringLiteral("Kimi错误:%1").arg(
+                QString::fromStdString(kimi.value("error", std::string())));
+          }
+        }
+        if (point.contains("localization") && point["localization"].is_object()) {
+          const auto localization = point["localization"];
+          point_parts << QStringLiteral("定位:%1").arg(
+              localization.value("ok", false) ? QStringLiteral("稳定") : QStringLiteral("未稳定"));
+          if (localization.contains("quality") && localization["quality"].is_object()) {
+            const auto quality = localization["quality"];
+            point_parts << QStringLiteral("xy=%1 yaw=%2")
+                               .arg(quality.value("xy_variance", 0.0), 0, 'f', 2)
+                               .arg(quality.value("yaw_variance", 0.0), 0, 'f', 2);
           }
         }
         lines << point_parts.join(QStringLiteral(" · "));
