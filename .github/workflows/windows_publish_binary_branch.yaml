@@ -194,6 +194,12 @@ jobs:
           *.log
           myeasylog.*
           state.ini
+          config.json
+          map.pgm
+          map.yaml
+          map.yml
+          map.topology
+          .codegraph/
           crash*.dmp
           *.mdmp
           "@ | Set-Content -Path (Join-Path $publishDir '.gitignore') -Encoding ASCII
