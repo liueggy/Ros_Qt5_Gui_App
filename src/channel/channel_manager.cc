@@ -7,7 +7,7 @@ namespace fs = boost::filesystem;
 
 namespace {
 
-std::string ChannelTypeFromFilename(const std::string &filename) {
+std::string ChannelTypeFromFilename(const std::string& filename) {
 #ifdef _WIN32
   static const char kPrefix[] = "channel_";
 #else
@@ -24,11 +24,11 @@ std::string ChannelTypeFromFilename(const std::string &filename) {
 
 }  // namespace
 
-std::string ChannelManager::ChannelTypeFromLibraryPath(const std::string &library_path) {
+std::string ChannelManager::ChannelTypeFromLibraryPath(const std::string& library_path) {
   return ChannelTypeFromFilename(fs::path(library_path).filename().string());
 }
 
-std::string ChannelManager::NormalizeStoredChannelType(const std::string &raw) {
+std::string ChannelManager::NormalizeStoredChannelType(const std::string& raw) {
   std::string s = raw;
   static const std::string kLib = "libchannel_";
   static const std::string kCh = "channel_";
@@ -46,7 +46,7 @@ ChannelManager::~ChannelManager() {
   CloseChannel();
 }
 
-std::string ChannelManager::GetChannelPath(const std::string &channel_type) {
+std::string ChannelManager::GetChannelPath(const std::string& channel_type) {
   fs::path libDir = boost::dll::program_location().parent_path() / "lib";
   std::string libPrefix;
   std::string libSuffix;
@@ -71,7 +71,7 @@ bool ChannelManager::OpenChannelAuto() {
     CloseChannel();
   }
 
-  auto &config = Config::ConfigManager::Instance()->GetRootConfig();
+  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
   std::string channel_type = config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   if (channel_type != "auto") {
     channel_type = NormalizeStoredChannelType(channel_type);
@@ -86,7 +86,7 @@ bool ChannelManager::OpenChannelAuto() {
 
     std::vector<std::string> filtered_list;
     if (channel_list.size() > 1) {
-      for (const auto &t : channel_list) {
+      for (const auto& t : channel_list) {
         std::string lower_t = t;
         std::transform(lower_t.begin(), lower_t.end(), lower_t.begin(), ::tolower);
         if (lower_t.find("rosbridge") == std::string::npos) {
@@ -117,7 +117,7 @@ std::vector<std::string> ChannelManager::DiscoveryChannelTypes() {
     return res;
   }
 
-  for (fs::directory_entry &entry : fs::directory_iterator(libDir)) {
+  for (fs::directory_entry& entry : fs::directory_iterator(libDir)) {
     if (!fs::is_regular_file(entry.path())) {
       continue;
     }
@@ -144,30 +144,47 @@ std::vector<std::string> ChannelManager::DiscoveryChannelTypes() {
   }
   return res;
 }
-bool ChannelManager::OpenChannel(const std::string &path) {
+bool ChannelManager::OpenChannel(const std::string& path) {
   try {
     library_channel_ = new boost::dll::shared_library(path);
     // 动态链接库加载成功
     // 在这里可以使用 QLibrary 提供的函数指针来访问动态链接库中的函数
-    typedef VirtualChannelNode *(*GetChannelInstanceFunc)();
+    typedef VirtualChannelNode* (*GetChannelInstanceFunc)();
     GetChannelInstanceFunc func_get =
-        (GetChannelInstanceFunc)library_channel_->get<VirtualChannelNode *()>(
+        (GetChannelInstanceFunc)library_channel_->get<VirtualChannelNode*()>(
             "GetChannelInstance");  // 取出该符号
     channel_ptr_ = func_get();
     if (channel_ptr_ == nullptr) {
       LOG_ERROR("get channel instance failed!");
+      delete library_channel_;
+      library_channel_ = nullptr;
       return false;
     }
     if (!channel_ptr_->Init()) {
       LOG_ERROR("channel init failed!");
+      delete channel_ptr_;
+      channel_ptr_ = nullptr;
+      delete library_channel_;
+      library_channel_ = nullptr;
       return false;
     } else {
       LOG_INFO("open channel: " << channel_ptr_->Name());
       return true;
     }
 
-  } catch (const boost::system::system_error &e) {
+  } catch (const boost::system::system_error& e) {
     LOG_ERROR("Failed to load dynamic library: " << e.what());
+    delete channel_ptr_;
+    channel_ptr_ = nullptr;
+    delete library_channel_;
+    library_channel_ = nullptr;
+    return false;
+  } catch (const std::exception& e) {
+    LOG_ERROR("Failed to open channel: " << e.what());
+    delete channel_ptr_;
+    channel_ptr_ = nullptr;
+    delete library_channel_;
+    library_channel_ = nullptr;
     return false;
   }
 
@@ -183,6 +200,6 @@ void ChannelManager::CloseChannel() {
   delete library_channel_;
   library_channel_ = nullptr;
 }
-VirtualChannelNode *ChannelManager::GetChannel() {
+VirtualChannelNode* ChannelManager::GetChannel() {
   return channel_ptr_;
 }
