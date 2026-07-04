@@ -155,7 +155,13 @@ jobs:
             pause
             exit /b 1
           )
-          start "" "ros_qt5_gui_app.exe"
+          "ros_qt5_gui_app.exe"
+          set "APP_EXIT=%ERRORLEVEL%"
+          if not "%APP_EXIT%"=="0" (
+            echo [ERROR] ros_qt5_gui_app.exe exited with code %APP_EXIT%.
+            pause
+          )
+          exit /b %APP_EXIT%
           "@ | Set-Content -Path (Join-Path $publishDir 'run.bat') -Encoding ASCII
 
           @"
@@ -163,6 +169,10 @@ jobs:
           setlocal
           cd /d "%~dp0"
           echo [INFO] Updating Ros_Qt5_Gui_App Windows binaries...
+          set "BACKUP_DIR=%TEMP%\ros_qt5_gui_app_local"
+          if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
+          if exist "config.json" copy /y "config.json" "%BACKUP_DIR%\config.json" >nul
+          if exist "state.ini" copy /y "state.ini" "%BACKUP_DIR%\state.ini" >nul
           git fetch --depth=1 origin $env:TARGET_BRANCH
           if errorlevel 1 (
             echo [ERROR] git fetch failed.
@@ -175,8 +185,18 @@ jobs:
             pause
             exit /b 1
           )
+          if exist "%BACKUP_DIR%\config.json" copy /y "%BACKUP_DIR%\config.json" "config.json" >nul
+          if exist "%BACKUP_DIR%\state.ini" copy /y "%BACKUP_DIR%\state.ini" "state.ini" >nul
           call run.bat
           "@ | Set-Content -Path (Join-Path $publishDir 'update_and_run.bat') -Encoding ASCII
+
+          @"
+          *.log
+          myeasylog.*
+          state.ini
+          crash*.dmp
+          *.mdmp
+          "@ | Set-Content -Path (Join-Path $publishDir '.gitignore') -Encoding ASCII
 
       - name: Publish unpacked binaries branch
         shell: pwsh

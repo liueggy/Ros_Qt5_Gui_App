@@ -16,7 +16,7 @@
 class ChannelManager {
  private:
   VirtualChannelNode *channel_ptr_{nullptr};
-  boost::dll::shared_library *library_channel_;
+  boost::dll::shared_library *library_channel_{nullptr};
   std::string GetChannelPath(const std::string &channel_type);
 
  public:

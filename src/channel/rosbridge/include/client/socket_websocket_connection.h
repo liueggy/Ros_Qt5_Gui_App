@@ -5,6 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/client.hpp>
@@ -28,24 +29,8 @@ namespace rosbridge2cpp{
     public:
       SocketWebSocketConnection() = default;
       
-      ~SocketWebSocketConnection() {
-        std::cout << "WebSocket Connection Destructor called" << std::endl;
-        if (is_connected_) {
-          Disconnect();
-        } else {
-          terminate_receiver_thread_ = true;
-          if (asio_thread_ && asio_thread_->joinable()) {
-            asio_thread_->join();
-          }
-        }
-        if (receiver_thread_set_up_) {
-          std::cout << "Thread is set up: Calling .join() on it" << std::endl;
-          receiver_thread_.join();
-          std::cout << "join() in Connection Destructor done" << std::endl;
-        } else {
-          std::cout << "receiverThread hasn't been set up. Skipping join() on it" << std::endl;
-        }
-      }
+      ~SocketWebSocketConnection() override { Disconnect(); }
+
 
       bool Init(std::string p_ip_addr, int p_port);
       bool SendMessage(std::string data);
@@ -70,9 +55,9 @@ namespace rosbridge2cpp{
       websocketpp::lib::shared_ptr<websocketpp::lib::thread> asio_thread_;
       
       std::thread receiver_thread_;
-      bool terminate_receiver_thread_ = false;
-      bool receiver_thread_set_up_ = false;
-      bool is_connected_ = false;
+      std::atomic_bool terminate_receiver_thread_{false};
+      std::atomic_bool is_connected_{false};
+      std::atomic_bool shutting_down_{false};
       bool callback_function_defined_ = false;
       
       std::function<void(json&)> incoming_message_callback_;
@@ -80,6 +65,8 @@ namespace rosbridge2cpp{
       
       std::mutex connection_mutex_;
       std::condition_variable connection_cv_;
+      std::mutex callback_mutex_;
+      std::mutex shutdown_mutex_;
       
       void on_open(connection_hdl hdl);
       void on_close(connection_hdl hdl);

@@ -3,6 +3,10 @@
 namespace rosbridge2cpp{
 
   bool SocketWebSocketConnection::Init(std::string p_ip_addr, int p_port){
+    std::lock_guard<std::mutex> shutdown_lock(shutdown_mutex_);
+    shutting_down_ = false;
+    terminate_receiver_thread_ = false;
+    is_connected_ = false;
     ip_addr_ = p_ip_addr;
     port_ = p_port;
     
@@ -43,8 +47,15 @@ namespace rosbridge2cpp{
       
       // Wait for connection to be established
       std::unique_lock<std::mutex> lock(connection_mutex_);
-      if (!connection_cv_.wait_for(lock, std::chrono::seconds(5), [this] { return is_connected_; })) {
+      if (!connection_cv_.wait_for(lock, std::chrono::seconds(5),
+                                   [this] { return is_connected_.load() || shutting_down_.load(); }) ||
+          !is_connected_) {
         std::cout << "[WebSocketConnection] Connection timeout" << std::endl;
+        lock.unlock();
+        shutting_down_ = true;
+        c_.stop();
+        if (asio_thread_ && asio_thread_->joinable()) asio_thread_->join();
+        asio_thread_.reset();
         return false;
       }
       
@@ -53,7 +64,6 @@ namespace rosbridge2cpp{
       // Setting up the receiver thread
       std::cout << "[WebSocketConnection] Setting up receiver thread..." << std::endl;
       receiver_thread_ = std::thread([=]() {ReceiverThreadFunction(); return 1; });
-      receiver_thread_set_up_ = true;
       
       return true;
       
@@ -99,18 +109,23 @@ namespace rosbridge2cpp{
   }
 
   void SocketWebSocketConnection::RegisterIncomingMessageCallback(std::function<void(json&)> fun){
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     incoming_message_callback_ = fun;
     callback_function_defined_ = true;
   }
 
   void SocketWebSocketConnection::RegisterErrorCallback(std::function<void(TransportError)> fun){
+    std::lock_guard<std::mutex> lock(callback_mutex_);
     error_callback_ = fun;
   }
 
   void SocketWebSocketConnection::ReportError(TransportError err){
-    if (error_callback_ == nullptr)
-      return;
-    error_callback_(err);
+    std::function<void(TransportError)> callback;
+    {
+      std::lock_guard<std::mutex> lock(callback_mutex_);
+      callback = error_callback_;
+    }
+    if (callback && !shutting_down_) callback(err);
   }
 
   void SocketWebSocketConnection::SetTransportMode(ITransportLayer::TransportMode mode){
@@ -118,6 +133,14 @@ namespace rosbridge2cpp{
   }
 
   void SocketWebSocketConnection::Disconnect(){
+    std::lock_guard<std::mutex> shutdown_lock(shutdown_mutex_);
+    if (shutting_down_.exchange(true)) return;
+    {
+      std::lock_guard<std::mutex> callback_lock(callback_mutex_);
+      incoming_message_callback_ = nullptr;
+      error_callback_ = nullptr;
+      callback_function_defined_ = false;
+    }
     if (is_connected_) {
       try {
         websocketpp::lib::error_code ec;
@@ -132,13 +155,15 @@ namespace rosbridge2cpp{
     }
     
     terminate_receiver_thread_ = true;
-    
-    if (asio_thread_ && asio_thread_->joinable()) {
-      asio_thread_->join();
-    }
+    connection_cv_.notify_all();
+    c_.stop();
+    if (asio_thread_ && asio_thread_->joinable()) asio_thread_->join();
+    asio_thread_.reset();
+    if (receiver_thread_.joinable()) receiver_thread_.join();
   }
 
   void SocketWebSocketConnection::on_open(connection_hdl hdl) {
+    if (shutting_down_) return;
     std::cout << "[WebSocketConnection] Connection opened" << std::endl;
     std::unique_lock<std::mutex> lock(connection_mutex_);
     is_connected_ = true;
@@ -148,7 +173,7 @@ namespace rosbridge2cpp{
   void SocketWebSocketConnection::on_close(connection_hdl hdl) {
     std::cout << "[WebSocketConnection] Connection closed" << std::endl;
     is_connected_ = false;
-    if (!terminate_receiver_thread_) {
+    if (!shutting_down_) {
       ReportError(TransportError::R2C_CONNECTION_CLOSED);
     }
   }
@@ -156,7 +181,7 @@ namespace rosbridge2cpp{
   void SocketWebSocketConnection::on_fail(connection_hdl hdl) {
     std::cout << "[WebSocketConnection] Connection failed" << std::endl;
     is_connected_ = false;
-    if (!terminate_receiver_thread_) {
+    if (!shutting_down_) {
       ReportError(TransportError::R2C_SOCKET_ERROR);
     }
     std::unique_lock<std::mutex> lock(connection_mutex_);
@@ -164,6 +189,7 @@ namespace rosbridge2cpp{
   }
 
   void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) {
+    if (shutting_down_) return;
     // Handle JSON messages
     const std::string& payload = msg->get_payload();
     
@@ -175,8 +201,11 @@ namespace rosbridge2cpp{
       return;
     }
     
-    if (incoming_message_callback_) {
-      incoming_message_callback_(j);
+    std::function<void(json&)> callback;
+    {
+      std::lock_guard<std::mutex> lock(callback_mutex_);
+      callback = incoming_message_callback_;
     }
+    if (callback && !shutting_down_) callback(j);
   }
 }
