@@ -10,6 +10,7 @@
 #ifndef POINT_TYPE_H
 #define POINT_TYPE_H
 #include <Eigen/Dense>
+#include <iomanip>
 #include "point.h"
 namespace basic {
 typedef OrientedPoint RobotPose;
@@ -24,7 +25,12 @@ struct RobotSpeed {
 };
 
 inline std::ostream &operator<<(std::ostream &os, const RobotSpeed &p) {
-  os << "x:" << p.vx << " y:" << p.vy << " theta:" << p.w;
+  const auto old_flags = os.flags();
+  const auto old_precision = os.precision();
+  os << std::fixed << std::setprecision(2)
+     << "x:" << p.vx << " y:" << p.vy << " theta:" << p.w;
+  os.flags(old_flags);
+  os.precision(old_precision);
   return os;
 }
 struct RobotState : public RobotPose, RobotSpeed {

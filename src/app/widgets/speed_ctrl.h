@@ -41,6 +41,8 @@
 #include <QtWidgets/QStackedWidget>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
+#include <algorithm>
+#include <array>
 #include "algorithm.h"
 #include "point_type.h"
 #include "widgets/joystick.h"
@@ -55,131 +57,179 @@ class SpeedCtrlWidget : public QWidget {
   QSlider* horizontalSlider_linear_;
   QTimer* command_timer_{nullptr};
   RobotSpeed active_speed_;
+  double joystick_x_{0.0};
+  double joystick_y_{0.0};
+  bool joystick_active_{false};
+
+  struct MoveBinding {
+    char key;
+    double x;
+    double y;
+    double theta;
+  };
+
+  double LinearSpeedLimit() const {
+    return horizontalSlider_linear_->value() * 0.01;
+  }
+
+  double AngularSpeedLimitRad() const {
+    return qDegreesToRadians(static_cast<double>(horizontalSlider_raw_->value()));
+  }
+
+  char ResolveMoveKey(char button_key) const {
+    const bool is_all = checkBox_use_all_->isChecked();
+    switch (button_key) {
+      case 'u':
+        return is_all ? 'U' : 'u';
+      case 'i':
+        return is_all ? 'I' : 'i';
+      case 'o':
+        return is_all ? 'O' : 'o';
+      case 'j':
+        return is_all ? 'J' : 'j';
+      case 'l':
+        return is_all ? 'L' : 'l';
+      case 'm':
+        return is_all ? 'M' : 'm';
+      case ',':
+        return is_all ? '<' : ',';
+      case '.':
+        return is_all ? '>' : '.';
+      default:
+        return '\0';
+    }
+  }
+
+  bool LookupMoveBinding(char key, MoveBinding* binding) const {
+    static constexpr std::array<MoveBinding, 16> kMoveBindings{{
+        {'i', 1, 0, 0}, {'o', 1, 0, -1}, {'j', 0, 0, 1},
+        {'l', 0, 0, -1}, {'u', 1, 0, 1}, {',', -1, 0, 0},
+        {'.', -1, 0, 1}, {'m', -1, 0, -1}, {'O', 1, -1, 0},
+        {'I', 1, 0, 0}, {'J', 0, 1, 0}, {'L', 0, -1, 0},
+        {'U', 1, 1, 0}, {'<', -1, 0, 0}, {'>', -1, -1, 0},
+        {'M', -1, 1, 0},
+    }};
+    const auto it = std::find_if(
+        kMoveBindings.begin(), kMoveBindings.end(),
+        [key](const MoveBinding& candidate) { return candidate.key == key; });
+    if (it == kMoveBindings.end()) {
+      return false;
+    }
+    *binding = *it;
+    return true;
+  }
+
+  void PublishActiveSpeed() {
+    emit signalControlSpeed(active_speed_);
+  }
+
+  void StartActiveSpeed(const RobotSpeed& speed) {
+    active_speed_ = speed;
+    PublishActiveSpeed();
+    if (!command_timer_->isActive()) {
+      command_timer_->start();
+    }
+  }
+
+  void UpdateJoystickSpeed() {
+    const double linear = LinearSpeedLimit();
+    const double angular = AngularSpeedLimitRad();
+    if (checkBox_use_all_->isChecked()) {
+      active_speed_ = RobotSpeed(joystick_y_ * linear, -joystick_x_ * linear, 0.0);
+    } else {
+      active_speed_ = RobotSpeed(joystick_y_ * linear, 0.0, -joystick_x_ * angular);
+    }
+  }
  signals:
   void signalControlSpeed(const RobotSpeed& speed);
  private slots:
   void slotSpeedControl() {
     QPushButton* btn = qobject_cast<QPushButton*>(sender());
-    char button_key = btn->text().toStdString()[0];
-    // 速度
-    float liner = horizontalSlider_linear_->value() * 0.01;
-    float turn = qDegreesToRadians(
-        static_cast<double>(horizontalSlider_raw_->value()));
-    bool is_all = checkBox_use_all_->isChecked();
-    char key;
-
-    switch (button_key) {
-      case 'u':
-        key = is_all ? 'U' : 'u';
-        break;
-      case 'i':
-        key = is_all ? 'I' : 'i';
-        break;
-      case 'o':
-        key = is_all ? 'O' : 'o';
-        break;
-      case 'j':
-        key = is_all ? 'J' : 'j';
-        break;
-      case 'l':
-        key = is_all ? 'L' : 'l';
-        break;
-      case 'm':
-        key = is_all ? 'M' : 'm';
-        break;
-      case ',':
-        key = is_all ? '<' : ',';
-        break;
-      case '.':
-        key = is_all ? '>' : '.';
-        break;
-      default:
-        return;
+    if (!btn || btn->text().isEmpty()) {
+      return;
     }
-
-    std::map<char, std::vector<float>> moveBindings{
-        {'i', {1, 0, 0, 0}}, {'o', {1, 0, 0, -1}}, {'j', {0, 0, 0, 1}}, {'l', {0, 0, 0, -1}}, {'u', {1, 0, 0, 1}}, {',', {-1, 0, 0, 0}}, {'.', {-1, 0, 0, 1}}, {'m', {-1, 0, 0, -1}}, {'O', {1, -1, 0, 0}}, {'I', {1, 0, 0, 0}}, {'J', {0, 1, 0, 0}}, {'L', {0, -1, 0, 0}}, {'U', {1, 1, 0, 0}}, {'<', {-1, 0, 0, 0}}, {'>', {-1, -1, 0, 0}}, {'M', {-1, 1, 0, 0}}, {'t', {0, 0, 1, 0}}, {'b', {0, 0, -1, 0}}, {'k', {0, 0, 0, 0}}, {'K', {0, 0, 0, 0}}};
-    // 计算是往哪个方向
-
-    float x = moveBindings[key][0];
-    float y = moveBindings[key][1];
-    float z = moveBindings[key][2];
-    float th = moveBindings[key][3];
-    active_speed_ = RobotSpeed(x * liner, y * liner, th * turn);
-    emit signalControlSpeed(active_speed_);
-    command_timer_->start();
+    MoveBinding binding{};
+    if (!LookupMoveBinding(ResolveMoveKey(btn->text().toStdString()[0]), &binding)) {
+      return;
+    }
+    joystick_active_ = false;
+    StartActiveSpeed(RobotSpeed(binding.x * LinearSpeedLimit(),
+                                binding.y * LinearSpeedLimit(),
+                                binding.theta * AngularSpeedLimitRad()));
   }
   void slotStopControl() {
     command_timer_->stop();
+    joystick_active_ = false;
+    joystick_x_ = 0.0;
+    joystick_y_ = 0.0;
     active_speed_ = RobotSpeed();
-    emit signalControlSpeed(active_speed_);
+    PublishActiveSpeed();
   }
   void slotJoyStickAxes(double x, double y) {
-    const double linear = horizontalSlider_linear_->value() * 0.01;
-    const double angular = qDegreesToRadians(
-        static_cast<double>(horizontalSlider_raw_->value()));
     if (qFuzzyIsNull(x) && qFuzzyIsNull(y)) {
       slotStopControl();
       return;
     }
-    if (checkBox_use_all_->isChecked()) {
-      active_speed_ = RobotSpeed(y * linear, -x * linear, 0.0);
-    } else {
-      active_speed_ = RobotSpeed(y * linear, 0.0, -x * angular);
+    constexpr double kSmoothing = 0.35;
+    joystick_active_ = true;
+    joystick_x_ = joystick_x_ + (x - joystick_x_) * kSmoothing;
+    joystick_y_ = joystick_y_ + (y - joystick_y_) * kSmoothing;
+    UpdateJoystickSpeed();
+    PublishActiveSpeed();
+    if (!command_timer_->isActive()) {
+      command_timer_->start();
     }
-    emit signalControlSpeed(active_speed_);
   }
   void slotJoyStickKeyChange(int value) {
-    // 速度
-    float liner = horizontalSlider_linear_->value() * 0.01;
-    float turn = horizontalSlider_raw_->value() * 0.01;
-    bool is_all = checkBox_use_all_->isChecked();
-    char key;
-    std::cout << "joy stic value:" << value << std::endl;
+    char button_key;
     switch (value) {
       case JoyStick::Direction::upleft:
-        key = is_all ? 'U' : 'u';
+        button_key = 'u';
         break;
       case JoyStick::Direction::up:
-        key = is_all ? 'I' : 'i';
+        button_key = 'i';
         break;
       case JoyStick::Direction::upright:
-        key = is_all ? 'O' : 'o';
+        button_key = 'o';
         break;
       case JoyStick::Direction::left:
-        key = is_all ? 'J' : 'j';
+        button_key = 'j';
         break;
       case JoyStick::Direction::right:
-        key = is_all ? 'L' : 'l';
+        button_key = 'l';
         break;
       case JoyStick::Direction::down:
-        key = is_all ? 'M' : 'm';
+        button_key = 'm';
         break;
       case JoyStick::Direction::downleft:
-        key = is_all ? '<' : ',';
+        button_key = ',';
         break;
       case JoyStick::Direction::downright:
-        key = is_all ? '>' : '.';
+        button_key = '.';
         break;
       default:
         return;
     }
-    std::map<char, std::vector<float>> moveBindings{
-        {'i', {1, 0, 0, 0}}, {'o', {1, 0, 0, -1}}, {'j', {0, 0, 0, 1}}, {'l', {0, 0, 0, -1}}, {'u', {1, 0, 0, 1}}, {',', {-1, 0, 0, 0}}, {'.', {-1, 0, 0, 1}}, {'m', {-1, 0, 0, -1}}, {'O', {1, -1, 0, 0}}, {'I', {1, 0, 0, 0}}, {'J', {0, 1, 0, 0}}, {'L', {0, -1, 0, 0}}, {'U', {1, 1, 0, 0}}, {'<', {-1, 0, 0, 0}}, {'>', {-1, -1, 0, 0}}, {'M', {-1, 1, 0, 0}}, {'t', {0, 0, 1, 0}}, {'b', {0, 0, -1, 0}}, {'k', {0, 0, 0, 0}}, {'K', {0, 0, 0, 0}}};
-    // 计算是往哪个方向
-    float x = moveBindings[key][0];
-    float y = moveBindings[key][1];
-    float z = moveBindings[key][2];
-    float th = moveBindings[key][3];
-    emit signalControlSpeed(RobotSpeed(x * liner, y * liner, th * turn));
+    MoveBinding binding{};
+    if (!LookupMoveBinding(ResolveMoveKey(button_key), &binding)) {
+      return;
+    }
+    StartActiveSpeed(RobotSpeed(binding.x * LinearSpeedLimit(),
+                                binding.y * LinearSpeedLimit(),
+                                binding.theta * AngularSpeedLimitRad()));
   }
 
  public:
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
     command_timer_ = new QTimer(this);
-    command_timer_->setInterval(100);
+    command_timer_->setInterval(50);
     connect(command_timer_, &QTimer::timeout, this,
-            [this]() { emit signalControlSpeed(active_speed_); });
+            [this]() {
+              if (joystick_active_) {
+                UpdateJoystickSpeed();
+              }
+              PublishActiveSpeed();
+            });
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = QStringLiteral(
         "QPushButton { background:#fbfdff; border:1px solid #dce6f5; border-radius:12px; color:transparent; }"

@@ -544,7 +544,7 @@ void CommandCenterWidget::StartAutoRelocalization() {
   QJsonObject request;
   request.insert(QStringLiteral("command"), QStringLiteral("start"));
   request.insert(QStringLiteral("timeout"), 35.0);
-  request.insert(QStringLiteral("angular_speed"), 0.28);
+  request.insert(QStringLiteral("angular_speed_deg"), 30.0);
   const QByteArray payload = QJsonDocument(request).toJson(QJsonDocument::Compact);
   PUBLISH(MSG_ID_RELOCALIZATION_REQUEST, payload.toStdString());
   relocalization_start_btn_->setEnabled(false);
