@@ -87,6 +87,9 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_OUTPUT, "/eggy/shell/output")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_STATUS, "/eggy/shell/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_CANCEL, "/eggy/shell/cancel")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_REQUEST, "/eggy/relocalization/request")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_STATUS, "/eggy/relocalization/status")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_CANCEL, "/eggy/relocalization/cancel")
 
   // 设置默认键值配置
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
@@ -288,7 +291,8 @@ void RosbridgeComm::ConnectAsync() {
       [this](const ROSBridgePublishMsg& msg) { CommandStatusCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
 
-  for (const MsgId id : {MsgId::kNetworkStatus, MsgId::kShellOutput, MsgId::kShellStatus}) {
+  for (const MsgId id : {MsgId::kNetworkStatus, MsgId::kShellOutput,
+                         MsgId::kShellStatus, MsgId::kRelocalizationStatus}) {
     const std::string topic_name = GET_TOPIC_NAME(ToString(id));
     auto topic = std::make_unique<ROSTopic>(*ros_bridge_, topic_name, "std_msgs/String", 10);
     callback_handles_[topic_name] = topic->Subscribe(
@@ -394,7 +398,9 @@ void RosbridgeComm::ConnectAsync() {
   command_request_publisher->Advertise();
   publishers_[GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST)] = std::move(command_request_publisher);
 
-  for (const MsgId id : {MsgId::kShellRequest, MsgId::kShellCancel}) {
+  for (const MsgId id : {MsgId::kShellRequest, MsgId::kShellCancel,
+                         MsgId::kRelocalizationRequest,
+                         MsgId::kRelocalizationCancel}) {
     const std::string topic_name = GET_TOPIC_NAME(ToString(id));
     auto topic = std::make_unique<ROSTopic>(*ros_bridge_, topic_name, "std_msgs/String", 10);
     topic->Advertise();
@@ -439,6 +445,12 @@ void RosbridgeComm::ConnectAsync() {
   });
   SUBSCRIBE(MSG_ID_SHELL_CANCEL, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kShellCancel, json_request);
+  });
+  SUBSCRIBE(MSG_ID_RELOCALIZATION_REQUEST, [this](const std::string& json_request) {
+    PubStringRequest(MsgId::kRelocalizationRequest, json_request);
+  });
+  SUBSCRIBE(MSG_ID_RELOCALIZATION_CANCEL, [this](const std::string& json_request) {
+    PubStringRequest(MsgId::kRelocalizationCancel, json_request);
   });
 
   SUBSCRIBE(MSG_ID_INSPECTION_REQUEST, [this](const std::string& json_request) {

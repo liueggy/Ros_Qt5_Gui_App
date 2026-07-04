@@ -1,22 +1,25 @@
 #pragma once
 #include "str_enum.h"
 
-#define SOME_ENUM(OneValue)                                                                              \
-  OneValue(kOccupancyMap, ) OneValue(kLocalCostMap, )                                                    \
-      OneValue(kGlobalCostMap, ) OneValue(kRobotPose, ) OneValue(kLaserScan, )                           \
-          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, )                           \
-              OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )                                      \
-                  OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, )                \
-                      OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, )           \
-                          OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )                         \
-                              OneValue(kCommandRequest, ) OneValue(kCommandResponse, )                   \
-                                  OneValue(kCommandStatus, )                                             \
-                                      OneValue(kInspectionRequest, ) OneValue(kInspectionStatus, )       \
-                                          OneValue(kInspectionResult, ) OneValue(kAutoExploreStatus, )   \
-                                              OneValue(kDht11Temp, ) OneValue(kDht11Humi, )              \
-                                                  OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )   \
-                                                      OneValue(kShellRequest, ) OneValue(kShellOutput, ) \
-                                                          OneValue(kShellStatus, ) OneValue(kShellCancel, )
+#define SOME_ENUM(OneValue)                                                                                 \
+  OneValue(kOccupancyMap, ) OneValue(kLocalCostMap, )                                                       \
+      OneValue(kGlobalCostMap, ) OneValue(kRobotPose, ) OneValue(kLaserScan, )                              \
+          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, )                              \
+              OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )                                         \
+                  OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, )                   \
+                      OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, )              \
+                          OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )                            \
+                              OneValue(kCommandRequest, ) OneValue(kCommandResponse, )                      \
+                                  OneValue(kCommandStatus, )                                                \
+                                      OneValue(kInspectionRequest, ) OneValue(kInspectionStatus, )          \
+                                          OneValue(kInspectionResult, ) OneValue(kAutoExploreStatus, )      \
+                                              OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
+                                                  OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )      \
+                                                      OneValue(kShellRequest, ) OneValue(kShellOutput, )    \
+                                                          OneValue(kShellStatus, ) OneValue(kShellCancel, ) \
+                                                              OneValue(kRelocalizationRequest, )            \
+                                                                  OneValue(kRelocalizationStatus, )         \
+                                                                      OneValue(kRelocalizationCancel, )
 
 DECLARE_ENUM(MsgId, SOME_ENUM)
 DEFINE_ENUM(MsgId, SOME_ENUM)
@@ -54,6 +57,9 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_SHELL_OUTPUT ToString(MsgId::kShellOutput)
 #define MSG_ID_SHELL_STATUS ToString(MsgId::kShellStatus)
 #define MSG_ID_SHELL_CANCEL ToString(MsgId::kShellCancel)
+#define MSG_ID_RELOCALIZATION_REQUEST ToString(MsgId::kRelocalizationRequest)
+#define MSG_ID_RELOCALIZATION_STATUS ToString(MsgId::kRelocalizationStatus)
+#define MSG_ID_RELOCALIZATION_CANCEL ToString(MsgId::kRelocalizationCancel)
 
 #define DISPLAY_ROBOT ToString(MsgId::kRobotPose)
 #define DISPLAY_MAP ToString(MsgId::kOccupancyMap)

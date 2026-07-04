@@ -22,6 +22,7 @@ class CommandCenterWidget : public QWidget {
 
   void SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot);
   void SetNetworkStatus(const std::string& json);
+  void SetRelocalizationStatus(const std::string& json);
 
  public slots:
   void AppendResponse(const std::string& json);
@@ -35,6 +36,8 @@ class CommandCenterWidget : public QWidget {
   void StartCamera();
   void StopCamera();
   void ClearLog();
+  void StartAutoRelocalization();
+  void CancelAutoRelocalization();
 
  private:
   QString MakeRequestJson(const QString& command, const QString& target,
@@ -55,6 +58,9 @@ class CommandCenterWidget : public QWidget {
   QPushButton* amcl_btn_{nullptr};
   QPushButton* mapping_btn_{nullptr};
   QLabel* status_summary_label_{nullptr};
+  QLabel* relocalization_status_label_{nullptr};
+  QPushButton* relocalization_start_btn_{nullptr};
+  QPushButton* relocalization_cancel_btn_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
 };

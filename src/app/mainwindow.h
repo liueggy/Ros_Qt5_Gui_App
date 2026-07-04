@@ -3,6 +3,7 @@
 
 #include <QCalendarWidget>
 #include <QComboBox>
+#include <QElapsedTimer>
 #include <QEvent>
 #include <QFileDialog>
 #include <QFileSystemModel>
@@ -111,6 +112,11 @@ class MainWindow : public QMainWindow {
   QTimer* voice_clear_timer_{nullptr};
   int connection_attempt_id_{0};
   bool channel_subscriptions_registered_{false};
+  bool relocation_pending_{false};
+  RobotPose relocation_target_;
+  int relocation_stable_samples_{0};
+  int relocation_attempt_id_{0};
+  QElapsedTimer relocation_elapsed_;
 
  signals:
   void OnRecvChannelData(const MsgId& id, const std::any& data);
@@ -129,5 +135,8 @@ class MainWindow : public QMainWindow {
   void ConfigureFloatingOnOpen(ads::CDockWidget* dock, const QSize& preferred_size);
   void CenterFloatingDock(ads::CDockWidget* dock, const QSize& preferred_size);
   void UpdateMaximizeButton();
+  void BeginRelocation(const RobotPose& pose);
+  void CheckRelocationProgress(const RobotPose& pose);
+  bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);
 };
 #endif  // MAINWINDOW_H

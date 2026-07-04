@@ -10,8 +10,8 @@
 #include "mainwindow.h"
 #include <QApplication>
 #include <QButtonGroup>
-#include <QDebug>
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QEvent>
 #include <QFile>
@@ -24,8 +24,10 @@
 #include <QMouseEvent>
 #include <QScreen>
 #include <QSplitter>
+#include <QStatusBar>
 #include <QStyle>
 #include <QUuid>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -317,6 +319,7 @@ void MainWindow::registerChannel() {
 
   SUBSCRIBE(MSG_ID_ROBOT_POSE, [this](const RobotPose& robot_pose) {
     nav_goal_table_view_->UpdateRobotPose(robot_pose);
+    CheckRelocationProgress(robot_pose);
     Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
     if (view_manager) {
       view_manager->UpdateRobotPos("机器人: (" + QString::number(robot_pose.x, 'f', 2) + ", " +
@@ -344,6 +347,13 @@ void MainWindow::registerChannel() {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (command_center_widget_) {
         command_center_widget_->SetNetworkStatus(json_str);
+      } }, Qt::QueuedConnection);
+  });
+
+  SUBSCRIBE(MSG_ID_RELOCALIZATION_STATUS, [this](const std::string& json_str) {
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      if (command_center_widget_) {
+        command_center_widget_->SetRelocalizationStatus(json_str);
       } }, Qt::QueuedConnection);
   });
 
@@ -1070,7 +1080,7 @@ void MainWindow::setupUi() {
           this, SLOT(RecvChannelMsg(const MsgId&, const std::any&)), Qt::BlockingQueuedConnection);
   connect(display_manager_, &Display::DisplayManager::signalPub2DPose,
           [this](const RobotPose& pose) {
-            PUBLISH(MSG_ID_SET_RELOC_POSE, pose);
+            BeginRelocation(pose);
           });
   connect(display_manager_, &Display::DisplayManager::signalPub2DGoal,
           [this](const RobotPose& pose) {
@@ -1078,7 +1088,19 @@ void MainWindow::setupUi() {
           });
   // ui相关
   connect(reloc_btn, &QToolButton::clicked,
-          [this]() { display_manager_->StartReloc(); });
+          [this]() {
+            auto map = display_manager_->GetOccupancyMap();
+            if (map.Rows() <= 0 || map.Cols() <= 0) {
+              QMessageBox::warning(
+                  this, tr("无法重定位"),
+                  tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
+              return;
+            }
+            statusBar()->showMessage(
+                tr("重定位仅在静态地图 + AMCL 模式有效。请在地图上选择位置和朝向。"),
+                6000);
+            display_manager_->StartReloc();
+          });
 
   connect(re_save_map_btn, &QToolButton::clicked,
           this, &MainWindow::SaveMapToLocalAndRobot);
@@ -1419,13 +1441,127 @@ void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
   battery_bar_->setValue(static_cast<int>(percent * 100));
 }
 
+bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
+  auto map = display_manager_->GetOccupancyMap();
+  if (map.Rows() <= 0 || map.Cols() <= 0) {
+    if (reason) *reason = tr("尚未收到有效地图");
+    return false;
+  }
+  if (!map.inMap(pose.x, pose.y)) {
+    if (reason) *reason = tr("所选位置超出地图范围");
+    return false;
+  }
+
+  int col = 0;
+  int row = 0;
+  map.xy2idx(pose.x, pose.y, col, row);
+  const int display_row = map.Rows() - 1 - row;
+  const auto data = map.GetMapData();
+  if (!map.inMap(display_row, col)) {
+    if (reason) *reason = tr("所选位置超出地图栅格范围");
+    return false;
+  }
+  const int value = data(display_row, col);
+  if (value < 0) {
+    if (reason) *reason = tr("不能在未知区域重定位");
+    return false;
+  }
+  if (value >= 50) {
+    if (reason) *reason = tr("不能在障碍物上重定位");
+    return false;
+  }
+
+  const double resolution = map.map_config.resolution;
+  const int clearance_cells =
+      std::max(1, static_cast<int>(std::ceil(0.15 / resolution)));
+  for (int dr = -clearance_cells; dr <= clearance_cells; ++dr) {
+    for (int dc = -clearance_cells; dc <= clearance_cells; ++dc) {
+      const int check_row = display_row + dr;
+      const int check_col = col + dc;
+      if (!map.inMap(check_row, check_col)) continue;
+      if (data(check_row, check_col) >= 50) {
+        if (reason) *reason = tr("所选位置距离障碍物过近（需至少约 0.15 m）");
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+void MainWindow::BeginRelocation(const RobotPose& pose) {
+  QString reason;
+  if (!IsRelocationPoseValid(pose, &reason)) {
+    QMessageBox::warning(this, tr("重定位位置无效"), reason);
+    return;
+  }
+
+  const int attempt_id = ++relocation_attempt_id_;
+  relocation_pending_ = true;
+  relocation_target_ = pose;
+  relocation_stable_samples_ = 0;
+  relocation_elapsed_.restart();
+  statusBar()->showMessage(
+      tr("正在重定位到 (%1, %2, %3°)…")
+          .arg(pose.x, 0, 'f', 2)
+          .arg(pose.y, 0, 'f', 2)
+          .arg(rad2deg(pose.theta), 0, 'f', 2));
+
+  for (int index = 0; index < 3; ++index) {
+    QTimer::singleShot(index * 150, this, [this, pose, attempt_id]() {
+      if (relocation_pending_ && attempt_id == relocation_attempt_id_) {
+        PUBLISH(MSG_ID_SET_RELOC_POSE, pose);
+      }
+    });
+  }
+
+  QTimer::singleShot(10000, this, [this, attempt_id]() {
+    if (!relocation_pending_ || attempt_id != relocation_attempt_id_) return;
+    relocation_pending_ = false;
+    statusBar()->showMessage(
+        tr("重定位确认超时：请检查当前是否为 AMCL 模式，以及雷达、TF 和地图是否正常。"),
+        10000);
+    QMessageBox::warning(
+        this, tr("重定位未确认"),
+        tr("10 秒内未检测到稳定的目标位姿。\n\n"
+           "请确认：\n"
+           "1. 当前使用静态地图 + AMCL\n"
+           "2. /scan、/amcl_pose 和 map→odom TF 正常\n"
+           "3. 设置的方向与小车实际方向大致一致"));
+  });
+}
+
+void MainWindow::CheckRelocationProgress(const RobotPose& pose) {
+  if (!relocation_pending_) return;
+  const double dx = pose.x - relocation_target_.x;
+  const double dy = pose.y - relocation_target_.y;
+  const double distance = std::hypot(dx, dy);
+  const double angle_error = std::abs(std::atan2(
+      std::sin(pose.theta - relocation_target_.theta),
+      std::cos(pose.theta - relocation_target_.theta)));
+  if (distance <= 0.20 && angle_error <= deg2rad(10.0)) {
+    ++relocation_stable_samples_;
+  } else {
+    relocation_stable_samples_ = 0;
+  }
+  if (relocation_stable_samples_ < 3) return;
+
+  relocation_pending_ = false;
+  statusBar()->showMessage(
+      tr("重定位成功：位置误差 %1 m，角度误差 %2°，耗时 %3 s")
+          .arg(distance, 0, 'f', 2)
+          .arg(rad2deg(angle_error), 0, 'f', 2)
+          .arg(relocation_elapsed_.elapsed() / 1000.0, 0, 'f', 2),
+      8000);
+}
+
 void MainWindow::SaveMapToLocalAndRobot() {
   bool accepted = false;
   const QString default_name =
       QString("map_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
   const QString map_name =
       QInputDialog::getText(this, tr("保存地图"), tr("地图名称（字母、数字、下划线或短横线）："),
-                            QLineEdit::Normal, default_name, &accepted).trimmed();
+                            QLineEdit::Normal, default_name, &accepted)
+          .trimmed();
   if (!accepted || map_name.isEmpty()) {
     return;
   }

@@ -21,6 +21,7 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 #include <QWidgetAction>
+#include <QtMath>
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QCheckBox>
@@ -52,6 +53,8 @@ class SpeedCtrlWidget : public QWidget {
   JoyStick* joyStick_widget_;
   QSlider* horizontalSlider_raw_;
   QSlider* horizontalSlider_linear_;
+  QTimer* command_timer_{nullptr};
+  RobotSpeed active_speed_;
  signals:
   void signalControlSpeed(const RobotSpeed& speed);
  private slots:
@@ -60,7 +63,8 @@ class SpeedCtrlWidget : public QWidget {
     char button_key = btn->text().toStdString()[0];
     // 速度
     float liner = horizontalSlider_linear_->value() * 0.01;
-    float turn = horizontalSlider_raw_->value() * 0.01;
+    float turn = qDegreesToRadians(
+        static_cast<double>(horizontalSlider_raw_->value()));
     bool is_all = checkBox_use_all_->isChecked();
     char key;
 
@@ -101,7 +105,29 @@ class SpeedCtrlWidget : public QWidget {
     float y = moveBindings[key][1];
     float z = moveBindings[key][2];
     float th = moveBindings[key][3];
-    emit signalControlSpeed(RobotSpeed(x * liner, y * liner, th * turn));
+    active_speed_ = RobotSpeed(x * liner, y * liner, th * turn);
+    emit signalControlSpeed(active_speed_);
+    command_timer_->start();
+  }
+  void slotStopControl() {
+    command_timer_->stop();
+    active_speed_ = RobotSpeed();
+    emit signalControlSpeed(active_speed_);
+  }
+  void slotJoyStickAxes(double x, double y) {
+    const double linear = horizontalSlider_linear_->value() * 0.01;
+    const double angular = qDegreesToRadians(
+        static_cast<double>(horizontalSlider_raw_->value()));
+    if (qFuzzyIsNull(x) && qFuzzyIsNull(y)) {
+      slotStopControl();
+      return;
+    }
+    if (checkBox_use_all_->isChecked()) {
+      active_speed_ = RobotSpeed(y * linear, -x * linear, 0.0);
+    } else {
+      active_speed_ = RobotSpeed(y * linear, 0.0, -x * angular);
+    }
+    emit signalControlSpeed(active_speed_);
   }
   void slotJoyStickKeyChange(int value) {
     // 速度
@@ -150,6 +176,10 @@ class SpeedCtrlWidget : public QWidget {
 
  public:
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
+    command_timer_ = new QTimer(this);
+    command_timer_->setInterval(100);
+    connect(command_timer_, &QTimer::timeout, this,
+            [this]() { emit signalControlSpeed(active_speed_); });
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = QStringLiteral(
         "QPushButton { background:#fbfdff; border:1px solid #dce6f5; border-radius:12px; color:transparent; }"
@@ -260,13 +290,13 @@ class SpeedCtrlWidget : public QWidget {
     checkBox_use_all_->setText("全向");
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
     checkBox_use_all_->setStyleSheet(QStringLiteral(
-        "QCheckBox { color:#536277; font-size:%1px; font-weight:700; spacing:6px; "
-        "background:#f6f9fe; border:1px solid #dbe6f5; border-radius:10px; padding:7px 10px; }"
-        "QCheckBox:hover { background:#edf4ff; border-color:#bcd3fb; color:#1f5fbf; }"
-        "QCheckBox:checked { background:#e8f1ff; border-color:#2f6fed; color:#1f5fbf; }"
-        "QCheckBox::indicator { width:14px; height:14px; border:1px solid #c8d4e4; border-radius:4px; background:#ffffff; }"
-        "QCheckBox::indicator:checked { background:#2f6fed; border-color:#2f6fed; }")
-        .arg(UiStyle::FontSmallPx()));
+                                         "QCheckBox { color:#536277; font-size:%1px; font-weight:700; spacing:6px; "
+                                         "background:#f6f9fe; border:1px solid #dbe6f5; border-radius:10px; padding:7px 10px; }"
+                                         "QCheckBox:hover { background:#edf4ff; border-color:#bcd3fb; color:#1f5fbf; }"
+                                         "QCheckBox:checked { background:#e8f1ff; border-color:#2f6fed; color:#1f5fbf; }"
+                                         "QCheckBox::indicator { width:14px; height:14px; border:1px solid #c8d4e4; border-radius:4px; background:#ffffff; }"
+                                         "QCheckBox::indicator:checked { background:#2f6fed; border-color:#2f6fed; }")
+                                         .arg(UiStyle::FontSmallPx()));
     horizontalLayout_18->addWidget(checkBox_use_all_);
 
     QPushButton* pushButton_l = new QPushButton();
@@ -337,15 +367,15 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_right_2.png);}"));
 
-    connect(pushButton_i, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_u, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_o, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_j, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_l, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_m, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_back, SIGNAL(clicked()), this, SLOT(slotSpeedControl()));
-    connect(pushButton_backr, SIGNAL(clicked()), this,
-            SLOT(slotSpeedControl()));
+    const QList<QPushButton*> move_buttons{
+        pushButton_i, pushButton_u, pushButton_o, pushButton_j,
+        pushButton_l, pushButton_m, pushButton_back, pushButton_backr};
+    for (auto* button : move_buttons) {
+      connect(button, &QPushButton::pressed, this,
+              &SpeedCtrlWidget::slotSpeedControl);
+      connect(button, &QPushButton::released, this,
+              &SpeedCtrlWidget::slotStopControl);
+    }
     pushButton_backr->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg")));
     pushButton_backr->setIconSize(QSize(30, 30));
     pushButton_backr->setStyleSheet(moveButtonStyle);
@@ -369,8 +399,8 @@ class SpeedCtrlWidget : public QWidget {
     joyStick_widget_ = new JoyStick();
     joyStick_widget_->setMinimumSize(QSize(200, 200));
 
-    connect(joyStick_widget_, SIGNAL(keyNumchanged(int)), this,
-            SLOT(slotJoyStickKeyChange(int)));
+    connect(joyStick_widget_, &JoyStick::axesChanged, this,
+            &SpeedCtrlWidget::slotJoyStickAxes);
 
     horizontalLayout_joyStick->addStretch();
     horizontalLayout_joyStick->addWidget(joyStick_widget_);
@@ -391,20 +421,20 @@ class SpeedCtrlWidget : public QWidget {
     horizontalSlider_raw_ = new QSlider();
     horizontalSlider_raw_->setObjectName(
         QString::fromUtf8("horizontalSlider_raw_"));
-    horizontalSlider_raw_->setMaximum(100);
-    horizontalSlider_raw_->setValue(10);
+    horizontalSlider_raw_->setMaximum(90);
+    horizontalSlider_raw_->setValue(30);
     horizontalSlider_raw_->setOrientation(Qt::Horizontal);
 
     horizontalLayout_20->addWidget(horizontalSlider_raw_);
 
     QLabel* label_raw = new QLabel();
     label_raw->setObjectName(QString::fromUtf8("label_raw"));
-    label_raw->setText(QString::number(horizontalSlider_raw_->value() * 0.01) +
+    label_raw->setText(QString::number(horizontalSlider_raw_->value(), 'f', 2) +
                        " deg/s");
     label_raw->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
     connect(horizontalSlider_raw_, &QSlider::valueChanged,
             [label_raw](qreal value) {
-              label_raw->setText(QString::number(rad2deg(value * 0.01)) +
+              label_raw->setText(QString::number(value, 'f', 2) +
                                  " deg/s");
             });
     horizontalLayout_20->addWidget(label_raw);
@@ -429,7 +459,7 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("horizontalSlider_linear_"));
     horizontalSlider_linear_->setMaximum(100);
     horizontalSlider_linear_->setSingleStep(1);
-    horizontalSlider_linear_->setValue(10);
+    horizontalSlider_linear_->setValue(20);
     horizontalSlider_linear_->setOrientation(Qt::Horizontal);
 
     horizontalLayout_21->addWidget(horizontalSlider_linear_);
@@ -437,11 +467,13 @@ class SpeedCtrlWidget : public QWidget {
     QLabel* label_linear = new QLabel();
     label_linear->setObjectName(QString::fromUtf8("label_linear"));
     label_linear->setText(
-        QString::number(horizontalSlider_linear_->value() * 0.01) + " m/s");
+        QString::number(horizontalSlider_linear_->value() * 0.01, 'f', 2) +
+        " m/s");
     label_linear->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
     connect(horizontalSlider_linear_, &QSlider::valueChanged,
             [label_linear](qreal value) {
-              label_linear->setText(QString::number(value * 0.01) + " m/s");
+              label_linear->setText(
+                  QString::number(value * 0.01, 'f', 2) + " m/s");
             });
     horizontalLayout_21->addWidget(label_linear);
     label_9->setFixedWidth(68);
@@ -454,8 +486,8 @@ class SpeedCtrlWidget : public QWidget {
     btn_stop->setText("停止(s)");
     btn_stop->setStyleSheet(UiStyle::DangerButtonStyleSheet());
     btn_stop->setShortcut(QApplication::translate("Widget", "s", nullptr));
-    connect(btn_stop, &QPushButton::clicked,
-            [this]() { emit signalControlSpeed(RobotSpeed()); });
+    connect(btn_stop, &QPushButton::clicked, this,
+            &SpeedCtrlWidget::slotStopControl);
     horizontalLayout_stop_button->addStretch();
     horizontalLayout_stop_button->addWidget(btn_stop);
     horizontalLayout_stop_button->addStretch();
