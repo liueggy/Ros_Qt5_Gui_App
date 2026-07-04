@@ -1457,7 +1457,8 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
   map.xy2idx(pose.x, pose.y, col, row);
   const int display_row = map.Rows() - 1 - row;
   const auto data = map.GetMapData();
-  if (!map.inMap(display_row, col)) {
+  if (display_row < 0 || display_row >= map.Rows() || col < 0 ||
+      col >= map.Cols()) {
     if (reason) *reason = tr("所选位置超出地图栅格范围");
     return false;
   }
@@ -1478,7 +1479,10 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
     for (int dc = -clearance_cells; dc <= clearance_cells; ++dc) {
       const int check_row = display_row + dr;
       const int check_col = col + dc;
-      if (!map.inMap(check_row, check_col)) continue;
+      if (check_row < 0 || check_row >= map.Rows() || check_col < 0 ||
+          check_col >= map.Cols()) {
+        continue;
+      }
       if (data(check_row, check_col) >= 50) {
         if (reason) *reason = tr("所选位置距离障碍物过近（需至少约 0.15 m）");
         return false;
