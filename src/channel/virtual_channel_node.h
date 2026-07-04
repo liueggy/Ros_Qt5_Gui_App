@@ -10,11 +10,11 @@
 #include <any>
 #include <atomic>
 #include <thread>
+#include "core/framework/framework.h"
 #include "msg/msg_info.h"
 #include "occupancy_map.h"
-#include "topology_map.h"
 #include "point_type.h"
-#include "core/framework/framework.h"
+#include "topology_map.h"
 using namespace basic;
 class VirtualChannelNode {
  private:
@@ -22,7 +22,7 @@ class VirtualChannelNode {
 
  public:
   VirtualChannelNode(/* args */) {}
-  
+
   bool Init() {
     if (Start()) {
       std::cout << "start channel success" << std::endl;
@@ -41,14 +41,16 @@ class VirtualChannelNode {
   void ShutDown() {
     run_flag_ = false;
     Stop();
-    process_thread_.join();
+    if (process_thread_.joinable()) {
+      process_thread_.join();
+    }
   }
   virtual ~VirtualChannelNode() {}
   virtual void Process() {}
   virtual bool Start() = 0;
   virtual bool Stop() = 0;
   virtual std::string Name() = 0;
-  
+
   virtual bool IsConnecting() const { return false; }
   virtual bool IsConnectionFailed() const { return false; }
   virtual std::string GetConnectionError() const { return ""; }

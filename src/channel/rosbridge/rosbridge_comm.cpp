@@ -7,6 +7,7 @@
 #include "rosbridge_comm.h"
 #include <opencv2/imgproc/types_c.h>
 #include <algorithm>
+#include <boost/asio.hpp>
 #include <cctype>
 #include <chrono>
 #include <cmath>
@@ -18,6 +19,55 @@
 #include "msg/diagnostic_snapshot.h"
 
 namespace {
+bool ProbeTcpEndpoint(const std::string& host, int port,
+                      std::chrono::milliseconds timeout) {
+  try {
+    boost::asio::io_context io;
+    boost::asio::ip::tcp::resolver resolver(io);
+    boost::asio::ip::tcp::socket socket(io);
+    boost::asio::steady_timer timer(io);
+
+    boost::system::error_code resolve_error;
+    const auto endpoints =
+        resolver.resolve(host, std::to_string(port), resolve_error);
+    if (resolve_error) {
+      LOG_WARN("ROSBridge TCP probe resolve failed: "
+               << host << ":" << port << " " << resolve_error.message());
+      return false;
+    }
+
+    boost::system::error_code connect_error =
+        boost::asio::error::would_block;
+    boost::asio::async_connect(
+        socket, endpoints,
+        [&](const boost::system::error_code& error,
+            const boost::asio::ip::tcp::endpoint&) {
+          connect_error = error;
+          timer.cancel();
+        });
+
+    timer.expires_after(timeout);
+    timer.async_wait([&](const boost::system::error_code& error) {
+      if (!error && connect_error == boost::asio::error::would_block) {
+        connect_error = boost::asio::error::timed_out;
+        boost::system::error_code ignored;
+        socket.close(ignored);
+      }
+    });
+
+    io.run();
+    if (connect_error) {
+      LOG_WARN("ROSBridge TCP probe failed: "
+               << host << ":" << port << " " << connect_error.message());
+      return false;
+    }
+    return true;
+  } catch (const std::exception& exc) {
+    LOG_WARN("ROSBridge TCP probe exception: " << exc.what());
+    return false;
+  }
+}
+
 std::vector<uint8_t> DecodeBase64(const char* input, size_t length) {
   static const std::string chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -153,6 +203,20 @@ bool RosbridgeComm::Start() {
 
 void RosbridgeComm::ConnectAsync() {
   LOG_INFO("Starting ROSBridge connection...");
+  if (!ProbeTcpEndpoint(rosbridge_ip_, rosbridge_port_,
+                        std::chrono::milliseconds(1200))) {
+    {
+      std::lock_guard<std::mutex> lock(error_msg_mutex_);
+      connection_error_msg_ =
+          "ROSBridge server is not reachable at " + rosbridge_ip_ + ":" +
+          std::to_string(rosbridge_port_);
+    }
+    connection_failed_ = true;
+    connecting_ = false;
+    LOG_ERROR("ROSBridge TCP preflight failed; skip websocket startup.");
+    return;
+  }
+
   // 创建WebSocket连接
   websocket_connection_ = std::make_unique<SocketWebSocketConnection>();
   LOG_INFO("WebSocket connection created");

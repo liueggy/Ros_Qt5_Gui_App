@@ -10,9 +10,12 @@
 #endif
 
 #include <QApplication>
+#include <QDir>
 #include <QFont>
 #include <QFontDatabase>
 #include <QLabel>
+#include <QLockFile>
+#include <QMessageBox>
 #include <QMovie>
 #include <QPixmap>
 #include <QSplashScreen>
@@ -59,6 +62,14 @@ void signalHandler(int signal) {
 
 int main(int argc, char* argv[]) {
   QApplication a(argc, argv);
+  QLockFile single_instance_lock(
+      QDir::temp().absoluteFilePath(QStringLiteral("ros_qt5_gui_app.lock")));
+  single_instance_lock.setStaleLockTime(15000);
+  if (!single_instance_lock.tryLock(100)) {
+    QMessageBox::information(nullptr, QStringLiteral("程序已在运行"),
+                             QStringLiteral("ROS Qt5 控制端已经启动，请切换到现有窗口。"));
+    return 0;
+  }
   ApplyApplicationFont(&a);
   a.setStyleSheet(UiStyle::ApplicationStyleSheet());
   g_app = &a;
