@@ -55,7 +55,16 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
     SaveExpandedState();
     RebuildUi();
   });
+  toggle_modules_btn_ = new QPushButton(tr("全部"));
+  toggle_modules_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  toggle_modules_btn_->setFixedHeight(34);
+  connect(toggle_modules_btn_, &QPushButton::clicked, this, [this]() {
+    SaveExpandedState();
+    show_all_modules_ = !show_all_modules_;
+    RebuildUi();
+  });
   summary_row->addWidget(refresh_btn_);
+  summary_row->addWidget(toggle_modules_btn_);
   root->addLayout(summary_row);
 
   tree_ = new QTreeWidget();
@@ -166,7 +175,7 @@ void DiagnosticDockWidget::UpdateOverallStatus() {
   overall_status_->setText(text);
   overall_status_->setStyleSheet(
       QStringLiteral("QLabel { color:%1; background:rgba(%2,%3,%4,0.10); "
-                     "border-radius:10px; padding:6px 10px; font-size:%5px; "
+                     "border-radius:10px; padding:7px 10px; font-size:%5px; "
                      "font-weight:700; }")
           .arg(color.name())
           .arg(color.red())
@@ -177,6 +186,9 @@ void DiagnosticDockWidget::UpdateOverallStatus() {
 
 void DiagnosticDockWidget::RebuildUi() {
   tree_->clear();
+  if (toggle_modules_btn_) {
+    toggle_modules_btn_->setText(show_all_modules_ ? tr("只看异常") : tr("全部"));
+  }
   if (snapshot_.hardware.empty()) {
     tree_->hide();
     empty_label_->show();
@@ -198,8 +210,21 @@ void DiagnosticDockWidget::RebuildUi() {
     return SeverityRank(left.state->level) < SeverityRank(right.state->level);
   });
 
+  const int abnormal = CountAbnormal();
+  if (!show_all_modules_ && abnormal == 0) {
+    tree_->hide();
+    empty_label_->show();
+    empty_label_->setText(tr("当前全部模块正常，点击“全部”查看明细。"));
+    return;
+  }
+  tree_->show();
+  empty_label_->hide();
+
   for (const auto& module : modules) {
     const auto& state = *module.state;
+    if (!show_all_modules_ && state.level == 0) {
+      continue;
+    }
     auto* module_item = new QTreeWidgetItem(tree_);
     module_item->setData(0, Qt::UserRole, module.hardware + "/" + module.name);
     module_item->setText(0, module.name);
@@ -220,4 +245,16 @@ void DiagnosticDockWidget::RebuildUi() {
     }
   }
   RestoreExpandedState();
+}
+
+int DiagnosticDockWidget::CountAbnormal() const {
+  int abnormal = 0;
+  for (const auto& hardware : snapshot_.hardware) {
+    for (const auto& component : hardware.second) {
+      if (component.second.level != 0) {
+        ++abnormal;
+      }
+    }
+  }
+  return abnormal;
 }

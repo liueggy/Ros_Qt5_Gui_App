@@ -47,7 +47,15 @@ class CommandCenterWidget : public QWidget {
   void UpdateMapChoices(const QJsonArray& maps);
   QString SelectedMapFile() const;
   void SetStatusSummary(const QString& text, const QString& detail = QString());
+  void SetOverviewPill(QLabel* label, const QString& title, const QString& value,
+                       const QString& color, const QString& bg, const QString& border);
+  void SetConnectionOverview(bool online, const QString& detail);
+  void SetDiagnosticOverview(int total, int abnormal, int worstLevel);
 
+  QLabel* connection_overview_label_{nullptr};
+  QLabel* nav_overview_label_{nullptr};
+  QLabel* task_overview_label_{nullptr};
+  QLabel* diagnostic_overview_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};

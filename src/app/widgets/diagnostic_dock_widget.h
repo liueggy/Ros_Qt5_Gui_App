@@ -25,12 +25,15 @@ class DiagnosticDockWidget : public QWidget {
   void RestoreExpandedState();
   QString LevelDisplayName(int level) const;
   static QColor LevelColor(int level);
+  int CountAbnormal() const;
 
   basic::DiagnosticSnapshot snapshot_;
   QSet<QString> expanded_items_;
+  bool show_all_modules_{false};
 
   QLabel* overall_status_{nullptr};
   QLabel* empty_label_{nullptr};
   QTreeWidget* tree_{nullptr};
   QPushButton* refresh_btn_{nullptr};
+  QPushButton* toggle_modules_btn_{nullptr};
 };

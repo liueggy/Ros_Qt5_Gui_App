@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QDateTime>
 #include <QFrame>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QJsonArray>
@@ -32,8 +33,8 @@ namespace {
 QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) {
   auto* title = new QLabel(text, parent);
   title->setStyleSheet(QStringLiteral(
-                           "QLabel { color:#18212f; font-size:%1px; font-weight:700; "
-                           "padding:0 0 4px 0; background:transparent; border:none; }")
+                           "QLabel { color:#18212f; font-size:%1px; font-weight:800; "
+                           "padding:0 0 2px 0; background:transparent; border:none; }")
                            .arg(UiStyle::FontBasePx()));
   layout->addWidget(title);
   return title;
@@ -58,8 +59,31 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 
   auto* title = new QLabel(tr("运行控制"), this);
   title->setObjectName(QStringLiteral("pageTitle"));
+  title->setText(tr("运维面板"));
   title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   root->addWidget(title);
+
+  auto* overview_group = new QFrame(this);
+  overview_group->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* overview_layout = new QGridLayout(overview_group);
+  overview_layout->setContentsMargins(14, 12, 14, 12);
+  overview_layout->setHorizontalSpacing(10);
+  overview_layout->setVerticalSpacing(10);
+  connection_overview_label_ = new QLabel(overview_group);
+  nav_overview_label_ = new QLabel(overview_group);
+  task_overview_label_ = new QLabel(overview_group);
+  diagnostic_overview_label_ = new QLabel(overview_group);
+  overview_layout->addWidget(connection_overview_label_, 0, 0);
+  overview_layout->addWidget(nav_overview_label_, 0, 1);
+  overview_layout->addWidget(task_overview_label_, 1, 0);
+  overview_layout->addWidget(diagnostic_overview_label_, 1, 1);
+  root->addWidget(overview_group);
+  SetConnectionOverview(false, tr("等待状态"));
+  SetOverviewPill(nav_overview_label_, tr("导航"), tr("等待刷新"),
+                  QStringLiteral("#657386"), QStringLiteral("#f6f8fb"), QStringLiteral("#dce4ef"));
+  SetOverviewPill(task_overview_label_, tr("任务"), tr("空闲"),
+                  QStringLiteral("#435267"), QStringLiteral("#f8fbff"), QStringLiteral("#dce6f5"));
+  SetDiagnosticOverview(0, 0, 0);
   auto* camera_group = new QFrame(this);
   camera_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* camera_layout = new QVBoxLayout(camera_group);
@@ -101,7 +125,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* network_layout = new QVBoxLayout(network_group);
   network_layout->setContentsMargins(16, 12, 16, 14);
   network_layout->setSpacing(8);
-  AddCardTitle(network_layout, tr("网络状态"), network_group);
+  AddCardTitle(network_layout, tr("连接与外设"), network_group);
   auto* network_row = new QHBoxLayout();
   network_row->setSpacing(10);
   wifi_status_label_ = new QToolButton(network_group);
@@ -200,8 +224,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
-  log_edit_->setPlaceholderText(tr("暂无命令记录。"));
-  log_edit_->setMaximumHeight(58);
+  log_edit_->setPlaceholderText(tr("暂无运行记录。"));
+  log_edit_->setMaximumHeight(96);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -230,6 +254,30 @@ void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot&
   if (diagnostic_widget_) {
     diagnostic_widget_->SetSnapshot(snapshot);
   }
+  int total = 0;
+  int abnormal = 0;
+  int worst_level = 0;
+  auto rank = [](int level) {
+    switch (level) {
+      case 2: return 0;
+      case 3: return 1;
+      case 1: return 2;
+      case 0: return 3;
+      default: return 0;
+    }
+  };
+  for (const auto& hardware : snapshot.hardware) {
+    for (const auto& component : hardware.second) {
+      ++total;
+      if (component.second.level != 0) {
+        ++abnormal;
+      }
+      if (rank(component.second.level) < rank(worst_level)) {
+        worst_level = component.second.level;
+      }
+    }
+  }
+  SetDiagnosticOverview(total, abnormal, worst_level);
 }
 
 void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
@@ -289,6 +337,11 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
                                     : QStringLiteral("#dce4ef"))
             .arg(UiStyle::FontSmallPx()));
   }
+  const bool connected = wifi_connected || cellular_connected;
+  const QString detail = wifi_connected
+                             ? (wifi_name.isEmpty() ? tr("WiFi 已连接") : wifi_name)
+                             : (cellular_connected ? tr("4G 已连接") : tr("未连接"));
+  SetConnectionOverview(connected, detail);
 }
 
 void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
@@ -328,6 +381,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   if (amcl_btn_) {
     amcl_btn_->setEnabled(normalized != QStringLiteral("static_nav"));
   }
+  SetOverviewPill(nav_overview_label_, tr("导航"), text, color, bg, border);
 }
 
 void CommandCenterWidget::UpdateMapChoices(const QJsonArray& maps) {
@@ -389,7 +443,11 @@ void CommandCenterWidget::AppendLog(const QString& prefix, const QString& text) 
     return;
   }
   const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
-  log_edit_->appendPlainText(QString("[%1] %2\n%3\n").arg(ts, prefix, text));
+  QString compact = text.simplified();
+  if (compact.size() > 96) {
+    compact = compact.left(93) + QStringLiteral("...");
+  }
+  log_edit_->appendPlainText(QString("[%1] %2  %3").arg(ts, prefix, compact));
 }
 
 void CommandCenterWidget::AppendResponse(const std::string& json) {
@@ -413,8 +471,8 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
                        .arg(obj.value("message").toString())
                        .arg(command)
                        .arg(obj.value("target").toString());
-    if (obj.contains("details")) {
-      text += "\n";
+    if (!success && obj.contains("details")) {
+      text += "  ";
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
@@ -438,6 +496,9 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   const QJsonObject camera = obj.value("camera").toObject();
   const bool camera_running = camera.value("running").toBool(false);
   SetCameraStateText(camera_running ? tr("摄像头在线") : tr("摄像头离线"));
+  if (camera_running) {
+    SetConnectionOverview(true, tr("摄像头在线"));
+  }
 
   const QStringList core_nodes = {
       QStringLiteral("/move_base"),
@@ -485,6 +546,10 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                      is_online("/ros_qt5_gui_adapter") ? tr("在线") : tr("离线"),
                      is_online("/eggy_external_imu_odom_fuser") ? tr("在线") : tr("离线"));
   SetStatusSummary(summary, detail);
+  SetOverviewPill(task_overview_label_, tr("任务"), online_count == core_nodes.size() ? tr("可执行") : tr("待检查"),
+                  online_count == core_nodes.size() ? QStringLiteral("#176b3a") : QStringLiteral("#8a5a00"),
+                  online_count == core_nodes.size() ? QStringLiteral("#eef9f2") : QStringLiteral("#fff7e6"),
+                  online_count == core_nodes.size() ? QStringLiteral("#b9e2c8") : QStringLiteral("#f4d28b"));
 }
 
 void CommandCenterWidget::SetRelocalizationStatus(const std::string& json) {
@@ -511,6 +576,54 @@ void CommandCenterWidget::SetCameraStateText(const QString& text) {
   if (camera_state_label_) {
     camera_state_label_->setText(text);
   }
+}
+
+void CommandCenterWidget::SetOverviewPill(QLabel* label, const QString& title, const QString& value,
+                                      const QString& color, const QString& bg, const QString& border) {
+  if (!label) {
+    return;
+  }
+  label->setText(QStringLiteral("<span style='font-size:%1px;color:#657386;font-weight:600;'>%2</span><br/><span style='font-size:%3px;color:%4;font-weight:800;'>%5</span>")
+                     .arg(UiStyle::FontMiniPx())
+                     .arg(title.toHtmlEscaped())
+                     .arg(UiStyle::FontBasePx())
+                     .arg(color)
+                     .arg(value.toHtmlEscaped()));
+  label->setMinimumHeight(58);
+  label->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
+  label->setStyleSheet(QStringLiteral(
+      "QLabel { background:%1; border:1px solid %2; border-radius:12px; padding:9px 11px; }")
+                           .arg(bg, border));
+}
+
+void CommandCenterWidget::SetConnectionOverview(bool online, const QString& detail) {
+  SetOverviewPill(connection_overview_label_, tr("连接"),
+                  online ? detail : tr("等待连接"),
+                  online ? QStringLiteral("#176b3a") : QStringLiteral("#657386"),
+                  online ? QStringLiteral("#eef9f2") : QStringLiteral("#f6f8fb"),
+                  online ? QStringLiteral("#b9e2c8") : QStringLiteral("#dce4ef"));
+}
+
+void CommandCenterWidget::SetDiagnosticOverview(int total, int abnormal, int worstLevel) {
+  QString color = QStringLiteral("#657386");
+  QString bg = QStringLiteral("#f6f8fb");
+  QString border = QStringLiteral("#dce4ef");
+  QString value = total == 0 ? tr("暂无数据") : tr("%1 异常 / %2").arg(abnormal).arg(total);
+  if (total > 0 && abnormal == 0) {
+    color = QStringLiteral("#176b3a");
+    bg = QStringLiteral("#eef9f2");
+    border = QStringLiteral("#b9e2c8");
+    value = tr("全部正常");
+  } else if (worstLevel == 1) {
+    color = QStringLiteral("#8a5a00");
+    bg = QStringLiteral("#fff7e6");
+    border = QStringLiteral("#f4d28b");
+  } else if (worstLevel == 2 || worstLevel == 3) {
+    color = QStringLiteral("#b3261e");
+    bg = QStringLiteral("#fff1f0");
+    border = QStringLiteral("#f3b8b3");
+  }
+  SetOverviewPill(diagnostic_overview_label_, tr("诊断"), value, color, bg, border);
 }
 
 void CommandCenterWidget::SetStatusSummary(const QString& text, const QString& detail) {
