@@ -161,42 +161,25 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   bottom_layout->addWidget(add_robot_pos_btn_);
 
   QToolButton* set_big_btn_ = new QToolButton();
-  set_big_btn_->setIcon(QIcon(":/images/big.svg"));
-  set_big_btn_->setIconSize(QSize(25, 25));
-  set_big_btn_->setToolTip("放大");
+  set_big_btn_->setIcon(QIcon(":/icons/tabler/zoom-in.svg"));
+  set_big_btn_->setToolTip("放大地图视图");
   set_big_btn_->setCursor(Qt::PointingHandCursor);
-  set_big_btn_->setStyleSheet(
-      "QToolButton {"
-      "   border: none;"
-      "   background-color: transparent;"
-      "}");
   bottom_layout->addWidget(set_big_btn_);
   QToolButton* set_small_btn_ = new QToolButton();
-  set_small_btn_->setIcon(QIcon(":/images/scale.svg"));
-  set_small_btn_->setIconSize(QSize(25, 25));
-  set_small_btn_->setToolTip("缩小");
+  set_small_btn_->setIcon(QIcon(":/icons/tabler/zoom-out.svg"));
+  set_small_btn_->setToolTip("缩小地图视图");
   set_small_btn_->setCursor(Qt::PointingHandCursor);
-  set_small_btn_->setStyleSheet(
-      "QToolButton {"
-      "   border: none;"
-      "   background-color: transparent;"
-      "}");
   bottom_layout->addWidget(set_small_btn_);
   QToolButton* fit_map_btn = new QToolButton();
-  fit_map_btn->setIcon(QIcon(":/images/classes/FocusCamera.svg"));
-  fit_map_btn->setToolTip("地图适配视图");
+  fit_map_btn->setIcon(QIcon(":/icons/tabler/focus-centered.svg"));
+  fit_map_btn->setToolTip("适配并居中地图");
   fit_map_btn->setCursor(Qt::PointingHandCursor);
   bottom_layout->addWidget(fit_map_btn);
-  QToolButton* rotate_left_btn = new QToolButton();
-  rotate_left_btn->setIcon(QIcon(":/images/rotate.svg"));
-  rotate_left_btn->setToolTip("地图视图左转90°");
-  rotate_left_btn->setCursor(Qt::PointingHandCursor);
-  bottom_layout->addWidget(rotate_left_btn);
-  QToolButton* rotate_right_btn = new QToolButton();
-  rotate_right_btn->setIcon(QIcon(":/images/rotate_cam.svg"));
-  rotate_right_btn->setToolTip("地图视图右转90°");
-  rotate_right_btn->setCursor(Qt::PointingHandCursor);
-  bottom_layout->addWidget(rotate_right_btn);
+  QToolButton* rotate_view_btn = new QToolButton();
+  rotate_view_btn->setIcon(QIcon(":/images/rotate.svg"));
+  rotate_view_btn->setToolTip("地图视图顺时针旋转90°");
+  rotate_view_btn->setCursor(Qt::PointingHandCursor);
+  bottom_layout->addWidget(rotate_view_btn);
   focus_robot_btn_ = new QToolButton();
   focus_robot_btn_->setIcon(QIcon(":/images/unfocus.svg"));
   focus_robot_btn_->setToolTip("聚焦机器人");
@@ -209,7 +192,7 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   focus_robot_btn_->setIconSize(QSize(25, 25));
   bottom_layout->addWidget(focus_robot_btn_);
 
-  for (auto* button : {add_robot_pos_btn_, set_big_btn_, set_small_btn_, fit_map_btn, rotate_left_btn, rotate_right_btn, focus_robot_btn_}) {
+  for (auto* button : {add_robot_pos_btn_, set_big_btn_, set_small_btn_, fit_map_btn, rotate_view_btn, focus_robot_btn_}) {
     button->setFixedSize(36, 36);
     button->setIconSize(QSize(22, 22));
     button->setStyleSheet(UiStyle::GhostIconButtonStyleSheet());
@@ -253,14 +236,13 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       focus_robot_btn_->setIcon(QIcon(":/images/unfocus.svg"));
     }
   });
-  connect(set_big_btn_, &QToolButton::clicked,
-          [this]() { display_manager_ptr_->SetScaleBig(); });
-  connect(set_small_btn_, &QToolButton::clicked, [this]() {
-    display_manager_ptr_->SetScaleSmall();
+  connect(set_big_btn_, &QToolButton::clicked, [this]() { ZoomMapView(1.20); });
+  connect(set_small_btn_, &QToolButton::clicked, [this]() { ZoomMapView(1.0 / 1.20); });
+  connect(fit_map_btn, &QToolButton::clicked, [this]() {
+    user_map_view_adjusted_ = false;
+    FitMapToBestView();
   });
-  connect(fit_map_btn, &QToolButton::clicked, this, &ViewManager::FitMapToBestView);
-  connect(rotate_left_btn, &QToolButton::clicked, [this]() { RotateMapView(-90.0); });
-  connect(rotate_right_btn, &QToolButton::clicked, [this]() { RotateMapView(90.0); });
+  connect(rotate_view_btn, &QToolButton::clicked, [this]() { RotateMapView(90.0); });
 
   // 连接工具大小滑动条信号
   connect(tool_size_slider_, &QSlider::valueChanged, [this](int value) {
@@ -325,7 +307,10 @@ void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
       map_empty_state_->setVisible(map->GetMapImage().isNull());
       connect(map, &DisplayOccMap::signalMapReady, this, [this]() {
         map_empty_state_->hide();
-        QTimer::singleShot(0, this, &ViewManager::FitMapToBestView);
+        if (!map_auto_fit_done_ && !user_map_view_adjusted_) {
+          map_auto_fit_done_ = true;
+          QTimer::singleShot(0, this, &ViewManager::FitMapToBestView);
+        }
       });
     }
     connect(display_manager_ptr_, &DisplayManager::signalEditMapModeChanged,
@@ -340,12 +325,31 @@ void ViewManager::FitMapToBestView() {
     return;
   }
   resetTransform();
-  const QRectF bounds = map->sceneBoundingRect().adjusted(-40, -40, 40, 40);
+  const QRectF bounds = map->sceneBoundingRect().adjusted(-80, -80, 80, 80);
   if (!bounds.isEmpty()) {
     fitInView(bounds, Qt::KeepAspectRatio);
     rotate(map_view_rotation_deg_);
     centerOn(bounds.center());
   }
+}
+
+void ViewManager::ApplyMapViewScale(qreal factor, QGraphicsView::ViewportAnchor anchor) {
+  if (factor <= 0.0) {
+    return;
+  }
+  const qreal current_scale = std::hypot(transform().m11(), transform().m21());
+  const qreal target_scale = current_scale * factor;
+  if (target_scale < 0.03 || target_scale > 30.0) {
+    return;
+  }
+  user_map_view_adjusted_ = true;
+  setTransformationAnchor(anchor);
+  scale(factor, factor);
+  setTransformationAnchor(QGraphicsView::AnchorViewCenter);
+}
+
+void ViewManager::ZoomMapView(qreal factor) {
+  ApplyMapViewScale(factor);
 }
 
 void ViewManager::RotateMapView(qreal delta_degrees) {
@@ -356,7 +360,10 @@ void ViewManager::RotateMapView(qreal delta_degrees) {
   while (map_view_rotation_deg_ <= -360.0) {
     map_view_rotation_deg_ += 360.0;
   }
-  FitMapToBestView();
+  user_map_view_adjusted_ = true;
+  const QPointF center = mapToScene(viewport()->rect().center());
+  rotate(delta_degrees);
+  centerOn(center);
 }
 
 void ViewManager::ShowAddRobotPosButton(bool show) {
@@ -424,6 +431,16 @@ void ViewManager::mousePressEvent(QMouseEvent* event) {
     return;
   }
   QGraphicsView::mousePressEvent(event);
+}
+
+void ViewManager::wheelEvent(QWheelEvent* event) {
+  if (event->angleDelta().y() == 0) {
+    QGraphicsView::wheelEvent(event);
+    return;
+  }
+  ApplyMapViewScale(event->angleDelta().y() > 0 ? 1.12 : 1.0 / 1.12,
+                    QGraphicsView::AnchorUnderMouse);
+  event->accept();
 }
 
 void ViewManager::mouseMoveEvent(QMouseEvent* event) {

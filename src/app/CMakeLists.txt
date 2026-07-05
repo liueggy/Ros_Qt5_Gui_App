@@ -46,6 +46,17 @@ INSTALL_RPATH "$ORIGIN:$ORIGIN/lib"
 install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION bin)
 
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
+  add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${CMAKE_SOURCE_DIR}/assets"
+      "${CMAKE_BINARY_DIR}/assets"
+    COMMENT "Copying app assets to build directory")
+  install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets"
+          DESTINATION bin)
+endif()
+
 if(UNIX)
   file(GLOB LINUX_BIN_FILES "${CMAKE_SOURCE_DIR}/install/linux/bin/*")
   foreach(BIN_FILE ${LINUX_BIN_FILES})
