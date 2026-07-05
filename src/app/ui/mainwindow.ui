@@ -37,11 +37,6 @@
     <string>速度控制</string>
    </property>
   </action>
-  <action name="speed_dashboard">
-   <property name="text">
-    <string>速度仪表盘</string>
-   </property>
-  </action>
  </widget>
  <resources>
   <include location="../resource/images.qrc"/>

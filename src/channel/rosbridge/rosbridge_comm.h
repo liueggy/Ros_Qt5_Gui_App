@@ -48,6 +48,7 @@ class RosbridgeComm : public VirtualChannelNode {
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
     return connection_error_msg_;
   }
+  bool IsReconnecting() const override { return reconnecting_; }
 
  private:
   void MapCallback(const ROSBridgePublishMsg& msg);

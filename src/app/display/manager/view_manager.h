@@ -26,6 +26,7 @@ class ViewManager : public QGraphicsView {
   QSlider *tool_size_slider_;
   QLabel *tool_size_value_label_;
   QWidget *map_empty_state_;
+  qreal map_view_rotation_deg_{-90.0};
 
  public:
   ViewManager(QWidget *parent = nullptr);
@@ -37,6 +38,8 @@ class ViewManager : public QGraphicsView {
   void UpdateRobotPos(const QString &text);
   void UpdateToolSizeSlider(double range);
   void ShowToolSizeSlider(bool show);
+  void FitMapToBestView();
+  void RotateMapView(qreal delta_degrees);
 
  private slots:
   void OnEditMapModeChanged(MapEditMode mode);

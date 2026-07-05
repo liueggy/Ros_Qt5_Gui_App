@@ -15,6 +15,7 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QMenu>
 #include <QPoint>
 #include <QProgressBar>
 #include <QPushButton>
@@ -23,6 +24,7 @@
 #include <QTableWidget>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QTreeView>
 #include <QWidgetAction>
 #include <memory>
@@ -36,7 +38,6 @@
 #include "core/framework/framework.h"
 #include "display/manager/display_manager.h"
 #include "point_type.h"
-#include "widgets/dashboard.h"
 #include "widgets/nav_goal_table_view.h"
 #include "widgets/ratio_layouted_frame.h"
 #include "widgets/set_pose_widget.h"
@@ -76,7 +77,6 @@ class MainWindow : public QMainWindow {
   QWidgetAction* PerspectiveListAction = nullptr;
   ChannelManager channel_manager_;
   Ui::MainWindow* ui;
-  DashBoard* speed_dash_board_;
   ads::CDockManager* dock_manager_;
   ads::CDockAreaWidget* StatusDockArea;
   ads::CDockWidget* TimelineDockWidget;
@@ -106,9 +106,14 @@ class MainWindow : public QMainWindow {
   QLabel* inspection_status_label_{nullptr};
   QPlainTextEdit* inspection_result_view_{nullptr};
   QPushButton* inspection_start_button_{nullptr};
+  QLabel* auto_relocalization_status_label_{nullptr};
+  QPushButton* auto_relocalization_start_button_{nullptr};
+  QPushButton* auto_relocalization_cancel_button_{nullptr};
+  QString last_inspection_log_line_;
   QLabel* label_dht11_temp_{nullptr};
   QLabel* label_dht11_humi_{nullptr};
   QLabel* label_voice_cmd_{nullptr};
+  QTimer* connection_monitor_timer_{nullptr};
   QTimer* voice_clear_timer_{nullptr};
   int connection_attempt_id_{0};
   bool channel_subscriptions_registered_{false};
@@ -135,6 +140,11 @@ class MainWindow : public QMainWindow {
   void ConfigureFloatingOnOpen(ads::CDockWidget* dock, const QSize& preferred_size);
   void CenterFloatingDock(ads::CDockWidget* dock, const QSize& preferred_size);
   void UpdateMaximizeButton();
+  QMenu* CreateRelocationMenu(QToolButton* reloc_button);
+  void StartAutoRelocalization();
+  void CancelAutoRelocalization();
+  void UpdateAutoRelocalizationStatus(const std::string& json);
+  void AppendInspectionLogLine(const QString& line);
   void BeginRelocation(const RobotPose& pose);
   void CheckRelocationProgress(const RobotPose& pose);
   bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);

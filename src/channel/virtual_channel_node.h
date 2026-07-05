@@ -54,6 +54,7 @@ class VirtualChannelNode {
   virtual bool IsConnecting() const { return false; }
   virtual bool IsConnectionFailed() const { return false; }
   virtual std::string GetConnectionError() const { return ""; }
+  virtual bool IsReconnecting() const { return false; }
 
  public:
   int loop_rate_{30};

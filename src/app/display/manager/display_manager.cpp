@@ -291,6 +291,26 @@ RobotPose DisplayManager::scenePoseToMap(const RobotPose &pose) {
 VirtualDisplay *DisplayManager::GetDisplay(const std::string &name) {
   return FactoryDisplay::Instance()->GetDisplay(name);
 }
+void DisplayManager::ApplyConfiguredDisplayVisibility() {
+  const std::string default_visible_displays[] = {
+      DISPLAY_MAP, DISPLAY_ROBOT, DISPLAY_LASER, DISPLAY_ROBOT_FOOTPRINT,
+      DISPLAY_GLOBAL_PATH, DISPLAY_LOCAL_PATH, DISPLAY_GLOBAL_COST_MAP,
+      DISPLAY_LOCAL_COST_MAP};
+  for (const auto& display_name : default_visible_displays) {
+    auto* display = GetDisplay(display_name);
+    if (display) {
+      display->setVisible(true);
+    }
+  }
+
+  for (const auto& display_config :
+       Config::ConfigManager::Instance()->GetRootConfig().display_config) {
+    auto* display = GetDisplay(display_config.display_name);
+    if (display) {
+      display->setVisible(display_config.visible);
+    }
+  }
+}
 void DisplayManager::StartReloc() {
   if (!set_reloc_pose_widget_->isVisible()) {
     SetRelocMode(true);
@@ -326,9 +346,9 @@ TopologyMap DisplayManager::GetTopologyMap() {
 
 void DisplayManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   PUBLISH(MSG_ID_TOPOLOGY_MAP, topology_map);
-  QTimer::singleShot(500, [this]() {
-    SetScaleBig();
-  });
+  if (graphics_view_ptr_) {
+    QTimer::singleShot(500, graphics_view_ptr_, &ViewManager::FitMapToBestView);
+  }
 }
 void DisplayManager::SetScaleBig() {
   FactoryDisplay::Instance()

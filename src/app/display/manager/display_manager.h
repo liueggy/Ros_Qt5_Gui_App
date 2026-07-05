@@ -94,6 +94,7 @@ class DisplayManager : public QObject {
   ~DisplayManager();
   QGraphicsView *GetViewPtr() { return graphics_view_ptr_; }
   VirtualDisplay *GetDisplay(const std::string &name);
+  void ApplyConfiguredDisplayVisibility();
   QPointF wordPose2Scene(const QPointF &point);
   RobotPose wordPose2Scene(const RobotPose &point);
   QPointF wordPose2Map(const QPointF &pose);

@@ -1,5 +1,6 @@
 #include "display/manager/view_manager.h"
 #include <QDebug>
+#include <QTimer>
 #include <cmath>
 #include <iostream>
 #include "display/display_occ_map.h"
@@ -181,6 +182,21 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       "   background-color: transparent;"
       "}");
   bottom_layout->addWidget(set_small_btn_);
+  QToolButton* fit_map_btn = new QToolButton();
+  fit_map_btn->setIcon(QIcon(":/images/classes/FocusCamera.svg"));
+  fit_map_btn->setToolTip("地图适配视图");
+  fit_map_btn->setCursor(Qt::PointingHandCursor);
+  bottom_layout->addWidget(fit_map_btn);
+  QToolButton* rotate_left_btn = new QToolButton();
+  rotate_left_btn->setIcon(QIcon(":/images/rotate.svg"));
+  rotate_left_btn->setToolTip("地图视图左转90°");
+  rotate_left_btn->setCursor(Qt::PointingHandCursor);
+  bottom_layout->addWidget(rotate_left_btn);
+  QToolButton* rotate_right_btn = new QToolButton();
+  rotate_right_btn->setIcon(QIcon(":/images/rotate_cam.svg"));
+  rotate_right_btn->setToolTip("地图视图右转90°");
+  rotate_right_btn->setCursor(Qt::PointingHandCursor);
+  bottom_layout->addWidget(rotate_right_btn);
   focus_robot_btn_ = new QToolButton();
   focus_robot_btn_->setIcon(QIcon(":/images/unfocus.svg"));
   focus_robot_btn_->setToolTip("聚焦机器人");
@@ -193,7 +209,7 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   focus_robot_btn_->setIconSize(QSize(25, 25));
   bottom_layout->addWidget(focus_robot_btn_);
 
-  for (auto* button : {add_robot_pos_btn_, set_big_btn_, set_small_btn_, focus_robot_btn_}) {
+  for (auto* button : {add_robot_pos_btn_, set_big_btn_, set_small_btn_, fit_map_btn, rotate_left_btn, rotate_right_btn, focus_robot_btn_}) {
     button->setFixedSize(36, 36);
     button->setIconSize(QSize(22, 22));
     button->setStyleSheet(UiStyle::GhostIconButtonStyleSheet());
@@ -242,6 +258,9 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   connect(set_small_btn_, &QToolButton::clicked, [this]() {
     display_manager_ptr_->SetScaleSmall();
   });
+  connect(fit_map_btn, &QToolButton::clicked, this, &ViewManager::FitMapToBestView);
+  connect(rotate_left_btn, &QToolButton::clicked, [this]() { RotateMapView(-90.0); });
+  connect(rotate_right_btn, &QToolButton::clicked, [this]() { RotateMapView(90.0); });
 
   // 连接工具大小滑动条信号
   connect(tool_size_slider_, &QSlider::valueChanged, [this](int value) {
@@ -306,11 +325,38 @@ void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
       map_empty_state_->setVisible(map->GetMapImage().isNull());
       connect(map, &DisplayOccMap::signalMapReady, this, [this]() {
         map_empty_state_->hide();
+        QTimer::singleShot(0, this, &ViewManager::FitMapToBestView);
       });
     }
     connect(display_manager_ptr_, &DisplayManager::signalEditMapModeChanged,
             this, &ViewManager::OnEditMapModeChanged);
   }
+}
+
+
+void ViewManager::FitMapToBestView() {
+  auto* map = FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP);
+  if (!map || map->boundingRect().isEmpty()) {
+    return;
+  }
+  resetTransform();
+  const QRectF bounds = map->sceneBoundingRect().adjusted(-40, -40, 40, 40);
+  if (!bounds.isEmpty()) {
+    fitInView(bounds, Qt::KeepAspectRatio);
+    rotate(map_view_rotation_deg_);
+    centerOn(bounds.center());
+  }
+}
+
+void ViewManager::RotateMapView(qreal delta_degrees) {
+  map_view_rotation_deg_ += delta_degrees;
+  while (map_view_rotation_deg_ >= 360.0) {
+    map_view_rotation_deg_ -= 360.0;
+  }
+  while (map_view_rotation_deg_ <= -360.0) {
+    map_view_rotation_deg_ += 360.0;
+  }
+  FitMapToBestView();
 }
 
 void ViewManager::ShowAddRobotPosButton(bool show) {

@@ -22,9 +22,12 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QMenu>
 #include <QScreen>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QStyle>
 #include <QUuid>
 #include <cmath>
@@ -56,7 +59,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 9;
+constexpr int kUiLayoutVersion = 10;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -93,20 +96,100 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   return pill;
 }
 
+
+QString JsonValueToText(const nlohmann::json& value) {
+  if (value.is_string()) {
+    return QString::fromStdString(value.get<std::string>());
+  }
+  if (value.is_number_float()) {
+    return QString::number(value.get<double>(), 'f', 2);
+  }
+  if (value.is_number_integer()) {
+    return QString::number(value.get<long long>());
+  }
+  if (value.is_boolean()) {
+    return value.get<bool>() ? QStringLiteral("是") : QStringLiteral("否");
+  }
+  return QString();
+}
+
+QString SummarizeKimiObject(const nlohmann::json& api) {
+  if (!api.is_object()) {
+    return QString();
+  }
+  if (api.contains("summary") && api["summary"].is_string()) {
+    return QString::fromStdString(api.value("summary", std::string()));
+  }
+  const auto result = api.contains("result") && api["result"].is_object() ? api["result"] : api;
+  QStringList summaries;
+  auto append_meter = [&summaries](const QString& name, const nlohmann::json& meter) {
+    if (!meter.is_object()) {
+      return;
+    }
+    QStringList fields;
+    const QString value = meter.contains("value") ? JsonValueToText(meter["value"])
+                         : meter.contains("reading") ? JsonValueToText(meter["reading"])
+                         : meter.contains("读数") ? JsonValueToText(meter["读数"])
+                         : QString();
+    const QString unit = meter.contains("unit") ? JsonValueToText(meter["unit"])
+                       : meter.contains("单位") ? JsonValueToText(meter["单位"])
+                       : QString();
+    if (!value.isEmpty()) {
+      fields << (unit.isEmpty() ? value : value + unit);
+    }
+    if (meter.contains("status")) {
+      fields << JsonValueToText(meter["status"]);
+    } else if (meter.contains("状态")) {
+      fields << JsonValueToText(meter["状态"]);
+    }
+    if (meter.contains("confidence") && meter["confidence"].is_number()) {
+      fields << QStringLiteral("置信度%1").arg(meter["confidence"].get<double>(), 0, 'f', 2);
+    }
+    if (!fields.isEmpty()) {
+      summaries << QStringLiteral("%1: %2").arg(name, fields.join(QStringLiteral("/")));
+    }
+  };
+  append_meter(QStringLiteral("水表"), result.value("water_meter", nlohmann::json::object()));
+  append_meter(QStringLiteral("压力表"), result.value("pressure_gauge", nlohmann::json::object()));
+  if (result.contains("readings") && result["readings"].is_array()) {
+    for (const auto& reading : result["readings"]) {
+      if (!reading.is_object()) {
+        continue;
+      }
+      const QString type = QString::fromStdString(
+          reading.value("type", reading.value("class_name", std::string("读数"))));
+      const QString value = reading.contains("value") ? JsonValueToText(reading["value"])
+                          : reading.contains("reading") ? JsonValueToText(reading["reading"])
+                          : QString();
+      const QString unit = reading.contains("unit") ? JsonValueToText(reading["unit"]) : QString();
+      if (!value.isEmpty()) {
+        summaries << QStringLiteral("%1: %2%3").arg(type, value, unit);
+      }
+    }
+  }
+  if (!summaries.isEmpty()) {
+    return summaries.join(QStringLiteral("；"));
+  }
+  if (api.contains("message")) {
+    return JsonValueToText(api["message"]);
+  }
+  return QString();
+}
+
 QString InspectionStageText(const std::string& stage) {
   static const std::map<std::string, QString> kStageText = {
       {"ready", QStringLiteral("待命")},
       {"home_recorded", QStringLiteral("已记录起点")},
       {"waiting_move_base", QStringLiteral("等待导航")},
-      {"navigating", QStringLiteral("导航中")},
-      {"search_settling", QStringLiteral("静止识别中")},
+      {"navigating", QStringLiteral("前往目标点")},
+      {"search_settling", QStringLiteral("到达后识别")},
       {"searching_target", QStringLiteral("正在搜索目标")},
-      {"search_rotating", QStringLiteral("步进旋转搜索")},
+      {"search_rotating", QStringLiteral("90°步进旋转寻找")},
       {"search_paused", QStringLiteral("暂停判定目标")},
       {"target_confirmed", QStringLiteral("目标已确认")},
       {"target_skipped", QStringLiteral("未找到目标，跳过本点")},
-      {"kimi_running", QStringLiteral("Kimi 读数中")},
-      {"kimi_complete", QStringLiteral("Kimi 分析完成")},
+      {"kimi_running", QStringLiteral("AI视觉分析")},
+      {"kimi_complete", QStringLiteral("AI分析完成")},
       {"returning_home", QStringLiteral("正在返航")},
       {"complete", QStringLiteral("巡检完成")},
       {"cancelled", QStringLiteral("已取消")},
@@ -211,8 +294,9 @@ QString FormatInspectionResult(const std::string& json_text) {
               kimi.value("ok", false) ? QStringLiteral("完成") : QStringLiteral("未完成"));
           const auto api = kimi.contains("api") ? kimi["api"] : kimi.contains("result") ? kimi["result"]
                                                                                         : nlohmann::json();
-          if (api.is_object() && api.contains("summary")) {
-            point_parts << QString::fromStdString(api.value("summary", std::string()));
+          const QString kimi_summary = SummarizeKimiObject(api);
+          if (!kimi_summary.isEmpty()) {
+            point_parts << QStringLiteral("结果:%1").arg(kimi_summary);
           } else if (kimi.contains("error")) {
             point_parts << QStringLiteral("Kimi错误:%1").arg(
                 QString::fromStdString(kimi.value("error", std::string())));
@@ -328,6 +412,29 @@ bool MainWindow::openChannel() {
       });
     }
 
+    // 启动周期性连接监控，检测小车失联/自动重连
+    if (connection_monitor_timer_) {
+      connection_monitor_timer_->stop();
+    }
+    connection_monitor_timer_ = new QTimer(this);
+    connection_monitor_timer_->setObjectName(QStringLiteral("connectionMonitor"));
+    connect(connection_monitor_timer_, &QTimer::timeout, this, [this, attempt_id]() {
+      if (attempt_id != connection_attempt_id_) return;
+      auto* ch = channel_manager_.GetChannel();
+      if (!ch) {
+        display_config_widget_->SetConnectionState(false, false, tr("连接已断开，可在小车启动后重新连接。"));
+        return;
+      }
+      if (ch->IsConnectionFailed()) {
+        display_config_widget_->SetConnectionState(false, false, tr("小车已失联，正在尝试重连…"));
+      } else if (ch->IsReconnecting()) {
+        display_config_widget_->SetConnectionState(false, true, tr("正在重连小车…"));
+      } else if (!ch->IsConnecting()) {
+        display_config_widget_->SetConnectionState(true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+      }
+    });
+    connection_monitor_timer_->start(2000);
+
     return true;
   }
   if (display_config_widget_) {
@@ -385,7 +492,8 @@ void MainWindow::registerChannel() {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (command_center_widget_) {
         command_center_widget_->SetRelocalizationStatus(json_str);
-      } }, Qt::QueuedConnection);
+      }
+      UpdateAutoRelocalizationStatus(json_str); }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE(MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
@@ -436,13 +544,17 @@ void MainWindow::registerChannel() {
     if (!inspection_status_label_) {
       return;
     }
-    QMetaObject::invokeMethod(this, [this, json_str]() { inspection_status_label_->setText(FormatInspectionStatus(json_str)); }, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(this, [this, json_str]() {
+      const QString line = FormatInspectionStatus(json_str);
+      inspection_status_label_->setText(line);
+      AppendInspectionLogLine(line);
+    }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE(MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (inspection_result_view_) {
-        inspection_result_view_->setPlainText(FormatInspectionResult(json_str));
+        AppendInspectionLogLine(FormatInspectionResult(json_str));
       }
       if (inspection_start_button_) {
         inspection_start_button_->setText(QStringLiteral("开始任务链"));
@@ -490,6 +602,9 @@ void MainWindow::SlotRecvImage(const std::string& location, std::shared_ptr<cv::
 void MainWindow::closeChannel() {
   ++connection_attempt_id_;
   channel_manager_.CloseChannel();
+  if (connection_monitor_timer_) {
+    connection_monitor_timer_->stop();
+  }
   if (display_config_widget_) {
     display_config_widget_->SetConnectionState(
         false, false, tr("连接已断开，可在小车启动后重新连接。"));
@@ -567,6 +682,8 @@ void MainWindow::setupUi() {
   reloc_btn->setIcon(icon4);
   reloc_btn->setText("重定位");
   reloc_btn->setIconSize(QSize(24, 24));
+  reloc_btn->setPopupMode(QToolButton::InstantPopup);
+  reloc_btn->setMenu(CreateRelocationMenu(reloc_btn));
   horizontalLayout_tools->addWidget(reloc_btn);
 
   QIcon icon5;
@@ -901,18 +1018,6 @@ void MainWindow::setupUi() {
                                    SpeedCtrlDockWidget, settings_dock_area_);
   ui->menuView->addAction(SpeedCtrlDockWidget->toggleViewAction());
 
-  //////////////////////////////////////////////////////////速度仪表盘
-  ads::CDockWidget* DashBoardDockWidget = new ads::CDockWidget("速度仪表盘");
-  QWidget* speed_dashboard_widget = new QWidget();
-  DashBoardDockWidget->setWidget(speed_dashboard_widget);
-  ConfigureDockWidget(DashBoardDockWidget, QSize(300, 220), QSize(360, 260));
-  speed_dash_board_ = new DashBoard(speed_dashboard_widget);
-  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
-                               DashBoardDockWidget, center_docker_area_);
-  DashBoardDockWidget->toggleView(false);
-  ConfigureFloatingOnOpen(DashBoardDockWidget, QSize(720, 520));
-  ui->menuView->addAction(DashBoardDockWidget->toggleViewAction());
-
   /////////////////////////////////////////////////////////导航任务列表
   QWidget* task_list_widget = new QWidget();
   nav_goal_table_view_ = new NavGoalTableView();
@@ -960,18 +1065,19 @@ void MainWindow::setupUi() {
   inspection_status_card->setStyleSheet(QStringLiteral(
       "QFrame { background:#f8fbff; border:1px solid #dce6f2; border-radius:12px; }"
       "QLabel { background:transparent; border:none; color:#334155; }"
-      "QPlainTextEdit { background:#ffffff; border:1px solid #dce6f2; border-radius:10px; padding:8px; }"));
+      "QPlainTextEdit { background:#0f172a; color:#e5eefb; border:1px solid #1e293b; "
+      "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }"));
   auto* inspection_status_layout = new QVBoxLayout(inspection_status_card);
   inspection_status_layout->setContentsMargins(12, 10, 12, 12);
   inspection_status_layout->setSpacing(8);
-  auto* inspection_title = new QLabel(QStringLiteral("巡检执行"));
+  auto* inspection_title = new QLabel(QStringLiteral("巡检实时反馈"));
   inspection_title->setStyleSheet(QStringLiteral("font-weight:700; color:#0f172a;"));
   inspection_status_label_ = new QLabel(QStringLiteral("待命。添加点位后点击开始任务链。"));
   inspection_status_label_->setWordWrap(true);
   inspection_result_view_ = new QPlainTextEdit();
   inspection_result_view_->setReadOnly(true);
-  inspection_result_view_->setPlaceholderText(QStringLiteral("巡检结果将在这里显示。"));
-  inspection_result_view_->setFixedHeight(110);
+  inspection_result_view_->setPlaceholderText(QStringLiteral("前往目标点 → 到达识别 → 旋转寻找 → AI视觉分析 → 返回状态"));
+  inspection_result_view_->setFixedHeight(150);
   inspection_status_layout->addWidget(inspection_title);
   inspection_status_layout->addWidget(inspection_status_label_);
   inspection_status_layout->addWidget(inspection_result_view_);
@@ -1043,8 +1149,10 @@ void MainWindow::setupUi() {
               if (inspection_status_label_) {
                 inspection_status_label_->setText(QStringLiteral("已发送任务链，等待小车响应…"));
               }
+              last_inspection_log_line_.clear();
               if (inspection_result_view_) {
                 inspection_result_view_->clear();
+                AppendInspectionLogLine(QStringLiteral("已发送任务链，等待小车响应…"));
               }
               PUBLISH(MSG_ID_INSPECTION_REQUEST, request);
             } else {
@@ -1118,21 +1226,6 @@ void MainWindow::setupUi() {
             PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
           });
   // ui相关
-  connect(reloc_btn, &QToolButton::clicked,
-          [this]() {
-            auto map = display_manager_->GetOccupancyMap();
-            if (map.Rows() <= 0 || map.Cols() <= 0) {
-              QMessageBox::warning(
-                  this, tr("无法重定位"),
-                  tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
-              return;
-            }
-            statusBar()->showMessage(
-                tr("重定位仅在静态地图 + AMCL 模式有效。请在地图上选择位置和朝向。"),
-                6000);
-            display_manager_->StartReloc();
-          });
-
   connect(re_save_map_btn, &QToolButton::clicked,
           this, &MainWindow::SaveMapToLocalAndRobot);
   connect(save_map_btn, &QToolButton::clicked,
@@ -1457,14 +1550,7 @@ void MainWindow::RestoreState() {
   UpdateMaximizeButton();
 }
 void MainWindow::updateOdomInfo(RobotState state) {
-  speed_dash_board_->set_speed(abs(state.vx * 100));
-  if (state.vx > 0.001) {
-    speed_dash_board_->set_gear(DashBoard::kGear_D);
-  } else if (state.vx < -0.001) {
-    speed_dash_board_->set_gear(DashBoard::kGear_R);
-  } else {
-    speed_dash_board_->set_gear(DashBoard::kGear_N);
-  }
+  Q_UNUSED(state);
 }
 void MainWindow::SlotSetBatteryStatus(double percent, double voltage) {
   Q_UNUSED(voltage);
@@ -1521,6 +1607,149 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
     }
   }
   return true;
+}
+
+
+QMenu* MainWindow::CreateRelocationMenu(QToolButton* reloc_button) {
+  auto* menu = new QMenu(reloc_button);
+  auto* action = new QWidgetAction(menu);
+  auto* panel = new QFrame(menu);
+  panel->setMinimumWidth(330);
+  panel->setStyleSheet(QStringLiteral(
+      "QFrame { background:#ffffff; border:1px solid #dce6f2; border-radius:14px; }"
+      "QLabel { background:transparent; border:none; color:#334155; }"));
+  auto* layout = new QVBoxLayout(panel);
+  layout->setContentsMargins(14, 12, 14, 14);
+  layout->setSpacing(10);
+  auto* title = new QLabel(tr("重定位"), panel);
+  title->setStyleSheet(QStringLiteral("font-weight:800; color:#0f172a; font-size:15px;"));
+  auto* hint = new QLabel(tr("手动：在地图点选位置和朝向。自动：用当前激光轮廓匹配静态地图，5秒超时。"), panel);
+  hint->setWordWrap(true);
+  hint->setStyleSheet(QStringLiteral("color:#64748b;"));
+  auto* manual_btn = new QPushButton(tr("手动重定位"), panel);
+  auto_relocalization_start_button_ = new QPushButton(tr("自动定位（激光匹配）"), panel);
+  auto_relocalization_cancel_button_ = new QPushButton(tr("取消自动定位"), panel);
+  auto_relocalization_status_label_ = new QLabel(tr("自动定位：待命"), panel);
+  auto_relocalization_status_label_->setWordWrap(true);
+  auto_relocalization_status_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; "
+      "border-radius:10px; padding:8px 10px; }"));
+  manual_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  auto_relocalization_start_button_->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  auto_relocalization_cancel_button_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
+  auto_relocalization_cancel_button_->setEnabled(false);
+  layout->addWidget(title);
+  layout->addWidget(hint);
+  layout->addWidget(manual_btn);
+  layout->addWidget(auto_relocalization_start_button_);
+  layout->addWidget(auto_relocalization_cancel_button_);
+  layout->addWidget(auto_relocalization_status_label_);
+  action->setDefaultWidget(panel);
+  menu->addAction(action);
+  connect(manual_btn, &QPushButton::clicked, this, [this, menu]() {
+    auto map = display_manager_->GetOccupancyMap();
+    if (map.Rows() <= 0 || map.Cols() <= 0) {
+      QMessageBox::warning(this, tr("无法重定位"),
+                           tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
+      return;
+    }
+    statusBar()->showMessage(
+        tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
+    display_manager_->StartReloc();
+    menu->hide();
+  });
+  connect(auto_relocalization_start_button_, &QPushButton::clicked,
+          this, &MainWindow::StartAutoRelocalization);
+  connect(auto_relocalization_cancel_button_, &QPushButton::clicked,
+          this, &MainWindow::CancelAutoRelocalization);
+  return menu;
+}
+
+void MainWindow::StartAutoRelocalization() {
+  auto map = display_manager_->GetOccupancyMap();
+  if (map.Rows() <= 0 || map.Cols() <= 0) {
+    QMessageBox::warning(this, tr("无法自动定位"),
+                         tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
+    return;
+  }
+  nlohmann::json request;
+  request["command"] = "start";
+  request["method"] = "scan_match";
+  request["timeout"] = 5.0;
+  PUBLISH(MSG_ID_RELOCALIZATION_REQUEST, request.dump());
+  if (auto_relocalization_start_button_) {
+    auto_relocalization_start_button_->setEnabled(false);
+  }
+  if (auto_relocalization_cancel_button_) {
+    auto_relocalization_cancel_button_->setEnabled(true);
+  }
+  if (auto_relocalization_status_label_) {
+    auto_relocalization_status_label_->setText(tr("自动定位：正在匹配当前雷达轮廓…"));
+  }
+  statusBar()->showMessage(tr("自动定位已开始：5秒内尝试让激光点与地图边缘重合。"), 5000);
+}
+
+void MainWindow::CancelAutoRelocalization() {
+  nlohmann::json request;
+  request["command"] = "cancel";
+  PUBLISH(MSG_ID_RELOCALIZATION_CANCEL, request.dump());
+  if (auto_relocalization_cancel_button_) {
+    auto_relocalization_cancel_button_->setEnabled(false);
+  }
+  if (auto_relocalization_status_label_) {
+    auto_relocalization_status_label_->setText(tr("自动定位：正在取消…"));
+  }
+}
+
+void MainWindow::UpdateAutoRelocalizationStatus(const std::string& json) {
+  try {
+    const auto data = nlohmann::json::parse(json);
+    const std::string state_std = data.value("state", std::string());
+    const QString state = QString::fromStdString(state_std);
+    QString message = QString::fromStdString(data.value("message", state_std));
+    if (data.contains("score") && data["score"].is_number()) {
+      message += tr(" · 匹配度 %1").arg(data["score"].get<double>(), 0, 'f', 2);
+    }
+    const bool running = state == QStringLiteral("preflight_ok") ||
+                         state == QStringLiteral("matching") ||
+                         state == QStringLiteral("applying") ||
+                         state == QStringLiteral("rotating") ||
+                         state == QStringLiteral("converging") ||
+                         state == QStringLiteral("busy") ||
+                         state == QStringLiteral("cancelling");
+    if (auto_relocalization_status_label_) {
+      auto_relocalization_status_label_->setText(tr("自动定位：%1").arg(message));
+    }
+    if (auto_relocalization_start_button_) {
+      auto_relocalization_start_button_->setEnabled(!running);
+    }
+    if (auto_relocalization_cancel_button_) {
+      auto_relocalization_cancel_button_->setEnabled(running && state != QStringLiteral("cancelling"));
+    }
+    if (state == QStringLiteral("success")) {
+      statusBar()->showMessage(tr("自动定位成功：激光点已按匹配结果刷新到地图位置。"), 6000);
+    } else if (state == QStringLiteral("failed") || state == QStringLiteral("timeout") ||
+               state == QStringLiteral("rejected")) {
+      statusBar()->showMessage(tr("自动定位失败：可改用手动重定位微调。"), 7000);
+    }
+  } catch (const std::exception&) {
+    if (auto_relocalization_status_label_) {
+      auto_relocalization_status_label_->setText(tr("自动定位：状态数据无效"));
+    }
+  }
+}
+
+void MainWindow::AppendInspectionLogLine(const QString& line) {
+  if (!inspection_result_view_) {
+    return;
+  }
+  const QString compact = line.trimmed();
+  if (compact.isEmpty() || compact == last_inspection_log_line_) {
+    return;
+  }
+  last_inspection_log_line_ = compact;
+  const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss"));
+  inspection_result_view_->appendPlainText(QStringLiteral("[%1] %2").arg(ts, compact));
 }
 
 void MainWindow::BeginRelocation(const RobotPose& pose) {

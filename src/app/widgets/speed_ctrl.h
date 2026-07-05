@@ -338,6 +338,7 @@ class SpeedCtrlWidget : public QWidget {
     checkBox_use_all_->setMinimumSize(QSize(78, 36));
     checkBox_use_all_->setMaximumSize(QSize(90, 36));
     checkBox_use_all_->setText("全向");
+    checkBox_use_all_->setChecked(true);
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
     checkBox_use_all_->setStyleSheet(QStringLiteral(
                                          "QCheckBox { color:#536277; font-size:%1px; font-weight:700; spacing:6px; "
@@ -472,7 +473,7 @@ class SpeedCtrlWidget : public QWidget {
     horizontalSlider_raw_->setObjectName(
         QString::fromUtf8("horizontalSlider_raw_"));
     horizontalSlider_raw_->setMaximum(90);
-    horizontalSlider_raw_->setValue(30);
+    horizontalSlider_raw_->setValue(50);
     horizontalSlider_raw_->setOrientation(Qt::Horizontal);
 
     horizontalLayout_20->addWidget(horizontalSlider_raw_);
@@ -509,7 +510,7 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("horizontalSlider_linear_"));
     horizontalSlider_linear_->setMaximum(100);
     horizontalSlider_linear_->setSingleStep(1);
-    horizontalSlider_linear_->setValue(20);
+    horizontalSlider_linear_->setValue(25);
     horizontalSlider_linear_->setOrientation(Qt::Horizontal);
 
     horizontalLayout_21->addWidget(horizontalSlider_linear_);

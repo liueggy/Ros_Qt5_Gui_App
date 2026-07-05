@@ -166,32 +166,11 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_row->addWidget(refresh_maps_btn);
   nav_layout->addLayout(nav_row);
 
-  auto* relocalization_row = new QHBoxLayout();
-  relocalization_row->setSpacing(10);
-  relocalization_status_label_ = new QLabel(tr("自动重定位：待命"), nav_group);
-  relocalization_status_label_->setWordWrap(true);
-  relocalization_status_label_->setStyleSheet(QStringLiteral(
-                                                  "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
-                                                  "border-radius:9px; padding:8px 10px; font-size:%1px; }")
-                                                  .arg(UiStyle::FontSmallPx()));
-  relocalization_start_btn_ = new QPushButton(tr("一键自动重定位"), nav_group);
-  relocalization_cancel_btn_ = new QPushButton(tr("取消"), nav_group);
-  relocalization_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  relocalization_cancel_btn_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  relocalization_cancel_btn_->setEnabled(false);
-  relocalization_row->addWidget(relocalization_status_label_, 1);
-  relocalization_row->addWidget(relocalization_start_btn_);
-  relocalization_row->addWidget(relocalization_cancel_btn_);
-  nav_layout->addLayout(relocalization_row);
   root->addWidget(nav_group);
 
   connect(mapping_btn_, &QPushButton::clicked, this, &CommandCenterWidget::SwitchToMapping);
   connect(amcl_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartAmclNavigation);
   connect(refresh_maps_btn, &QPushButton::clicked, this, &CommandCenterWidget::RefreshMaps);
-  connect(relocalization_start_btn_, &QPushButton::clicked,
-          this, &CommandCenterWidget::StartAutoRelocalization);
-  connect(relocalization_cancel_btn_, &QPushButton::clicked,
-          this, &CommandCenterWidget::CancelAutoRelocalization);
 
   auto* status_group = new QFrame(this);
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -522,46 +501,10 @@ void CommandCenterWidget::SetRelocalizationStatus(const std::string& json) {
   if (object.contains(QStringLiteral("progress"))) {
     message += tr("（%1%）").arg(object.value(QStringLiteral("progress")).toInt());
   }
-  if (relocalization_status_label_) {
-    relocalization_status_label_->setText(tr("自动重定位：%1").arg(message));
-  }
-  const bool running = state == QStringLiteral("preflight_ok") ||
-                       state == QStringLiteral("rotating") ||
-                       state == QStringLiteral("converging") ||
-                       state == QStringLiteral("cancelling") ||
-                       state == QStringLiteral("busy");
-  if (relocalization_start_btn_) {
-    relocalization_start_btn_->setEnabled(!running);
-  }
-  if (relocalization_cancel_btn_) {
-    relocalization_cancel_btn_->setEnabled(running &&
-                                           state != QStringLiteral("cancelling"));
+  if (object.contains(QStringLiteral("score"))) {
+    message += tr(" · 匹配度 %1").arg(object.value(QStringLiteral("score")).toDouble(), 0, 'f', 2);
   }
   AppendLog(tr("重定位"), message);
-}
-
-void CommandCenterWidget::StartAutoRelocalization() {
-  QJsonObject request;
-  request.insert(QStringLiteral("command"), QStringLiteral("start"));
-  request.insert(QStringLiteral("timeout"), 35.0);
-  request.insert(QStringLiteral("angular_speed_deg"), 30.0);
-  const QByteArray payload = QJsonDocument(request).toJson(QJsonDocument::Compact);
-  PUBLISH(MSG_ID_RELOCALIZATION_REQUEST, payload.toStdString());
-  relocalization_start_btn_->setEnabled(false);
-  relocalization_cancel_btn_->setEnabled(true);
-  relocalization_status_label_->setText(tr("自动重定位：请求已发送"));
-  AppendLog(tr("重定位"), tr("已发送自动重定位请求"));
-}
-
-void CommandCenterWidget::CancelAutoRelocalization() {
-  const QByteArray payload =
-      QJsonDocument(QJsonObject{{QStringLiteral("command"),
-                                 QStringLiteral("cancel")}})
-          .toJson(QJsonDocument::Compact);
-  PUBLISH(MSG_ID_RELOCALIZATION_CANCEL, payload.toStdString());
-  relocalization_cancel_btn_->setEnabled(false);
-  relocalization_status_label_->setText(tr("自动重定位：正在取消"));
-  AppendLog(tr("重定位"), tr("已发送取消请求"));
 }
 
 void CommandCenterWidget::SetCameraStateText(const QString& text) {

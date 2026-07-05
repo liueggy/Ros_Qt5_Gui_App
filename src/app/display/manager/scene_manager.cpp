@@ -144,13 +144,10 @@ void SceneManager::SetEditMapMode(MapEditMode mode) {
   switch (mode) {
     case kStopEdit: {
       SetPointMoveEnable(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_LOCAL_COST_MAP)->setVisible(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_GLOBAL_COST_MAP)->setVisible(true);
       FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP)->SetMoveEnable(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_ROBOT)->setVisible(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_ROBOT_FOOTPRINT)->setVisible(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_GLOBAL_PATH)->setVisible(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_LOCAL_PATH)->setVisible(true);
+      if (display_manager_) {
+        display_manager_->ApplyConfiguredDisplayVisibility();
+      }
       view_ptr_->setCursor(Qt::ArrowCursor);
     } break;
     case kAddPoint: {
