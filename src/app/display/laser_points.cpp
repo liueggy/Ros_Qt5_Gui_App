@@ -61,17 +61,17 @@ void LaserPoints::drawLaser(QPainter *painter, int id,
     int r, g, b;
     Id2Color(id, r, g, b);
     color = QColor(r, g, b);
+    location_to_color_[id] = color;
   } else {
     color = location_to_color_[id];
   }
-  painter->setPen(QPen(color));
+  painter->setPen(QPen(color, 1.0));
+  QPolygonF poly;
+  poly.reserve(static_cast<int>(data.size()));
   for (auto one_point : data) {
-    QPointF point = QPointF(one_point.x, one_point.y);
-    // std::cout<<"point:"<<point.x() <<" "<<point.y()<<std::endl;
-    painter->drawPoint(point);
+    poly << QPointF(one_point.x, one_point.y);
   }
-  // std::cout << "paint laser" << std::endl;
-  // qDebug() << "boundRet:" << bounding_rect_ << std::endl;
+  painter->drawPoints(poly);
 }
 void LaserPoints::Id2Color(int id, int &R, int &G, int &B) {
 #define LocationColorJudge(JudegeId, color) \

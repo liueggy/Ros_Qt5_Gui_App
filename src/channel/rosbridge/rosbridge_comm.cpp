@@ -159,12 +159,18 @@ bool RosbridgeComm::Start() {
   rosbridge_port_ = std::stoi(config.channel_config.rosbridge_config.port.empty() ? "9090" : config.channel_config.rosbridge_config.port);
 
   connection_failed_ = false;
-  connecting_ = false;
+  connecting_ = true;
   {
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
     connection_error_msg_.clear();
   }
 
+  connection_thread_ = std::thread(&RosbridgeComm::ConnectAsync, this);
+  return true;
+}
+
+void RosbridgeComm::ConnectAsync() {
+  // TCP 预检: 快速判断网络是否可达
   if (!ProbeTcpEndpoint(rosbridge_ip_, rosbridge_port_,
                         std::chrono::milliseconds(1200))) {
     {
@@ -174,16 +180,11 @@ bool RosbridgeComm::Start() {
           std::to_string(rosbridge_port_);
     }
     connection_failed_ = true;
+    connecting_ = false;
     LOG_ERROR("ROSBridge TCP preflight failed; channel startup aborted.");
-    return false;
+    return;
   }
 
-  connecting_ = true;
-  ConnectAsync();
-  return init_flag_ && !connection_failed_;
-}
-
-void RosbridgeComm::ConnectAsync() {
   LOG_INFO("Starting ROSBridge connection...");
   // 创建WebSocket连接
   websocket_connection_ = std::make_unique<SocketWebSocketConnection>();
@@ -271,7 +272,7 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = std::move(global_cost_map_topic);
 
   // 激光扫描话题订阅
-  auto laser_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LASER), "sensor_msgs/LaserScan", 20);
+  auto laser_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LASER), "sensor_msgs/LaserScan", 5);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_LASER)] = laser_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { LaserCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LASER)] = std::move(laser_topic);
@@ -283,19 +284,19 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(MSG_ID_BATTERY_STATE)] = std::move(battery_topic);
 
   // 全局路径话题订阅
-  auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", 20);
+  auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", 5);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = global_path_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { PathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = std::move(global_path_topic);
 
   // 局部路径话题订阅
-  auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", 20);
+  auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", 5);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = local_path_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { LocalPathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = std::move(local_path_topic);
 
   // 里程计话题订阅
-  auto odom_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT), "nav_msgs/Odometry", 20);
+  auto odom_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT), "nav_msgs/Odometry", 5);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_ROBOT)] = odom_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { OdomCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_ROBOT)] = std::move(odom_topic);
@@ -392,7 +393,7 @@ void RosbridgeComm::ConnectAsync() {
                                ? "sensor_msgs/CompressedImage"
                                : "sensor_msgs/Image";
     auto image_topic = std::make_unique<ROSTopic>(*ros_bridge_, one_image_display.topic, msg_type, 1);
-    image_topic->SetThrottleRate(100);
+    image_topic->SetThrottleRate(150);
     std::string location = one_image_display.location;
     callback_handles_[one_image_display.topic] = image_topic->Subscribe(
         [this, location](const ROSBridgePublishMsg& msg) { ImageCallback(msg, location); });
@@ -400,13 +401,13 @@ void RosbridgeComm::ConnectAsync() {
   }
 
   // TF变换话题订阅
-  auto tf_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf", "tf2_msgs/TFMessage", 100);
+  auto tf_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf", "tf2_msgs/TFMessage", 10);
   callback_handles_["/tf"] = tf_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { TfCallback(msg); });
   subscribers_["/tf"] = std::move(tf_topic);
 
   // TF静态变换话题订阅
-  auto tf_static_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf_static", "tf2_msgs/TFMessage", 100);
+  auto tf_static_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf_static", "tf2_msgs/TFMessage", 5);
   callback_handles_["/tf_static"] = tf_static_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { TfCallback(msg); });
   subscribers_["/tf_static"] = std::move(tf_static_topic);
