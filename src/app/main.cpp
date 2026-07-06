@@ -16,15 +16,8 @@
 #include <QDir>
 #include <QFont>
 #include <QFontDatabase>
-#include <QLabel>
 #include <QLockFile>
 #include <QMessageBox>
-#include <QVideoWidget>
-#include <QUrl>
-#include <QMediaPlayer>
-#include <QMovie>
-#include <QPixmap>
-#include <QSplashScreen>
 #include <QThread>
 #include <QTimer>
 #include <csignal>
@@ -56,80 +49,6 @@ void ApplyApplicationFont(QApplication* app) {
   app->setFont(uiFont);
 }
 
-
-QString FindSplashAsset() {
-  const QStringList relative_paths = {
-      QStringLiteral("assets/splash/startup.mp4"),
-      QStringLiteral("../assets/splash/startup.mp4"),
-      QStringLiteral("assets/splash/startup.gif"),
-      QStringLiteral("../assets/splash/startup.gif"),
-  };
-  const QDir app_dir(QCoreApplication::applicationDirPath());
-  for (const auto& relative_path : relative_paths) {
-    const QString candidate = app_dir.filePath(relative_path);
-    if (QFileInfo::exists(candidate)) {
-      return candidate;
-    }
-  }
-  return QString();
-}
-
-void CenterSplashWindow(QWidget* splash) {
-  const QRect screen = QApplication::primaryScreen()
-                           ? QApplication::primaryScreen()->availableGeometry()
-                           : QRect(0, 0, 1280, 720);
-  splash->move(screen.center() - QPoint(splash->width() / 2, splash->height() / 2));
-}
-
-QWidget* CreateOptionalSplashWindow(QMovie** movie_out) {
-  if (movie_out) {
-    *movie_out = nullptr;
-  }
-  const QString resolved_path = FindSplashAsset();
-  if (resolved_path.isEmpty()) {
-    return nullptr;
-  }
-
-  auto* splash = new QWidget(nullptr, Qt::SplashScreen | Qt::FramelessWindowHint);
-  splash->setAttribute(Qt::WA_DeleteOnClose);
-  splash->setStyleSheet(QStringLiteral("background:#05070d;"));
-
-  if (resolved_path.endsWith(QStringLiteral(".mp4"), Qt::CaseInsensitive)) {
-    auto* video_widget = new QVideoWidget(splash);
-    video_widget->setGeometry(0, 0, 640, 360);
-    auto* player = new QMediaPlayer(splash);
-    player->setVideoOutput(video_widget);
-    player->setMedia(QUrl::fromLocalFile(resolved_path));
-    QObject::connect(splash, &QObject::destroyed, player, &QMediaPlayer::stop);
-    splash->resize(video_widget->size());
-    CenterSplashWindow(splash);
-    splash->show();
-    player->play();
-    return splash;
-  }
-
-  auto* label = new QLabel(splash);
-  auto* movie = new QMovie(resolved_path, QByteArray(), splash);
-  label->setMovie(movie);
-  QObject::connect(movie, &QMovie::frameChanged, splash, [splash, label, movie](int) {
-    const QSize frame_size = movie->currentPixmap().size();
-    if (frame_size.isValid() && splash->size() != frame_size) {
-      label->resize(frame_size);
-      splash->resize(frame_size);
-      CenterSplashWindow(splash);
-    }
-  });
-  label->setAlignment(Qt::AlignCenter);
-  label->resize(420, 260);
-  splash->resize(label->size());
-  CenterSplashWindow(splash);
-  movie->start();
-  splash->show();
-  if (movie_out) {
-    *movie_out = movie;
-  }
-  return splash;
-}
 
 }  // namespace
 static QApplication* g_app = nullptr;
@@ -165,13 +84,8 @@ int main(int argc, char* argv[]) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  QMovie* splash_movie = nullptr;
-  QWidget* splash_window = CreateOptionalSplashWindow(&splash_movie);
   MainWindow main_window;
   main_window.show();
-  if (splash_window) {
-    QTimer::singleShot(3000, splash_window, &QWidget::close);
-  }
   LOG_INFO("ros_qt5_gui_app init!");
   return a.exec();
 }
