@@ -649,6 +649,40 @@ void MainWindow::registerChannel() {
         if (!kimi_text.isEmpty()) {
           inspection_kimi_banner_->setText(QStringLiteral("🧠 AI分析结果：%1").arg(kimi_text));
           inspection_kimi_banner_->setVisible(true);
+          if (command_center_widget_) {
+            QString meter_type = QStringLiteral("水表");
+            QString meter_reading;
+            QString meter_status;
+            try {
+              const auto data = nlohmann::json::parse(json_str);
+              const auto pts = data.contains("points") ? data["points"]
+                             : data.contains("results") ? data["results"]
+                             : nlohmann::json::array();
+              if (pts.is_array()) {
+                for (const auto& point : pts) {
+                  if (point.contains("kimi") && point["kimi"].is_object()) {
+                    const auto kimi = point["kimi"];
+                    const auto api = kimi.contains("api") ? kimi["api"]
+                                   : kimi.contains("result") ? kimi["result"]
+                                   : nlohmann::json();
+                    const auto result = api.contains("result") && api["result"].is_object() ? api["result"] : api;
+                    if (result.contains("readings") && result["readings"].is_object()) {
+                      const auto& readings = result["readings"];
+                      if (readings.contains("water_meter") && readings["water_meter"].is_object()) {
+                        const auto& wm = readings["water_meter"];
+                        meter_reading = wm.contains("reading") ? JsonValueToText(wm["reading"])
+                                      : wm.contains("value") ? JsonValueToText(wm["value"])
+                                      : QString();
+                        meter_status = wm.contains("status") ? JsonValueToText(wm["status"]) : QString();
+                      }
+                    }
+                    break;
+                  }
+                }
+              }
+            } catch (const std::exception&) {}
+            command_center_widget_->SetCameraInspectionResult(meter_type, meter_reading, meter_status);
+          }
           if (inspection_status_card_) {
             const QString flashStyle = QStringLiteral(
                 "QFrame { background:#d1fae5; border:2px solid #10b981; border-radius:12px; }"
@@ -1865,6 +1899,14 @@ void MainWindow::AppendInspectionLogLine(const QString& line) {
     return;
   }
   last_inspection_log_line_ = compact;
+  static const int kMaxLogLines = 200;
+  if (inspection_result_view_->blockCount() > kMaxLogLines) {
+    QTextCursor cursor = inspection_result_view_->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor,
+                        inspection_result_view_->blockCount() - kMaxLogLines);
+    cursor.removeSelectedText();
+  }
   const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss"));
   inspection_result_view_->appendPlainText(QStringLiteral("[%1] %2").arg(ts, compact));
 }

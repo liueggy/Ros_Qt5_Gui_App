@@ -43,6 +43,7 @@ class CommandCenterWidget : public QWidget {
   void PublishJson(const QString& json);
   void AppendLog(const QString& prefix, const QString& text);
   void SetCameraStateText(const QString& text);
+  void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
   void SetNavigationModeText(const QString& mode);
   void UpdateMapChoices(const QJsonArray& maps);
   QString SelectedMapFile() const;
@@ -57,6 +58,7 @@ class CommandCenterWidget : public QWidget {
   QLabel* task_overview_label_{nullptr};
   QLabel* diagnostic_overview_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
+  QLabel* camera_inspection_label_{nullptr};
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};
   QLabel* nav_mode_label_{nullptr};

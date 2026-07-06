@@ -106,6 +106,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->addStretch();
   camera_header->addWidget(camera_state_label_);
   camera_layout->addLayout(camera_header);
+  camera_inspection_label_ = new QLabel(camera_group);
+  camera_inspection_label_->setAlignment(Qt::AlignCenter);
+  camera_inspection_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:#475569; background:#f1f5f9; border:1px solid #e2e8f0; "
+      "border-radius:6px; padding:5px 8px; font-size:12px; }"));
+  camera_inspection_label_->setVisible(false);
+  camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
   camera_row->setSpacing(10);
   auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
@@ -597,6 +604,35 @@ void CommandCenterWidget::SetRelocalizationStatus(const std::string& json) {
     message += tr(" · 匹配度 %1").arg(object.value(QStringLiteral("score")).toDouble(), 0, 'f', 2);
   }
   AppendLog(tr("重定位"), message);
+}
+
+void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
+                                             const QString& reading,
+                                             const QString& status) {
+  if (!camera_inspection_label_) {
+    return;
+  }
+  if (reading.isEmpty() && status.isEmpty()) {
+    camera_inspection_label_->setVisible(false);
+    return;
+  }
+  const bool abnormal = (status == QStringLiteral("异常") || status == QStringLiteral("abnormal"));
+  const QString color = abnormal ? QStringLiteral("#dc2626") : QStringLiteral("#16a34a");
+  const QString bg   = abnormal ? QStringLiteral("#fef2f2") : QStringLiteral("#f0fdf4");
+  const QString border = abnormal ? QStringLiteral("#fecaca") : QStringLiteral("#bbf7d0");
+  camera_inspection_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:%1; background:%2; border:1px solid %3; "
+      "border-radius:6px; padding:5px 10px; font-size:12px; font-weight:600; }")
+      .arg(color, bg, border));
+  QStringList parts;
+  if (!reading.isEmpty()) {
+    parts << QStringLiteral("%1: %2").arg(type, reading);
+  }
+  if (!status.isEmpty()) {
+    parts << status;
+  }
+  camera_inspection_label_->setText(parts.join(QStringLiteral("  ")));
+  camera_inspection_label_->setVisible(true);
 }
 
 void CommandCenterWidget::SetCameraStateText(const QString& text) {
