@@ -1,6 +1,6 @@
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
-find_package(Qt5 COMPONENTS Widgets Concurrent Svg REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Concurrent Svg Multimedia MultimediaWidgets REQUIRED)
 
 file(GLOB_RECURSE SOURCE_FILE CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR} *.cpp *.cc)
 list(FILTER SOURCE_FILE EXCLUDE REGEX "(.*_test\\.cpp$)|(.*_test\\.cc$)")
@@ -35,7 +35,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core Qt5::Concurrent Qt5::Svg dockwidget::dockwidget nlohmann_json common basic framework channel ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME} Qt5::Widgets Qt5::Core Qt5::Concurrent Qt5::Svg Qt5::Multimedia Qt5::MultimediaWidgets dockwidget::dockwidget nlohmann_json common basic framework channel ${OpenCV_LIBS})
 set_target_properties(${PROJECT_NAME} PROPERTIES
 RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"

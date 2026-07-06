@@ -476,7 +476,9 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
-    SendStatusRequest();
+    if (command != QStringLiteral("status")) {
+      SendStatusRequest();
+    }
     return;
   }
   AppendLog(tr("反馈"), QString::fromStdString(json));
@@ -496,9 +498,6 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   const QJsonObject camera = obj.value("camera").toObject();
   const bool camera_running = camera.value("running").toBool(false);
   SetCameraStateText(camera_running ? tr("摄像头在线") : tr("摄像头离线"));
-  if (camera_running) {
-    SetConnectionOverview(true, tr("摄像头在线"));
-  }
 
   const QStringList core_nodes = {
       QStringLiteral("/move_base"),

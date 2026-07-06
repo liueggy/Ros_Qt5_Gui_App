@@ -2,6 +2,7 @@
   "dependencies": [
     "qt5-base",
     "qt5-svg",
+    "qt5-multimedia",
     "boost-filesystem",
     "boost-thread",
     "boost-system",
