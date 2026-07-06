@@ -364,7 +364,7 @@ bool MainWindow::openChannel() {
     // 延迟检查连接状态（连接超时是5秒）
     auto* channel = channel_manager_.GetChannel();
     if (channel) {
-      QTimer::singleShot(6000, this, [this, attempt_id]() {
+      QTimer::singleShot(1800, this, [this, attempt_id]() {
         if (attempt_id != connection_attempt_id_) {
           return;
         }
@@ -372,6 +372,20 @@ bool MainWindow::openChannel() {
         if (!channel) {
           display_config_widget_->SetConnectionState(
               false, false, tr("未建立连接，可在小车启动后重试。"));
+          return;
+        }
+        if (channel->IsConnecting()) {
+          QTimer::singleShot(3000, this, [this, attempt_id]() {
+            if (attempt_id != connection_attempt_id_) return;
+            auto* retry_ch = channel_manager_.GetChannel();
+            if (!retry_ch || retry_ch->IsConnectionFailed()) {
+              display_config_widget_->SetConnectionState(
+                  false, false, tr("暂时无法连接 ROSBridge。请确认小车已启动且网络可达，然后重试。"));
+              return;
+            }
+            display_config_widget_->SetConnectionState(
+                true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+          });
           return;
         }
         if (channel->IsConnectionFailed()) {

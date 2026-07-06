@@ -15,11 +15,11 @@
 #include "msg/msg_info.h"
 #include <cmath>
 using namespace basic;
-#define circle_radius 20
+// Unused: #define circle_radius 20
 namespace {
 constexpr double kRobotFootprintWidthScenePx = 6.0;
 constexpr double kRobotFootprintHeightScenePx = 4.0;
-constexpr double kRobotIconFootprintFitRatio = 0.62;
+constexpr double kRobotIconFootprintFitRatio = 0.50;
 
 QRectF RobotIconRect() {
   const double size = std::min(kRobotFootprintWidthScenePx,
@@ -50,9 +50,7 @@ PointShape::PointShape(const ePointType &type, const std::string &display_type,
       setZValue(9);
       robot_svg_renderer_.load(QString("://images/target.svg"));
       deg_offset_ = 0;
-      SetBoundingRect(QRectF(0 - robot_svg_renderer_.defaultSize().width() / 2,
-                             0 - robot_svg_renderer_.defaultSize().height() / 2, robot_svg_renderer_.defaultSize().width(),
-                             robot_svg_renderer_.defaultSize().height()));
+      SetBoundingRect(RobotIconRect());
     } break;
   }
 }
@@ -136,10 +134,7 @@ void PointShape::drawNavGoal(QPainter *painter) {
   painter->save();
   
   // 绘制不旋转的目标SVG图标
-  QRectF targetRect(-robot_svg_renderer_.defaultSize().width() / 2, 
-                    -robot_svg_renderer_.defaultSize().height() / 2, 
-                    robot_svg_renderer_.defaultSize().width(), 
-                    robot_svg_renderer_.defaultSize().height());
+  const QRectF targetRect = RobotIconRect();
   robot_svg_renderer_.render(painter, targetRect);
   
   painter->restore();

@@ -19,6 +19,7 @@
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QStringList>
+#include <QTimer>
 #include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -471,13 +472,40 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
                        .arg(obj.value("message").toString())
                        .arg(command)
                        .arg(obj.value("target").toString());
+    if (success && command == QStringLiteral("kimi_inspection")) {
+      QStringList readings;
+      if (details.contains("reading")) {
+        readings << QStringLiteral("读数: %1").arg(details.value("reading").toVariant().toString());
+      } else if (details.contains("value")) {
+        readings << QStringLiteral("读数: %1").arg(details.value("value").toVariant().toString());
+      }
+      if (details.contains("status")) {
+        readings << QStringLiteral("状态: %1").arg(details.value("status").toString());
+      }
+      if (details.contains("confidence")) {
+        double conf = details.value("confidence").toDouble();
+        readings << QStringLiteral("置信度: %1").arg(conf, 0, 'f', 2);
+      }
+      if (details.contains("unit")) {
+        readings << QStringLiteral("单位: %1").arg(details.value("unit").toString());
+      }
+      if (details.contains("class_name")) {
+        readings << QStringLiteral("类别: %1").arg(details.value("class_name").toString());
+      }
+      if (details.contains("summary")) {
+        readings << QStringLiteral("摘要: %1").arg(details.value("summary").toString());
+      }
+      if (!readings.isEmpty()) {
+        text += "\n" + readings.join(QStringLiteral(" . "));
+      }
+    }
     if (!success && obj.contains("details")) {
       text += "  ";
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
-    if (command != QStringLiteral("status")) {
-      SendStatusRequest();
+    if (success && command == QStringLiteral("switch_nav_mode")) {
+      QTimer::singleShot(500, this, &CommandCenterWidget::SendStatusRequest);
     }
     return;
   }
