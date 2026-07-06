@@ -13,18 +13,19 @@
 #include "algorithm.h"
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
-#include <QSizeF>
 #include <cmath>
 using namespace basic;
 #define circle_radius 20
 namespace {
-constexpr double kRobotIconScale = 0.58;
+constexpr double kRobotFootprintWidthScenePx = 6.0;
+constexpr double kRobotFootprintHeightScenePx = 4.0;
+constexpr double kRobotIconFootprintFitRatio = 0.62;
 
-QRectF CenteredSvgRect(const QSvgRenderer& renderer, double scale) {
-  const QSizeF size(renderer.defaultSize());
-  const QSizeF scaled_size(size.width() * scale, size.height() * scale);
-  return QRectF(-scaled_size.width() / 2.0, -scaled_size.height() / 2.0,
-                scaled_size.width(), scaled_size.height());
+QRectF RobotIconRect() {
+  const double size = std::min(kRobotFootprintWidthScenePx,
+                               kRobotFootprintHeightScenePx) *
+                      kRobotIconFootprintFitRatio;
+  return QRectF(-size / 2.0, -size / 2.0, size, size);
 }
 }  // namespace
 namespace Display {
@@ -41,7 +42,7 @@ PointShape::PointShape(const ePointType &type, const std::string &display_type,
       setZValue(10);
       robot_svg_renderer_.load(QString("://images/robot.svg"));
       deg_offset_ = 45;
-      SetBoundingRect(CenteredSvgRect(robot_svg_renderer_, kRobotIconScale));
+      SetBoundingRect(RobotIconRect());
     } break;
     case kParticle: {
     } break;
@@ -123,7 +124,7 @@ void PointShape::drawRobot(QPainter *painter) {
   painter->setRenderHint(QPainter::Antialiasing, true);  // 设置反锯齿 反走样
   painter->save();
   painter->rotate(-rad2deg(robot_pose_.theta) - rad2deg(rotate_value_) + deg_offset_);
-  const QRectF targetRect = CenteredSvgRect(robot_svg_renderer_, kRobotIconScale);
+  const QRectF targetRect = RobotIconRect();
   // 将SVG图形渲染到QPainter
   robot_svg_renderer_.render(painter, targetRect);
   painter->restore();
