@@ -117,10 +117,17 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
   if (!api.is_object()) {
     return QString();
   }
-  if (api.contains("summary") && api["summary"].is_string()) {
-    return QString::fromStdString(api.value("summary", std::string()));
-  }
+  // api is the server response: {ok, task, result: {target, readings: {water_meter, pressure_gauge}, analysis, summary}}
   const auto result = api.contains("result") && api["result"].is_object() ? api["result"] : api;
+
+  // Prefer the summary string from the AI
+  if (result.contains("summary") && result["summary"].is_string()) {
+    const QString s = QString::fromStdString(result.value("summary", std::string()));
+    if (!s.isEmpty()) {
+      return s;
+    }
+  }
+
   QStringList summaries;
   auto append_meter = [&summaries](const QString& name, const nlohmann::json& meter) {
     if (!meter.is_object()) {
@@ -149,8 +156,25 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
       summaries << QStringLiteral("%1: %2").arg(name, fields.join(QStringLiteral("/")));
     }
   };
-  append_meter(QStringLiteral("水表"), result.value("water_meter", nlohmann::json::object()));
-  append_meter(QStringLiteral("压力表"), result.value("pressure_gauge", nlohmann::json::object()));
+
+  // readings is an object with water_meter / pressure_gauge keys
+  if (result.contains("readings") && result["readings"].is_object()) {
+    const auto& readings = result["readings"];
+    if (readings.contains("water_meter")) {
+      append_meter(QStringLiteral("水表"), readings["water_meter"]);
+    }
+    if (readings.contains("pressure_gauge")) {
+      append_meter(QStringLiteral("压力表"), readings["pressure_gauge"]);
+    }
+    // handle any other keys in readings
+    for (auto it = readings.begin(); it != readings.end(); ++it) {
+      if (it.key() != "water_meter" && it.key() != "pressure_gauge" && it.value().is_object()) {
+        append_meter(QString::fromStdString(it.key()), it.value());
+      }
+    }
+  }
+
+  // Fallback: readings as array (legacy format)
   if (result.contains("readings") && result["readings"].is_array()) {
     for (const auto& reading : result["readings"]) {
       if (!reading.is_object()) {
@@ -167,6 +191,18 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
       }
     }
   }
+
+  // Add analysis message if present
+  if (result.contains("analysis") && result["analysis"].is_object()) {
+    const auto& analysis = result["analysis"];
+    if (analysis.contains("message") && analysis["message"].is_string()) {
+      const QString msg = QString::fromStdString(analysis.value("message", std::string()));
+      if (!msg.isEmpty()) {
+        summaries << msg;
+      }
+    }
+  }
+
   if (!summaries.isEmpty()) {
     return summaries.join(QStringLiteral("；"));
   }
