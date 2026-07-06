@@ -23,6 +23,7 @@ class CommandCenterWidget : public QWidget {
   void SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot);
   void SetNetworkStatus(const std::string& json);
   void SetRelocalizationStatus(const std::string& json);
+  void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
 
  public slots:
   void AppendResponse(const std::string& json);
@@ -43,7 +44,6 @@ class CommandCenterWidget : public QWidget {
   void PublishJson(const QString& json);
   void AppendLog(const QString& prefix, const QString& text);
   void SetCameraStateText(const QString& text);
-  void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
   void SetNavigationModeText(const QString& mode);
   void UpdateMapChoices(const QJsonArray& maps);
   QString SelectedMapFile() const;
