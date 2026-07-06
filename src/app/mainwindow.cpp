@@ -113,12 +113,139 @@ QString JsonValueToText(const nlohmann::json& value) {
   return QString();
 }
 
+QString NormalizeInspectionStatus(const QString& raw) {
+  const QString s = raw.trimmed().toLower();
+  if (s == QStringLiteral("normal") || s == QStringLiteral("ok") ||
+      s == QStringLiteral("正常")) {
+    return QStringLiteral("正常");
+  }
+  if (s.isEmpty()) {
+    return QStringLiteral("未识别");
+  }
+  return QStringLiteral("异常");
+}
+
+QString MeterReadingText(const nlohmann::json& meter) {
+  if (!meter.is_object()) {
+    return QStringLiteral("未识别");
+  }
+  QString value = meter.contains("reading") ? JsonValueToText(meter["reading"])
+                : meter.contains("best_effort_reading") ? JsonValueToText(meter["best_effort_reading"])
+                : meter.contains("value") ? JsonValueToText(meter["value"])
+                : meter.contains("读数") ? JsonValueToText(meter["读数"])
+                : QString();
+  if (value.trimmed().isEmpty() || value.trimmed().toLower() == QStringLiteral("unknown")) {
+    return QStringLiteral("未识别");
+  }
+  const QString unit = meter.contains("unit") ? JsonValueToText(meter["unit"])
+                     : meter.contains("单位") ? JsonValueToText(meter["单位"])
+                     : QString();
+  return unit.isEmpty() ? value : value + unit;
+}
+
+struct AiInspectionDisplay {
+  bool valid{false};
+  QString waypoint;
+  QString targetName{QStringLiteral("水表")};
+  QString reading{QStringLiteral("未识别")};
+  QString status{QStringLiteral("未识别")};
+  QString conclusion;
+};
+
+nlohmann::json ExtractKimiApiObject(const nlohmann::json& kimi) {
+  if (!kimi.is_object()) {
+    return nlohmann::json::object();
+  }
+  if (kimi.contains("api") && kimi["api"].is_object()) {
+    return kimi["api"];
+  }
+  if (kimi.contains("result") && kimi["result"].is_object()) {
+    return kimi["result"];
+  }
+  return kimi;
+}
+
+nlohmann::json ExtractKimiResultObject(const nlohmann::json& api) {
+  if (!api.is_object()) {
+    return nlohmann::json::object();
+  }
+  if (api.contains("result") && api["result"].is_object()) {
+    return api["result"];
+  }
+  if (api.contains("api") && api["api"].is_object()) {
+    return ExtractKimiResultObject(api["api"]);
+  }
+  return api;
+}
+
+AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
+  AiInspectionDisplay display;
+  if (!point.is_object() || !point.contains("kimi") || !point["kimi"].is_object()) {
+    return display;
+  }
+  const auto wp = point.value("waypoint", nlohmann::json::object());
+  display.waypoint = QString::fromStdString(wp.value("id", std::string()));
+  const auto result = ExtractKimiResultObject(ExtractKimiApiObject(point["kimi"]));
+  if (!result.is_object()) {
+    return display;
+  }
+  if (result.contains("readings") && result["readings"].is_object()) {
+    const auto& readings = result["readings"];
+    if (readings.contains("water_meter") && readings["water_meter"].is_object()) {
+      const auto& wm = readings["water_meter"];
+      display.valid = true;
+      display.targetName = QStringLiteral("水表");
+      display.reading = MeterReadingText(wm);
+      display.status = NormalizeInspectionStatus(
+          wm.contains("status") ? JsonValueToText(wm["status"]) : QString());
+      if (display.reading == QStringLiteral("未识别")) {
+        display.status = QStringLiteral("异常");
+      }
+    } else if (readings.contains("pressure_gauge") && readings["pressure_gauge"].is_object()) {
+      const auto& pg = readings["pressure_gauge"];
+      display.valid = true;
+      display.targetName = QStringLiteral("压力表");
+      display.reading = MeterReadingText(pg);
+      display.status = NormalizeInspectionStatus(
+          pg.contains("status") ? JsonValueToText(pg["status"]) : QString());
+      if (display.reading == QStringLiteral("未识别")) {
+        display.status = QStringLiteral("异常");
+      }
+    }
+  }
+  if (result.contains("analysis") && result["analysis"].is_object() &&
+      result["analysis"].contains("message")) {
+    display.conclusion = JsonValueToText(result["analysis"]["message"]);
+  }
+  if (display.conclusion.isEmpty() && result.contains("summary")) {
+    display.conclusion = JsonValueToText(result["summary"]);
+  }
+  if (!display.valid && !display.conclusion.isEmpty()) {
+    display.valid = true;
+    display.status = QStringLiteral("异常");
+  }
+  return display;
+}
+
+QString FormatAiInspectionBanner(const AiInspectionDisplay& display) {
+  QStringList lines;
+  lines << QStringLiteral("AI分析结果");
+  if (!display.waypoint.isEmpty()) {
+    lines << QStringLiteral("点位：%1").arg(display.waypoint);
+  }
+  lines << QStringLiteral("%1：%2").arg(display.targetName, display.reading);
+  lines << QStringLiteral("状态：%1").arg(display.status);
+  if (!display.conclusion.isEmpty()) {
+    lines << QStringLiteral("结论：%1").arg(display.conclusion);
+  }
+  return lines.join(QStringLiteral("\n"));
+}
 QString SummarizeKimiObject(const nlohmann::json& api) {
   if (!api.is_object()) {
     return QString();
   }
   // api is the server response: {ok, task, result: {target, readings: {water_meter, pressure_gauge}, analysis, summary}}
-  const auto result = api.contains("result") && api["result"].is_object() ? api["result"] : api;
+  const auto result = ExtractKimiResultObject(api);
 
   // Prefer the summary string from the AI
   if (result.contains("summary") && result["summary"].is_string()) {
@@ -620,7 +747,7 @@ void MainWindow::registerChannel() {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
       }
       if (inspection_kimi_banner_) {
-        QString kimi_text;
+        AiInspectionDisplay ai_display;
         try {
           const auto data = nlohmann::json::parse(json_str);
           const auto pts = data.contains("points") ? data["points"]
@@ -628,60 +755,19 @@ void MainWindow::registerChannel() {
                          : nlohmann::json::array();
           if (pts.is_array()) {
             for (const auto& point : pts) {
-              if (point.contains("kimi") && point["kimi"].is_object()) {
-                const auto kimi = point["kimi"];
-                const auto api = kimi.contains("api") ? kimi["api"]
-                               : kimi.contains("result") ? kimi["result"]
-                               : nlohmann::json();
-                const QString summary = SummarizeKimiObject(api);
-                if (!summary.isEmpty()) {
-                  const auto wp = point.value("waypoint", nlohmann::json::object());
-                  const QString wp_id = QString::fromStdString(
-                      wp.value("id", std::string()));
-                  kimi_text = wp_id.isEmpty() ? summary
-                            : QStringLiteral("📍 %1 → %2").arg(wp_id, summary);
-                }
-                break;
+              const AiInspectionDisplay candidate = ExtractAiInspectionDisplay(point);
+              if (candidate.valid) {
+                ai_display = candidate;
               }
             }
           }
         } catch (const std::exception&) {}
-        if (!kimi_text.isEmpty()) {
-          inspection_kimi_banner_->setText(QStringLiteral("🧠 AI分析结果：%1").arg(kimi_text));
+        if (ai_display.valid) {
+          inspection_kimi_banner_->setText(FormatAiInspectionBanner(ai_display));
           inspection_kimi_banner_->setVisible(true);
           if (command_center_widget_) {
-            QString meter_type = QStringLiteral("水表");
-            QString meter_reading;
-            QString meter_status;
-            try {
-              const auto data = nlohmann::json::parse(json_str);
-              const auto pts = data.contains("points") ? data["points"]
-                             : data.contains("results") ? data["results"]
-                             : nlohmann::json::array();
-              if (pts.is_array()) {
-                for (const auto& point : pts) {
-                  if (point.contains("kimi") && point["kimi"].is_object()) {
-                    const auto kimi = point["kimi"];
-                    const auto api = kimi.contains("api") ? kimi["api"]
-                                   : kimi.contains("result") ? kimi["result"]
-                                   : nlohmann::json();
-                    const auto result = api.contains("result") && api["result"].is_object() ? api["result"] : api;
-                    if (result.contains("readings") && result["readings"].is_object()) {
-                      const auto& readings = result["readings"];
-                      if (readings.contains("water_meter") && readings["water_meter"].is_object()) {
-                        const auto& wm = readings["water_meter"];
-                        meter_reading = wm.contains("reading") ? JsonValueToText(wm["reading"])
-                                      : wm.contains("value") ? JsonValueToText(wm["value"])
-                                      : QString();
-                        meter_status = wm.contains("status") ? JsonValueToText(wm["status"]) : QString();
-                      }
-                    }
-                    break;
-                  }
-                }
-              }
-            } catch (const std::exception&) {}
-            command_center_widget_->SetCameraInspectionResult(meter_type, meter_reading, meter_status);
+            command_center_widget_->SetCameraInspectionResult(
+                ai_display.targetName, ai_display.reading, ai_display.status);
           }
           if (inspection_status_card_) {
             const QString flashStyle = QStringLiteral(

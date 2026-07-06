@@ -20,6 +20,7 @@
 #include <QSizePolicy>
 #include <QStringList>
 #include <QTimer>
+#include <QTextCursor>
 #include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -107,10 +108,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->addWidget(camera_state_label_);
   camera_layout->addLayout(camera_header);
   camera_inspection_label_ = new QLabel(camera_group);
-  camera_inspection_label_->setAlignment(Qt::AlignCenter);
+  camera_inspection_label_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
   camera_inspection_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#475569; background:#f1f5f9; border:1px solid #e2e8f0; "
-      "border-radius:6px; padding:5px 8px; font-size:12px; }"));
+      "QLabel { color:#475569; background:#f8fafc; border:1px solid #e2e8f0; "
+      "border-radius:8px; padding:8px 10px; font-size:12px; font-weight:600; }"));
   camera_inspection_label_->setVisible(false);
   camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
@@ -455,6 +456,14 @@ void CommandCenterWidget::AppendLog(const QString& prefix, const QString& text) 
   if (compact.size() > 96) {
     compact = compact.left(93) + QStringLiteral("...");
   }
+  static const int kMaxLogLines = 200;
+  if (log_edit_->blockCount() > kMaxLogLines) {
+    QTextCursor cursor = log_edit_->textCursor();
+    cursor.movePosition(QTextCursor::Start);
+    cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor,
+                        log_edit_->blockCount() - kMaxLogLines);
+    cursor.removeSelectedText();
+  }
   log_edit_->appendPlainText(QString("[%1] %2  %3").arg(ts, prefix, compact));
 }
 
@@ -616,22 +625,26 @@ void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
     camera_inspection_label_->setVisible(false);
     return;
   }
-  const bool abnormal = (status == QStringLiteral("异常") || status == QStringLiteral("abnormal"));
-  const QString color = abnormal ? QStringLiteral("#dc2626") : QStringLiteral("#16a34a");
-  const QString bg   = abnormal ? QStringLiteral("#fef2f2") : QStringLiteral("#f0fdf4");
-  const QString border = abnormal ? QStringLiteral("#fecaca") : QStringLiteral("#bbf7d0");
+  const bool normal = (status == QStringLiteral("正常"));
+  const bool abnormal = (status == QStringLiteral("异常"));
+  const QString color = normal ? QStringLiteral("#166534")
+                        : abnormal ? QStringLiteral("#b91c1c")
+                        : QStringLiteral("#92400e");
+  const QString bg = normal ? QStringLiteral("#f0fdf4")
+                     : abnormal ? QStringLiteral("#fef2f2")
+                     : QStringLiteral("#fffbeb");
+  const QString border = normal ? QStringLiteral("#bbf7d0")
+                         : abnormal ? QStringLiteral("#fecaca")
+                         : QStringLiteral("#fde68a");
   camera_inspection_label_->setStyleSheet(QStringLiteral(
       "QLabel { color:%1; background:%2; border:1px solid %3; "
-      "border-radius:6px; padding:5px 10px; font-size:12px; font-weight:600; }")
+      "border-radius:8px; padding:8px 10px; font-size:12px; font-weight:700; }")
       .arg(color, bg, border));
-  QStringList parts;
-  if (!reading.isEmpty()) {
-    parts << QStringLiteral("%1: %2").arg(type, reading);
-  }
-  if (!status.isEmpty()) {
-    parts << status;
-  }
-  camera_inspection_label_->setText(parts.join(QStringLiteral("  ")));
+  const QString displayReading = reading.isEmpty() ? QStringLiteral("未识别") : reading;
+  const QString displayStatus = status.isEmpty() ? QStringLiteral("未识别") : status;
+  camera_inspection_label_->setText(
+      QStringLiteral("AI识别结果\n%1：%2\n状态：%3")
+          .arg(type.isEmpty() ? QStringLiteral("水表") : type, displayReading, displayStatus));
   camera_inspection_label_->setVisible(true);
 }
 
