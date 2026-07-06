@@ -562,6 +562,19 @@ void MainWindow::registerChannel() {
       const QString line = FormatInspectionStatus(json_str);
       inspection_status_label_->setText(line);
       AppendInspectionLogLine(line);
+      bool is_kimi_stage = false;
+      try {
+        const auto data = nlohmann::json::parse(json_str);
+        const std::string stage = data.value("stage", data.value("state", std::string()));
+        is_kimi_stage = (stage == "kimi_running" || stage == "kimi_complete");
+      } catch (const std::exception&) {}
+      if (is_kimi_stage) {
+        inspection_status_label_->setStyleSheet(QStringLiteral(
+            "font-weight:700; color:#0f766e; background:#ccfbf1; "
+            "border:1px solid #5eead4; border-radius:6px; padding:6px 10px; font-size:13px;"));
+      } else {
+        inspection_status_label_->setStyleSheet(QStringLiteral(""));
+      }
     }, Qt::QueuedConnection);
   });
 
@@ -569,6 +582,52 @@ void MainWindow::registerChannel() {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (inspection_result_view_) {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
+      }
+      if (inspection_kimi_banner_) {
+        QString kimi_text;
+        try {
+          const auto data = nlohmann::json::parse(json_str);
+          const auto pts = data.contains("points") ? data["points"]
+                         : data.contains("results") ? data["results"]
+                         : nlohmann::json::array();
+          if (pts.is_array()) {
+            for (const auto& point : pts) {
+              if (point.contains("kimi") && point["kimi"].is_object()) {
+                const auto kimi = point["kimi"];
+                const auto api = kimi.contains("api") ? kimi["api"]
+                               : kimi.contains("result") ? kimi["result"]
+                               : nlohmann::json();
+                const QString summary = SummarizeKimiObject(api);
+                if (!summary.isEmpty()) {
+                  const auto wp = point.value("waypoint", nlohmann::json::object());
+                  const QString wp_id = QString::fromStdString(
+                      wp.value("id", std::string()));
+                  kimi_text = wp_id.isEmpty() ? summary
+                            : QStringLiteral("📍 %1 → %2").arg(wp_id, summary);
+                }
+                break;
+              }
+            }
+          }
+        } catch (const std::exception&) {}
+        if (!kimi_text.isEmpty()) {
+          inspection_kimi_banner_->setText(QStringLiteral("🧠 AI分析结果：%1").arg(kimi_text));
+          inspection_kimi_banner_->setVisible(true);
+          if (inspection_status_card_) {
+            const QString flashStyle = QStringLiteral(
+                "QFrame { background:#d1fae5; border:2px solid #10b981; border-radius:12px; }"
+                "QLabel { background:transparent; border:none; color:#334155; }"
+                "QPlainTextEdit { background:#0f172a; color:#e5eefb; border:1px solid #1e293b; "
+                "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }");
+            const QString normalStyle = inspection_status_card_->styleSheet();
+            inspection_status_card_->setStyleSheet(flashStyle);
+            QTimer::singleShot(1200, this, [this, normalStyle]() {
+              if (inspection_status_card_) {
+                inspection_status_card_->setStyleSheet(normalStyle);
+              }
+            });
+          }
+        }
       }
       if (inspection_start_button_) {
         inspection_start_button_->setText(QStringLiteral("开始任务链"));
@@ -1076,6 +1135,7 @@ void MainWindow::setupUi() {
   horizontalLayout_16->addWidget(btn_save_task_chain);
 
   auto* inspection_status_card = new QFrame();
+  inspection_status_card_ = inspection_status_card;
   inspection_status_card->setStyleSheet(QStringLiteral(
       "QFrame { background:#f8fbff; border:1px solid #dce6f2; border-radius:12px; }"
       "QLabel { background:transparent; border:none; color:#334155; }"
@@ -1095,6 +1155,13 @@ void MainWindow::setupUi() {
   inspection_status_layout->addWidget(inspection_title);
   inspection_status_layout->addWidget(inspection_status_label_);
   inspection_status_layout->addWidget(inspection_result_view_);
+  inspection_kimi_banner_ = new QLabel();
+  inspection_kimi_banner_->setWordWrap(true);
+  inspection_kimi_banner_->setStyleSheet(QStringLiteral(
+      "QLabel { background:#e7f7ed; color:#1a4d2e; border:1px solid #8fcf9f; "
+      "border-radius:8px; padding:10px 14px; font-size:14px; font-weight:700; }"));
+  inspection_kimi_banner_->setVisible(false);
+  inspection_status_layout->addWidget(inspection_kimi_banner_);
 
   horizontalLayout_13->addLayout(horizontalLayout_15);
   horizontalLayout_13->addLayout(horizontalLayout_14);

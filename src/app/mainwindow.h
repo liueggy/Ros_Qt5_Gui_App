@@ -106,6 +106,8 @@ class MainWindow : public QMainWindow {
   QLabel* inspection_status_label_{nullptr};
   QPlainTextEdit* inspection_result_view_{nullptr};
   QPushButton* inspection_start_button_{nullptr};
+  QFrame* inspection_status_card_{nullptr};
+  QLabel* inspection_kimi_banner_{nullptr};
   QLabel* auto_relocalization_status_label_{nullptr};
   QPushButton* auto_relocalization_start_button_{nullptr};
   QPushButton* auto_relocalization_cancel_button_{nullptr};
