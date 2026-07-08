@@ -75,7 +75,7 @@ void DisplayOccMap::ParseOccupyMap() {
     }
 
     // 回到主线程更新 QGraphicsItem 状态
-    QMetaObject::invokeMethod(this, [this, local_image, map_copy]() {
+    QMetaObject::invokeMethod(this, [this, local_image, map_copy]() mutable {
       map_image_ = local_image;
       SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
       update();
