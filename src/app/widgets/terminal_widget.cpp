@@ -58,13 +58,13 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   output_edit_->setReadOnly(false);
   output_edit_->setUndoRedoEnabled(false);
   output_edit_->setPlaceholderText(tr("在 $ 提示符后输入命令，按回车执行"));
-  output_edit_->setStyleSheet(
-      UiStyle::InputStyleSheet() +
-      QStringLiteral(
+  auto terminal_style = UiStyle::InputStyleSheet() +
+      QString(
           "QPlainTextEdit { background:%1; color:%2; border:1px solid %3;"
           " border-radius:8px; padding:10px; font-family:Consolas,\"Microsoft YaHei Mono\",monospace;"
           " font-size:%4px; selection-background-color:%5; }")
-          .arg(UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText, UiStyle::Palette::TerminalBorder, UiStyle::FontBasePx(), UiStyle::Palette::TerminalSelection));
+          .arg(UiStyle::Palette::TerminalBg).arg(UiStyle::Palette::TerminalText).arg(UiStyle::Palette::TerminalBorder).arg(UiStyle::FontBasePx()).arg(UiStyle::Palette::TerminalSelection);
+  output_edit_->setStyleSheet(terminal_style);
   root->addWidget(output_edit_, 1);
   output_edit_->installEventFilter(this);
   AddPrompt();
