@@ -52,20 +52,20 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
                      "DisplayConfigWidget QTableWidget { font-size:%2px; }"
                      "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
                      "DisplayConfigWidget QToolTip { background:%12; color:%3; border:1px solid %8; padding:6px 8px; border-radius:4px; }")
-                     .arg(UiStyle::Palette::Background,
-                          UiStyle::FontBasePx(),
-                          UiStyle::Palette::Text,
-                          UiStyle::FontTitlePx(),
-                          UiStyle::FontSmallPx(),
-                          UiStyle::Palette::TextSecondary,
-                          UiStyle::Palette::PrimaryLight,
-                          UiStyle::Palette::Border,
-                          UiStyle::Palette::TextSecondary,
-                          UiStyle::Palette::SurfaceHover,
-                          UiStyle::Palette::Border,
-                          UiStyle::Palette::Surface,
-                          UiStyle::Palette::BorderHover,
-                          UiStyle::Palette::Primary));
+                     .arg(UiStyle::Palette::Background)
+                     .arg(UiStyle::FontBasePx())
+                     .arg(UiStyle::Palette::Text)
+                     .arg(UiStyle::FontTitlePx())
+                     .arg(UiStyle::FontSmallPx())
+                     .arg(UiStyle::Palette::TextSecondary)
+                     .arg(UiStyle::Palette::PrimaryLight)
+                     .arg(UiStyle::Palette::Border)
+                     .arg(UiStyle::Palette::TextSecondary)
+                     .arg(UiStyle::Palette::SurfaceHover)
+                     .arg(UiStyle::Palette::Border)
+                     .arg(UiStyle::Palette::Surface)
+                     .arg(UiStyle::Palette::BorderHover)
+                     .arg(UiStyle::Palette::Primary));
 }
 
 QFrame* DisplayConfigWidget::CreateSettingsCard(QWidget* parent) {
