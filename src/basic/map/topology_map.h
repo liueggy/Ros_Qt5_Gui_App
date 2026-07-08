@@ -101,7 +101,7 @@ struct TopologyMap {
     // 删除相关的路径
     routes.erase(name);  // 删除以该点为起点的所有路径
     // 删除以该点为终点的所有路径
-    for (const auto &route : routes) {
+    for (auto &route : routes) {
       route.second.erase(name);
     }
   }
@@ -132,7 +132,7 @@ struct TopologyMap {
     }
     
     // 更新其他路径中的终点名称
-    for (const auto &route : routes) {
+    for (auto &route : routes) {
       if (route.second.count(old_name) > 0) {
         auto route_info = route.second[old_name];
         route.second.erase(old_name);
