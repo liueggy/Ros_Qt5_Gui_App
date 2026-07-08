@@ -1006,7 +1006,7 @@ void DisplayConfigWidget::LoadConfig() {
 
   bool has_front_camera = false;
   bool image_config_changed = false;
-  for (const auto& image_config : config.images) {
+  for (auto& image_config : config.images) {
     if (image_config.location == "front") {
       has_front_camera = true;
       if (image_config.topic.empty()) {
