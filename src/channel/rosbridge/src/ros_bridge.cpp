@@ -49,7 +49,7 @@ namespace rosbridge2cpp {
 		}
 
 		// Iterate over all registered callbacks for the given topic
-		for (const auto& topic_callback : registered_topic_callbacks_.find(incoming_topic_name)->second) {
+		for (auto& topic_callback : registered_topic_callbacks_.find(incoming_topic_name)->second) {
 			topic_callback.GetFunction()(data);
 		}
 		return;
