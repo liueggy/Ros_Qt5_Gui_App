@@ -43,7 +43,7 @@ struct TopologyMap {
         : x(_x), y(_y), theta(_theta), name(_name) {}
     PointInfo(basic::RobotPose pose, std::string _name)
         : x(pose.x), y(pose.y), theta(pose.theta), name(_name) {}
-    basic::RobotPose ToRobotPose() { return basic::RobotPose(x, y, theta); }
+    basic::RobotPose ToRobotPose() const { return basic::RobotPose(x, y, theta); }
     bool FromRobotPose(const basic::RobotPose &pose) {
       x = pose.x;
       y = pose.y;
