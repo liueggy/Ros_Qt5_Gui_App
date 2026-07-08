@@ -128,7 +128,7 @@ class SpeedCtrlWidget : public QWidget {
   }
 
   bool LookupMoveBinding(char key, MoveBinding* binding) const {
-    static constexpr std::array<MoveBinding, 16> kMoveBindings{{
+    static constexpr std::array<MoveBinding, 32> kMoveBindings{{
         {'i', 1, 0, 0}, {'o', 1, 0, -1}, {'j', 0, 0, 1},
         {'l', 0, 0, -1}, {'u', 1, 0, 1}, {',', -1, 0, 0},
         {'.', -1, 0, 1}, {'m', -1, 0, -1}, {'O', 1, -1, 0},

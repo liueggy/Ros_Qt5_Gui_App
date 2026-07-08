@@ -5,6 +5,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <memory>
+#include <QTimer>
 #include <vector>
 #include "map/topology_map.h"
 
