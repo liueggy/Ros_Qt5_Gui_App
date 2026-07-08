@@ -137,7 +137,7 @@ bool rclcomm::Start() {
                   return;
                 }
                 cv::Mat conversion_mat_;
-                cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
+                cv::cvtColor(img, conversion_mat_, cv::COLOR_BGR2RGB);
                 PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(location, std::make_shared<cv::Mat>(conversion_mat_))));
               }));
     } else {
@@ -156,14 +156,14 @@ bool rclcomm::Start() {
                     if (msg->encoding == "CV_8UC3") {
                       conversion_mat_ = cv_ptr->image;
                     } else if (msg->encoding == "8UC1") {
-                      cv::cvtColor(cv_ptr->image, conversion_mat_, CV_GRAY2RGB);
+                      cv::cvtColor(cv_ptr->image, conversion_mat_, cv::COLOR_GRAY2RGB);
                     } else if (msg->encoding == "16UC1" || msg->encoding == "32FC1") {
                       double min = 0;
                       double max = 10;
                       if (msg->encoding == "16UC1") max *= 1000;
                       cv::Mat img_scaled_8u;
                       cv::Mat(cv_ptr->image - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-                      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+                      cv::cvtColor(img_scaled_8u, conversion_mat_, cv::COLOR_GRAY2RGB);
                     } else {
                       LOG_ERROR("image from " << msg->encoding
                                               << " to 'rgb8' an exception was thrown (%s)"

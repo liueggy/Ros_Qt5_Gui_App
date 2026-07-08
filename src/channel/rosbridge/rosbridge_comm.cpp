@@ -128,7 +128,7 @@ RosbridgeComm::RosbridgeComm() {
 
   // 设置默认图像配置：确保 front 摄像头始终自动填充压缩图像话题
   bool has_front_camera = false;
-  for (const auto& image_config : config.images) {
+  for (auto& image_config : config.images) {
     if (image_config.location == "front") {
       has_front_camera = true;
       if (image_config.topic.empty()) {
@@ -1427,7 +1427,7 @@ void RosbridgeComm::ImageCallback(const ROSBridgePublishMsg& msg, const std::str
       return;
     }
     // imdecode 输出 BGR，转为 RGB
-    cv::cvtColor(conversion_mat_, conversion_mat_, CV_BGR2RGB);
+    cv::cvtColor(conversion_mat_, conversion_mat_, cv::COLOR_BGR2RGB);
   }
   // ── sensor_msgs/Image（原始像素数据）──
   else if (msg_json.HasMember("encoding")) {
@@ -1464,24 +1464,24 @@ void RosbridgeComm::ImageCallback(const ROSBridgePublishMsg& msg, const std::str
       conversion_mat_ = img.clone();
     } else if (encoding == "bgr8" || encoding == "BGR8" || encoding == "CV_8UC3") {
       cv::Mat img(height, width, CV_8UC3, image_data.data());
-      cv::cvtColor(img, conversion_mat_, CV_BGR2RGB);
+      cv::cvtColor(img, conversion_mat_, cv::COLOR_BGR2RGB);
     } else if (encoding == "8UC1" || encoding == "mono8") {
       cv::Mat img(height, width, CV_8UC1, image_data.data());
-      cv::cvtColor(img, conversion_mat_, CV_GRAY2RGB);
+      cv::cvtColor(img, conversion_mat_, cv::COLOR_GRAY2RGB);
     } else if (encoding == "16UC1") {
       cv::Mat img(height, width, CV_16UC1, image_data.data());
       double min = 0;
       double max = 10000;
       cv::Mat img_scaled_8u;
       cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+      cv::cvtColor(img_scaled_8u, conversion_mat_, cv::COLOR_GRAY2RGB);
     } else if (encoding == "32FC1") {
       cv::Mat img(height, width, CV_32FC1, image_data.data());
       double min = 0;
       double max = 10;
       cv::Mat img_scaled_8u;
       cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-      cv::cvtColor(img_scaled_8u, conversion_mat_, CV_GRAY2RGB);
+      cv::cvtColor(img_scaled_8u, conversion_mat_, cv::COLOR_GRAY2RGB);
     } else {
       LOG_ERROR("Unsupported image encoding: " << encoding);
       return;
