@@ -191,8 +191,8 @@ class OccupancyMap {
   int Rows() { return rows; }
   int Cols() { return cols; }
   //宽高地图坐标系下的长度
-  int width() { return cols; }
-  int height() { return rows; }
+  int width() const { return cols; }
+  int height() const { return rows; }
   //宽map坐标系下的长度
   int widthMap() { return static_cast<int>(cols * map_config.resolution); }
   int heightMap() { return static_cast<int>(rows * map_config.resolution); }
@@ -268,7 +268,7 @@ class OccupancyMap {
    * @return {*}
    */
   void xy2ScenePose(const double &word_x, const double &word_y, double &scene_x,
-                    double &scene_y) {
+                    double &scene_y) const {
     scene_x = (word_x - map_config.origin[0]) / map_config.resolution;
     scene_y = height() - (word_y - map_config.origin[1]) / map_config.resolution;
   }
@@ -282,7 +282,7 @@ class OccupancyMap {
    * @return {*}
    */
   void xy2OccPose(const double &word_x, const double &word_y, double &scene_x,
-                  double &scene_y) {
+                  double &scene_y) const {
     scene_y = (word_x - map_config.origin[0]) / map_config.resolution;
     scene_x = height() - (word_y - map_config.origin[1]) / map_config.resolution;
   }
