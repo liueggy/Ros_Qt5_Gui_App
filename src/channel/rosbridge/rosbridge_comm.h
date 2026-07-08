@@ -93,9 +93,9 @@ class RosbridgeComm : public VirtualChannelNode {
 
   basic::OccupancyMap occ_map_;
   basic::RobotPose m_currPose;
-  std::atomic_bool init_flag_{false};
-  std::atomic_bool connecting_{false};
-  std::atomic_bool connection_failed_{false};
+  std::atomic_bool init_flag_ = {false};
+  std::atomic_bool connecting_ = {false};
+  std::atomic_bool connection_failed_ = {false};
   std::string connection_error_msg_;
   mutable std::mutex error_msg_mutex_;
   std::thread connection_thread_;
@@ -106,10 +106,11 @@ class RosbridgeComm : public VirtualChannelNode {
   void ConnectAsync();
   void ReconnectLoop();
 
-  std::atomic_bool reconnect_enabled_{true};
-  std::atomic_bool reconnecting_{false};
+  std::atomic_bool reconnect_enabled_ = {true};
+  std::atomic_bool reconnecting_ = {false};
   std::thread reconnect_thread_;
   std::mutex reconnect_mutex_;
 };
 
 #endif  // ROSBRIDGE_COMM_H
+

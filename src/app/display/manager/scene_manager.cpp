@@ -43,9 +43,9 @@ void SceneManager::Init(QGraphicsView *view_ptr, DisplayManager *manager) {
   line_cursor_ = QCursor(line_image, 0, line_image.height());
   
   // 启用场景自动更新，这样TopologyLine的advance方法会被自动调用
-  QTimer *timer = new QTimer(this);
-  connect(timer, &QTimer::timeout, this, &SceneManager::advance);
-  timer->start(16); // 约60FPS更新
+  // 定时器不在 Init 时启动，仅在添加拓扑连线时按需启动（见 StartAdvanceTimer）
+  advance_timer_ = new QTimer(this);
+  connect(advance_timer_, &QTimer::timeout, this, &SceneManager::advance);
 }
 
 void SceneManager::OpenTopologyMap(const std::string &file_path) {
@@ -70,7 +70,7 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   }
   
   // 清理现有的拓扑连线
-  for (auto line : topology_lines_) {
+  for (const auto line : topology_lines_) {
     removeItem(line);
     delete line;
   }
@@ -90,7 +90,7 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   topology_map_ = topology_map;
 
   // 为每个点创建显示对象
-  for (auto &point : topology_map_.points) {
+  for (const auto &point : topology_map_.points) {
     auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
                                    point.name, 8, DISPLAY_MAP);
     
@@ -115,8 +115,7 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   emit signalTopologyMapUpdate(topology_map_);
 }
 void SceneManager::SetToolRange(double range) {
-  double clamped_range = qMax(0.5, qMin(50.0, range));
-  pen_range_ = clamped_range;
+  double clamped_range = (std::max)(0.5, (std::min)(50.0, range));
   pen_range_ = clamped_range;
   if (current_mode_ == MapEditMode::kErase) {
     setEraseCursor();
@@ -319,10 +318,10 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
       double range = pen_range_;
       float x = pose_map.x();
       float y = pose_map.y();
-      int left = qMax(0, static_cast<int>(x - range));
-      int top = qMax(0, static_cast<int>(y - range));
-      int right = qMin(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
-      int bottom = qMin(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
+      int left = (std::max)(0, static_cast<int>(x - range));
+      int top = (std::max)(0, static_cast<int>(y - range));
+      int right = (std::min)(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
+      int bottom = (std::min)(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
       erase_operation_region_ = QRectF(left, top, right - left + 1, bottom - top + 1);
       // 保存整个地图的初始状态（在操作前保存），以便后续可以提取任意区域
       erase_operation_saved_image_ = map_ptr->GetMapImage();
@@ -338,10 +337,10 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
       double range = pen_range_;
       float x = pose_map.x();
       float y = pose_map.y();
-      int left = qMax(0, static_cast<int>(x - range));
-      int top = qMax(0, static_cast<int>(y - range));
-      int right = qMin(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
-      int bottom = qMin(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
+      int left = (std::max)(0, static_cast<int>(x - range));
+      int top = (std::max)(0, static_cast<int>(y - range));
+      int right = (std::min)(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
+      int bottom = (std::min)(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
       draw_point_operation_region_ = QRectF(left, top, right - left + 1, bottom - top + 1);
       // 保存整个地图的初始状态（在操作前保存），以便后续可以提取任意区域
       draw_point_operation_saved_image_ = map_ptr->GetMapImage();
@@ -534,10 +533,10 @@ void SceneManager::mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent) {
         double range = pen_range_;
         float x = pose_map.x();
         float y = pose_map.y();
-        int left = qMax(0, static_cast<int>(x - range));
-        int top = qMax(0, static_cast<int>(y - range));
-        int right = qMin(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
-        int bottom = qMin(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
+        int left = (std::max)(0, static_cast<int>(x - range));
+        int top = (std::max)(0, static_cast<int>(y - range));
+        int right = (std::min)(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
+        int bottom = (std::min)(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
         QRectF new_region(left, top, right - left + 1, bottom - top + 1);
         // 扩展操作区域（不重新保存图像，因为图像已经被修改了）
         erase_operation_region_ = erase_operation_region_.united(new_region);
@@ -551,10 +550,10 @@ void SceneManager::mouseMoveEvent(QGraphicsSceneMouseEvent *mouseEvent) {
         double range = pen_range_;
         float x = pose_map.x();
         float y = pose_map.y();
-        int left = qMax(0, static_cast<int>(x - range));
-        int top = qMax(0, static_cast<int>(y - range));
-        int right = qMin(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
-        int bottom = qMin(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
+        int left = (std::max)(0, static_cast<int>(x - range));
+        int top = (std::max)(0, static_cast<int>(y - range));
+        int right = (std::min)(map_ptr->GetMapImage().width() - 1, static_cast<int>(x + range));
+        int bottom = (std::min)(map_ptr->GetMapImage().height() - 1, static_cast<int>(y + range));
         QRectF new_region(left, top, right - left + 1, bottom - top + 1);
         // 扩展操作区域（不重新保存图像，因为图像已经被修改了）
         draw_point_operation_region_ = draw_point_operation_region_.united(new_region);
@@ -603,7 +602,7 @@ void SceneManager::keyPressEvent(QKeyEvent *event) {
 void SceneManager::setEraseCursor() {
   auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   double scale_value = map_ptr->GetScaleValue();
-  int size_px = qMax(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
+  int size_px = (std::max)(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
   QPixmap pixmap(size_px, size_px);
   pixmap.fill(Qt::transparent);
   QPainter painter(&pixmap);
@@ -618,7 +617,7 @@ void SceneManager::setEraseCursor() {
 void SceneManager::setPenCursor() {
   auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   double scale_value = map_ptr->GetScaleValue();
-  int size_px = qMax(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
+  int size_px = (std::max)(14, static_cast<int>(qRound(pen_range_ * 2.0 * scale_value)));
   QPixmap pixmap(size_px, size_px);
   pixmap.fill(Qt::transparent);
   QPainter painter(&pixmap);
@@ -979,6 +978,9 @@ void SceneManager::blindTopologyRouteWidget(TopologyLine* line, bool is_edit) {
                 
                 // 手动删除对象
                 delete line;
+                if (topology_lines_.empty()) {
+                  StopAdvanceTimer();
+                }
                 
                 // 更新所有连线的双向状态
                 updateAllTopologyLinesStatus();
@@ -1124,6 +1126,7 @@ void SceneManager::createTopologyLine(const QString &from, const QString &to) {
     
     // 添加到场景中
     addItem(line);
+    StartAdvanceTimer();
     
     // 检查并设置是否为双向连接的一部分
     bool is_part_of_bidirectional = topology_map_.IsBidirectional(from.toStdString(), to.toStdString());
@@ -1183,6 +1186,9 @@ void SceneManager::deleteSelectedTopologyLine() {
     if (it != topology_lines_.end()) {
       topology_lines_.erase(it);
     }
+    if (topology_lines_.empty()) {
+      StopAdvanceTimer();
+    }
     
     LOG_INFO("删除拓扑连线: " << selected_topology_line_->GetDisplayName());
     delete selected_topology_line_;
@@ -1198,7 +1204,7 @@ std::string SceneManager::generateRouteId(const QString &from, const QString &to
 }
 
 TopologyLine* SceneManager::findTopologyLine(const QString &route_id) {
-  for (auto line : topology_lines_) {
+  for (const auto line : topology_lines_) {
     if (line->GetDisplayName() == route_id.toStdString()) {
       return line;
     }
@@ -1223,6 +1229,7 @@ void SceneManager::loadTopologyRoutes() {
         
         // 添加到场景中
         addItem(line);
+        StartAdvanceTimer();
         
         // 检查并设置是否为双向连接的一部分
         bool is_part_of_bidirectional = topology_map_.IsBidirectional(from, to);
@@ -1239,7 +1246,7 @@ void SceneManager::loadTopologyRoutes() {
 
 void SceneManager::updateAllTopologyLinesStatus() {
   // 更新所有拓扑连线的双向状态
-  for (auto line : topology_lines_) {
+  for (const auto line : topology_lines_) {
     if (!line) continue;
     if (!line->GetFromItem() || !line->GetToItem()) continue;
     
@@ -1281,11 +1288,12 @@ void SceneManager::updateAllTopologyLinesStatus() {
 
 SceneManager::~SceneManager() {
   // 清理拓扑连线
-  for (auto line : topology_lines_) {
+  for (const auto line : topology_lines_) {
     removeItem(line);
     delete line;
   }
   topology_lines_.clear();
+  StopAdvanceTimer();
   // 清除预览线段
   if (preview_line_) {
     removeItem(preview_line_);
@@ -1341,4 +1349,18 @@ void SceneManager::ClearCommandHistory() {
   command_history_.clear();
   command_history_index_ = 0;
 }
+
+void SceneManager::StartAdvanceTimer() {
+  if (advance_timer_ && !advance_timer_->isActive()) {
+    advance_timer_->start(16); // 约60FPS
+  }
+}
+
+void SceneManager::StopAdvanceTimer() {
+  if (advance_timer_ && advance_timer_->isActive()) {
+    advance_timer_->stop();
+  }
+}
+
 }  // namespace Display
+

@@ -10,7 +10,7 @@
 #include "widgets/ui_style.h"
 namespace Display {
 ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
-  setBackgroundBrush(QColor(QStringLiteral("#ffffff")));
+  setBackgroundBrush(QColor(UiStyle::Palette::Surface));
   setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   setMouseTracking(true);  // 开启鼠标追踪，以便捕获鼠标移动事件
@@ -30,33 +30,33 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   tool_size_slider_->setValue(1);      // 默认0.1米
   tool_size_slider_->setMaximumWidth(150);
   tool_size_slider_->setCursor(Qt::ArrowCursor);
-  tool_size_slider_->setStyleSheet(R"(
+  tool_size_slider_->setStyleSheet(QString(R"(
     QSlider {
       background: transparent;
     }
     QSlider::groove:horizontal {
-      background: #e0e0e0;
+      background: %1;
       height: 4px;
       border-radius: 2px;
     }
     QSlider::handle:horizontal {
-      background: #1976d2;
-      border: 2px solid #ffffff;
+      background: %2;
+      border: 2px solid %3;
       width: 12px;
       height: 12px;
       border-radius: 6px;
       margin: -4px 0;
     }
     QSlider::handle:horizontal:hover {
-      background: #1565c0;
+      background: %4;
     }
-  )");
+  )").arg(UiStyle::Palette::Scrollbar, UiStyle::Palette::Primary, UiStyle::Palette::Surface, UiStyle::Palette::PrimaryHover));
   tool_size_slider_->hide();  // 默认隐藏
 
   left_bar_layout->addWidget(tool_size_slider_);
 
   tool_size_value_label_ = new QLabel("0.1");
-  tool_size_value_label_->setStyleSheet(QStringLiteral("QLabel { color:#1a73e8; font-size:%1px; font-weight:600; min-width:30px; }").arg(UiStyle::FontMiniPx()));
+  tool_size_value_label_->setStyleSheet(QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:600; min-width:30px; }").arg(UiStyle::Palette::Primary, UiStyle::FontMiniPx()));
   tool_size_value_label_->setAlignment(Qt::AlignCenter);
   tool_size_value_label_->hide();  // 默认隐藏
   left_bar_layout->addWidget(tool_size_value_label_);
@@ -75,18 +75,19 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_icon->setAlignment(Qt::AlignCenter);
   empty_icon->setFixedSize(68, 58);
   empty_icon->setStyleSheet(QStringLiteral(
-      "QLabel { background:#edf4ff; border:1px solid #d7e5fb; border-radius:20px; "
-      "padding:0; margin-bottom:2px; }"));
+      "QLabel { background:%1; border:1px solid %2; border-radius:20px; "
+      "padding:0; margin-bottom:2px; }")
+      .arg(UiStyle::Palette::PrimaryLight, UiStyle::Palette::BorderHover));
   auto* empty_title = new QLabel(tr("等待地图"), map_empty_state_);
   empty_title->setAlignment(Qt::AlignCenter);
   empty_title->setStyleSheet(QStringLiteral(
-      "QLabel { color:#18212f; font-size:%1px; font-weight:800; "
-      "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::FontTitlePx()));
+      "QLabel { color:%1; font-size:%2px; font-weight:800; "
+      "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::Palette::Text, UiStyle::FontTitlePx()));
   empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
   map_empty_state_->setMaximumWidth(260);
   map_empty_state_->setStyleSheet(QStringLiteral(
-      "QWidget { background:rgba(250,252,255,242); border:1px solid #dce6f5; border-radius:20px; } "
+      "QWidget { background:rgba(250,252,255,242); border:1px solid %2; border-radius:20px; } "
       "QLabel { background:transparent; border:none; }"));
   map_empty_state_->adjustSize();
   map_empty_state_->raise();
@@ -259,7 +260,7 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
 
   painter->save();
   painter->setRenderHint(QPainter::Antialiasing, false);
-  painter->fillRect(rect, QColor(QStringLiteral("#fbfdff")));
+  painter->fillRect(rect, QColor(UiStyle::Palette::ToolbarBg));
 
   const qreal minor_step = 32.0;
   const qreal major_step = minor_step * 4.0;

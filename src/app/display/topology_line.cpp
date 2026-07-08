@@ -243,7 +243,7 @@ void TopologyLine::drawMovingArrows(QPainter *painter, const QPointF &start, con
       // 计算三角形透明度（从起点到终点，透明度从 0.8 到 0.5）
       qreal distance_ratio = current_distance / length;
       qreal opacity = 0.8 - distance_ratio * 0.3;
-      opacity = qMax(0.0, qMin(1.0, opacity));
+      opacity = (std::max)(0.0, (std::min)(1.0, opacity));
       
       // 计算垂直向量
       QPointF perpendicular(-direction.y(), direction.x());
@@ -314,7 +314,7 @@ void TopologyLine::drawFlowingLight(QPainter *painter, const QPointF &start, con
     
     // 计算透明度（脉动效果）
     qreal alpha = 0.3 + 0.7 * qSin(animation_offset_ * 2 + i * M_PI / 2);
-    alpha = qMax(0.1, qMin(0.8, alpha));
+    alpha = (std::max)(0.1, (std::min)(0.8, alpha));
     
     // 创建径向渐变
     QRadialGradient gradient(light_pos, 8);
@@ -458,8 +458,8 @@ std::pair<QPointF, QPointF> TopologyLine::calculateOffsetPositions(const QPointF
   // 对于任意两个点A和B，我们统一以字典序较小的点为基准来计算偏移
   // 这样A->B和B->A会使用相同的基础偏移方向，然后通过正负号来区分
   
-  std::string min_name = std::min(from_name, to_name);
-  std::string max_name = std::max(from_name, to_name);
+  std::string min_name = (std::min)(from_name, to_name);
+  std::string max_name = (std::max)(from_name, to_name);
   
   // 计算标准化方向（总是从字典序小的点指向字典序大的点）
   QPointF normalized_start, normalized_end;
@@ -534,10 +534,10 @@ QRectF TopologyLine::calculateDynamicBoundingRect() const {
   
   // 计算包含起点和终点的矩形，并添加足够的边距
   qreal margin = 100; // 增加更大的边距确保完整显示，包括箭头和阴影
-  qreal left = qMin(start_pos.x(), end_pos.x()) - margin;
-  qreal top = qMin(start_pos.y(), end_pos.y()) - margin;
-  qreal right = qMax(start_pos.x(), end_pos.x()) + margin;
-  qreal bottom = qMax(start_pos.y(), end_pos.y()) + margin;
+  qreal left = (std::min)(start_pos.x(), end_pos.x()) - margin;
+  qreal top = (std::min)(start_pos.y(), end_pos.y()) - margin;
+  qreal right = (std::max)(start_pos.x(), end_pos.x()) + margin;
+  qreal bottom = (std::max)(start_pos.y(), end_pos.y()) + margin;
   
   // 确保边界矩形有最小尺寸，防止线段消失
   qreal min_width = 400;

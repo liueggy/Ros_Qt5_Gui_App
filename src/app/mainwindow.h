@@ -91,10 +91,10 @@ class MainWindow : public QMainWindow {
   ads::CDockAreaWidget* command_center_dock_area_{nullptr};
   QWidget* custom_title_bar_{nullptr};
   QPushButton* maximize_button_{nullptr};
-  bool dragging_window_{false};
+  bool dragging_window_ = {false};
   QPoint drag_position_;
   std::map<std::string, RatioLayoutedFrame*> image_frame_map_;
-  std::string map_path_{"./map"};
+  std::string map_path_ = {"./map"};
   DisplayConfigWidget* display_config_widget_{nullptr};
   ads::CDockWidget* settings_dock_{nullptr};
   DiagnosticDockWidget* diagnostic_dock_widget_{nullptr};
@@ -117,12 +117,13 @@ class MainWindow : public QMainWindow {
   QLabel* label_voice_cmd_{nullptr};
   QTimer* connection_monitor_timer_{nullptr};
   QTimer* voice_clear_timer_{nullptr};
-  int connection_attempt_id_{0};
-  bool channel_subscriptions_registered_{false};
-  bool relocation_pending_{false};
+  std::map<std::string, qint64> last_frame_times_;
+  int connection_attempt_id_ = {0};
+  bool channel_subscriptions_registered_ = {false};
+  bool relocation_pending_ = {false};
   RobotPose relocation_target_;
-  int relocation_stable_samples_{0};
-  int relocation_attempt_id_{0};
+  int relocation_stable_samples_ = {0};
+  int relocation_attempt_id_ = {0};
   QElapsedTimer relocation_elapsed_;
 
  signals:

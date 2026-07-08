@@ -29,7 +29,7 @@ include(Getnlohmann)
 include(GetDockWidget)
 include(GetYamlCpp)
 include(GTestHelper)
-find_package(Qt5 COMPONENTS Core REQUIRED)
+find_package(Qt5 COMPONENTS Core Widgets Concurrent Svg REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem)
 find_package(Eigen3 REQUIRED)
 
@@ -46,3 +46,4 @@ enable_testing()
 # modules
 add_subdirectory(src)
 add_subdirectory(install)
+

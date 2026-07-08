@@ -14,6 +14,7 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QKeyEvent>
 #include <QRadioButton>
 #include <QSettings>
 #include <QTableWidget>
@@ -57,9 +58,19 @@ class SpeedCtrlWidget : public QWidget {
   QSlider* horizontalSlider_linear_;
   QTimer* command_timer_{nullptr};
   RobotSpeed active_speed_;
-  double joystick_x_{0.0};
-  double joystick_y_{0.0};
-  bool joystick_active_{false};
+  double joystick_x_ = {0.0};
+  double joystick_y_ = {0.0};
+  bool joystick_active_ = {false};
+
+  QPushButton* move_btn_u_{nullptr};
+  QPushButton* move_btn_i_{nullptr};
+  QPushButton* move_btn_o_{nullptr};
+  QPushButton* move_btn_j_{nullptr};
+  QPushButton* move_btn_l_{nullptr};
+  QPushButton* move_btn_m_{nullptr};
+  QPushButton* move_btn_back_{nullptr};
+  QPushButton* move_btn_backr_{nullptr};
+  char active_keyboard_key_ = {'\0'};
 
   struct MoveBinding {
     char key;
@@ -95,6 +106,22 @@ class SpeedCtrlWidget : public QWidget {
         return is_all ? '<' : ',';
       case '.':
         return is_all ? '>' : '.';
+      case 'q':
+        return is_all ? 'Q' : 'q';
+      case 'w':
+        return is_all ? 'W' : 'w';
+      case 'e':
+        return is_all ? 'E' : 'e';
+      case 'a':
+        return is_all ? 'A' : 'a';
+      case 'd':
+        return is_all ? 'D' : 'd';
+      case 'z':
+        return is_all ? 'Z' : 'z';
+      case 'x':
+        return is_all ? 'X' : 'x';
+      case 'c':
+        return is_all ? 'C' : 'c';
       default:
         return '\0';
     }
@@ -108,6 +135,13 @@ class SpeedCtrlWidget : public QWidget {
         {'I', 1, 0, 0}, {'J', 0, 1, 0}, {'L', 0, -1, 0},
         {'U', 1, 1, 0}, {'<', -1, 0, 0}, {'>', -1, -1, 0},
         {'M', -1, 1, 0},
+        // QWEASDZXC 键盘绑定（非全向 / 全向）
+        {'q', 1, 0, 1}, {'w', 1, 0, 0}, {'e', 1, 0, -1},
+        {'a', 0, 0, 1}, {'d', 0, 0, -1},
+        {'z', -1, 0, 1}, {'x', -1, 0, 0}, {'c', -1, 0, -1},
+        {'Q', 1, 1, 0}, {'W', 1, 0, 0}, {'E', 1, -1, 0},
+        {'A', 0, 1, 0}, {'D', 0, -1, 0},
+        {'Z', -1, 1, 0}, {'X', -1, 0, 0}, {'C', -1, -1, 0},
     }};
     const auto it = std::find_if(
         kMoveBindings.begin(), kMoveBindings.end(),
@@ -148,7 +182,7 @@ class SpeedCtrlWidget : public QWidget {
     if (!btn || btn->text().isEmpty()) {
       return;
     }
-    MoveBinding binding{};
+    MoveBinding binding = {};
     if (!LookupMoveBinding(ResolveMoveKey(btn->text().toStdString()[0]), &binding)) {
       return;
     }
@@ -210,7 +244,7 @@ class SpeedCtrlWidget : public QWidget {
       default:
         return;
     }
-    MoveBinding binding{};
+    MoveBinding binding = {};
     if (!LookupMoveBinding(ResolveMoveKey(button_key), &binding)) {
       return;
     }
@@ -222,6 +256,7 @@ class SpeedCtrlWidget : public QWidget {
  public:
   SpeedCtrlWidget(QWidget* parent = 0) : QWidget(parent) {
     command_timer_ = new QTimer(this);
+    setFocusPolicy(Qt::StrongFocus);
     command_timer_->setInterval(50);
     connect(command_timer_, &QTimer::timeout, this,
             [this]() {
@@ -231,17 +266,15 @@ class SpeedCtrlWidget : public QWidget {
               PublishActiveSpeed();
             });
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    const QString moveButtonStyle = QStringLiteral(
-        "QPushButton { background:#fbfdff; border:1px solid #dce6f5; border-radius:12px; color:transparent; }"
-        "QPushButton:hover { background:#eef5ff; border-color:#bcd3fb; }"
-        "QPushButton:pressed { background:#dbeafe; border-color:#2f6fed; }");
+    const QString moveButtonStyle = UiStyle::MoveButtonStyleSheet();
     const QSize moveButtonSize(56, 56);
-    setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid #e5ebf3; border-radius:10px; background:#ffffff; top:-1px; }"
-                                                                                              "QTabBar::tab { padding:7px 18px; color:#4b5563; border:none; background:transparent; }"
-                                                                                              "QTabBar::tab:selected { color:#2f6fed; font-weight:700; border-bottom:2px solid #2f6fed; }"
-                                                                                              "QSlider::groove:horizontal { height:5px; border-radius:2px; background:#e5eaf2; }"
-                                                                                              "QSlider::sub-page:horizontal { background:#2f6fed; border-radius:2px; }"
-                                                                                              "QSlider::handle:horizontal { background:#2f6fed; width:14px; height:14px; margin:-5px 0; border-radius:7px; }"));
+    setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid %1; border-radius:10px; background:%2; top:-1px; }"
+                                                                                              "QTabBar::tab { padding:7px 18px; color:%3; border:none; background:transparent; }"
+                                                                                              "QTabBar::tab:selected { color:%4; font-weight:700; border-bottom:2px solid %4; }"
+                                                                                              "QSlider::groove:horizontal { height:5px; border-radius:2px; background:%1; }"
+                                                                                              "QSlider::sub-page:horizontal { background:%4; border-radius:2px; }"
+                                                                                              "QSlider::handle:horizontal { background:%4; width:14px; height:14px; margin:-5px 0; border-radius:7px; }")
+        .arg(UiStyle::Palette::Border, UiStyle::Palette::Surface, UiStyle::Palette::TextMuted, UiStyle::Palette::Primary));
     QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
     verticalLayout_speed_ctrl->setContentsMargins(10, 10, 10, 10);
     verticalLayout_speed_ctrl->setSpacing(8);
@@ -249,9 +282,7 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("verticalLayout_speed_ctrl"));
     QFrame* control_card = new QFrame(this);
     control_card->setObjectName(QStringLiteral("speedControlCard"));
-    control_card->setStyleSheet(QStringLiteral(
-        "QFrame#speedControlCard { background:#ffffff; border:1px solid #e1e7f0; "
-        "border-radius:12px; }"));
+    control_card->setStyleSheet(UiStyle::CardStyleSheet());
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
     control_layout->setContentsMargins(12, 10, 12, 12);
     control_layout->setSpacing(8);
@@ -262,53 +293,53 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
     horizontalLayout_2->setSpacing(42);
     horizontalLayout_2->setAlignment(Qt::AlignCenter);
-    QPushButton* pushButton_u = new QPushButton();
-    pushButton_u->setObjectName(QString::fromUtf8("pushButton_u"));
-    pushButton_u->setText("u");
-    pushButton_u->setShortcut(QApplication::translate("Widget", "u", nullptr));
-    pushButton_u->setMinimumSize(moveButtonSize);
-    pushButton_u->setMaximumSize(moveButtonSize);
-    pushButton_u->setStyleSheet(QString::fromUtf8(
+    move_btn_u_ = new QPushButton();
+    move_btn_u_->setObjectName(QString::fromUtf8("pushButton_u"));
+    move_btn_u_->setText("u");
+    move_btn_u_->setShortcut(QApplication::translate("Widget", "u", nullptr));
+    move_btn_u_->setMinimumSize(moveButtonSize);
+    move_btn_u_->setMaximumSize(moveButtonSize);
+    move_btn_u_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_left_2.png);}"));
-    pushButton_u->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-left.svg")));
-    pushButton_u->setIconSize(QSize(30, 30));
-    pushButton_u->setStyleSheet(moveButtonStyle);
+    move_btn_u_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-left.svg")));
+    move_btn_u_->setIconSize(QSize(30, 30));
+    move_btn_u_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(pushButton_u);
+    horizontalLayout_2->addWidget(move_btn_u_);
 
-    QPushButton* pushButton_i = new QPushButton();
-    pushButton_i->setObjectName(QString::fromUtf8("pushButton_i"));
-    pushButton_i->setText("i");
-    pushButton_i->setShortcut(QApplication::translate("Widget", "i", nullptr));
-    pushButton_i->setMinimumSize(moveButtonSize);
-    pushButton_i->setMaximumSize(moveButtonSize);
-    pushButton_i->setStyleSheet(QString::fromUtf8(
+    move_btn_i_ = new QPushButton();
+    move_btn_i_->setObjectName(QString::fromUtf8("pushButton_i"));
+    move_btn_i_->setText("i");
+    move_btn_i_->setShortcut(QApplication::translate("Widget", "i", nullptr));
+    move_btn_i_->setMinimumSize(moveButtonSize);
+    move_btn_i_->setMaximumSize(moveButtonSize);
+    move_btn_i_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_2.png);}"));
-    pushButton_i->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up.svg")));
-    pushButton_i->setIconSize(QSize(30, 30));
-    pushButton_i->setStyleSheet(moveButtonStyle);
+    move_btn_i_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up.svg")));
+    move_btn_i_->setIconSize(QSize(30, 30));
+    move_btn_i_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(pushButton_i);
+    horizontalLayout_2->addWidget(move_btn_i_);
 
-    QPushButton* pushButton_o = new QPushButton();
-    pushButton_o->setObjectName(QString::fromUtf8("pushButton_o"));
-    pushButton_o->setText("o");
-    pushButton_o->setShortcut(QApplication::translate("Widget", "o", nullptr));
-    pushButton_o->setMinimumSize(moveButtonSize);
-    pushButton_o->setMaximumSize(moveButtonSize);
-    pushButton_o->setStyleSheet(QString::fromUtf8(
+    move_btn_o_ = new QPushButton();
+    move_btn_o_->setObjectName(QString::fromUtf8("pushButton_o"));
+    move_btn_o_->setText("o");
+    move_btn_o_->setShortcut(QApplication::translate("Widget", "o", nullptr));
+    move_btn_o_->setMinimumSize(moveButtonSize);
+    move_btn_o_->setMaximumSize(moveButtonSize);
+    move_btn_o_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/up_right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_right_2.png);}"));
-    pushButton_o->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-right.svg")));
-    pushButton_o->setIconSize(QSize(30, 30));
-    pushButton_o->setStyleSheet(moveButtonStyle);
+    move_btn_o_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-right.svg")));
+    move_btn_o_->setIconSize(QSize(30, 30));
+    move_btn_o_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(pushButton_o);
+    horizontalLayout_2->addWidget(move_btn_o_);
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_2);
 
@@ -317,21 +348,21 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("horizontalLayout_18"));
     horizontalLayout_18->setSpacing(42);
     horizontalLayout_18->setAlignment(Qt::AlignCenter);
-    QPushButton* pushButton_j = new QPushButton();
-    pushButton_j->setText("j");
-    pushButton_j->setShortcut(QApplication::translate("Widget", "j", nullptr));
-    pushButton_j->setObjectName(QString::fromUtf8("pushButton_j"));
-    pushButton_j->setMinimumSize(moveButtonSize);
-    pushButton_j->setMaximumSize(moveButtonSize);
-    pushButton_j->setStyleSheet(QString::fromUtf8(
+    move_btn_j_ = new QPushButton();
+    move_btn_j_->setText("j");
+    move_btn_j_->setShortcut(QApplication::translate("Widget", "j", nullptr));
+    move_btn_j_->setObjectName(QString::fromUtf8("pushButton_j"));
+    move_btn_j_->setMinimumSize(moveButtonSize);
+    move_btn_j_->setMaximumSize(moveButtonSize);
+    move_btn_j_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/left_2.png);}"));
-    pushButton_j->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-left.svg")));
-    pushButton_j->setIconSize(QSize(30, 30));
-    pushButton_j->setStyleSheet(moveButtonStyle);
+    move_btn_j_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-left.svg")));
+    move_btn_j_->setIconSize(QSize(30, 30));
+    move_btn_j_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_18->addWidget(pushButton_j);
+    horizontalLayout_18->addWidget(move_btn_j_);
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
@@ -340,31 +371,24 @@ class SpeedCtrlWidget : public QWidget {
     checkBox_use_all_->setText("全向");
     checkBox_use_all_->setChecked(true);
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
-    checkBox_use_all_->setStyleSheet(QStringLiteral(
-                                         "QCheckBox { color:#536277; font-size:%1px; font-weight:700; spacing:6px; "
-                                         "background:#f6f9fe; border:1px solid #dbe6f5; border-radius:10px; padding:7px 10px; }"
-                                         "QCheckBox:hover { background:#edf4ff; border-color:#bcd3fb; color:#1f5fbf; }"
-                                         "QCheckBox:checked { background:#e8f1ff; border-color:#2f6fed; color:#1f5fbf; }"
-                                         "QCheckBox::indicator { width:14px; height:14px; border:1px solid #c8d4e4; border-radius:4px; background:#ffffff; }"
-                                         "QCheckBox::indicator:checked { background:#2f6fed; border-color:#2f6fed; }")
-                                         .arg(UiStyle::FontSmallPx()));
+    checkBox_use_all_->setStyleSheet(UiStyle::CompactCheckBoxStyleSheet());
     horizontalLayout_18->addWidget(checkBox_use_all_);
 
-    QPushButton* pushButton_l = new QPushButton();
-    pushButton_l->setObjectName(QString::fromUtf8("pushButton_l"));
-    pushButton_l->setText("l");
-    pushButton_l->setShortcut(QApplication::translate("Widget", "l", nullptr));
-    pushButton_l->setMinimumSize(moveButtonSize);
-    pushButton_l->setMaximumSize(moveButtonSize);
-    pushButton_l->setStyleSheet(QString::fromUtf8(
+    move_btn_l_ = new QPushButton();
+    move_btn_l_->setObjectName(QString::fromUtf8("pushButton_l"));
+    move_btn_l_->setText("l");
+    move_btn_l_->setShortcut(QApplication::translate("Widget", "l", nullptr));
+    move_btn_l_->setMinimumSize(moveButtonSize);
+    move_btn_l_->setMaximumSize(moveButtonSize);
+    move_btn_l_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/right_2.png);}"));
-    pushButton_l->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
-    pushButton_l->setIconSize(QSize(30, 30));
-    pushButton_l->setStyleSheet(moveButtonStyle);
+    move_btn_l_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
+    move_btn_l_->setIconSize(QSize(30, 30));
+    move_btn_l_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_18->addWidget(pushButton_l);
+    horizontalLayout_18->addWidget(move_btn_l_);
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_18);
 
@@ -373,65 +397,65 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("horizontalLayout_19"));
     horizontalLayout_19->setSpacing(42);
     horizontalLayout_19->setAlignment(Qt::AlignCenter);
-    QPushButton* pushButton_m = new QPushButton();
-    pushButton_m->setObjectName(QString::fromUtf8("pushButton_m"));
-    pushButton_m->setText("m");
-    pushButton_m->setShortcut(QApplication::translate("Widget", "m", nullptr));
-    pushButton_m->setMinimumSize(moveButtonSize);
-    pushButton_m->setMaximumSize(moveButtonSize);
-    pushButton_m->setStyleSheet(QString::fromUtf8(
+    move_btn_m_ = new QPushButton();
+    move_btn_m_->setObjectName(QString::fromUtf8("pushButton_m"));
+    move_btn_m_->setText("m");
+    move_btn_m_->setShortcut(QApplication::translate("Widget", "m", nullptr));
+    move_btn_m_->setMinimumSize(moveButtonSize);
+    move_btn_m_->setMaximumSize(moveButtonSize);
+    move_btn_m_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_left_2.png);}"));
-    pushButton_m->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-left.svg")));
-    pushButton_m->setIconSize(QSize(30, 30));
-    pushButton_m->setStyleSheet(moveButtonStyle);
+    move_btn_m_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-left.svg")));
+    move_btn_m_->setIconSize(QSize(30, 30));
+    move_btn_m_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(pushButton_m);
+    horizontalLayout_19->addWidget(move_btn_m_);
 
-    QPushButton* pushButton_back = new QPushButton();
-    pushButton_back->setObjectName(QString::fromUtf8("pushButton_,"));
-    pushButton_back->setText(",");
-    pushButton_back->setShortcut(
+    move_btn_back_ = new QPushButton();
+    move_btn_back_->setObjectName(QString::fromUtf8("pushButton_,"));
+    move_btn_back_->setText(",");
+    move_btn_back_->setShortcut(
         QApplication::translate("Widget", ",", nullptr));
-    pushButton_back->setMinimumSize(moveButtonSize);
-    pushButton_back->setMaximumSize(moveButtonSize);
-    pushButton_back->setStyleSheet(QString::fromUtf8(
+    move_btn_back_->setMinimumSize(moveButtonSize);
+    move_btn_back_->setMaximumSize(moveButtonSize);
+    move_btn_back_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_2.png);}"));
-    pushButton_back->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down.svg")));
-    pushButton_back->setIconSize(QSize(30, 30));
-    pushButton_back->setStyleSheet(moveButtonStyle);
+    move_btn_back_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down.svg")));
+    move_btn_back_->setIconSize(QSize(30, 30));
+    move_btn_back_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(pushButton_back);
+    horizontalLayout_19->addWidget(move_btn_back_);
 
-    QPushButton* pushButton_backr = new QPushButton();
-    pushButton_backr->setObjectName(QString::fromUtf8("pushButton_."));
-    pushButton_backr->setText(".");
-    pushButton_backr->setShortcut(
+    move_btn_backr_ = new QPushButton();
+    move_btn_backr_->setObjectName(QString::fromUtf8("pushButton_."));
+    move_btn_backr_->setText(".");
+    move_btn_backr_->setShortcut(
         QApplication::translate("Widget", ".", nullptr));
-    pushButton_backr->setMinimumSize(moveButtonSize);
-    pushButton_backr->setMaximumSize(moveButtonSize);
-    pushButton_backr->setStyleSheet(QString::fromUtf8(
+    move_btn_backr_->setMinimumSize(moveButtonSize);
+    move_btn_backr_->setMaximumSize(moveButtonSize);
+    move_btn_backr_->setStyleSheet(QString::fromUtf8(
         "QPushButton{border-image: url(://images/down_right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_right_2.png);}"));
 
     const QList<QPushButton*> move_buttons{
-        pushButton_i, pushButton_u, pushButton_o, pushButton_j,
-        pushButton_l, pushButton_m, pushButton_back, pushButton_backr};
+        move_btn_i_, move_btn_u_, move_btn_o_, move_btn_j_,
+        move_btn_l_, move_btn_m_, move_btn_back_, move_btn_backr_};
     for (auto* button : move_buttons) {
       connect(button, &QPushButton::pressed, this,
               &SpeedCtrlWidget::slotSpeedControl);
       connect(button, &QPushButton::released, this,
               &SpeedCtrlWidget::slotStopControl);
     }
-    pushButton_backr->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg")));
-    pushButton_backr->setIconSize(QSize(30, 30));
-    pushButton_backr->setStyleSheet(moveButtonStyle);
+    move_btn_backr_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg")));
+    move_btn_backr_->setIconSize(QSize(30, 30));
+    move_btn_backr_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(pushButton_backr);
+    horizontalLayout_19->addWidget(move_btn_backr_);
 
     verticalLayout_cmd_btn->addLayout(horizontalLayout_19);
 
@@ -466,7 +490,7 @@ class SpeedCtrlWidget : public QWidget {
     QLabel* label_14 = new QLabel();
     label_14->setObjectName(QString::fromUtf8("label_14"));
     label_14->setText("角速度:");
-    label_14->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#435267")));
+    label_14->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::TextSecondary));
     horizontalLayout_20->addWidget(label_14);
 
     horizontalSlider_raw_ = new QSlider();
@@ -482,7 +506,7 @@ class SpeedCtrlWidget : public QWidget {
     label_raw->setObjectName(QString::fromUtf8("label_raw"));
     label_raw->setText(QString::number(horizontalSlider_raw_->value(), 'f', 2) +
                        " deg/s");
-    label_raw->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
+    label_raw->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::Text));
     connect(horizontalSlider_raw_, &QSlider::valueChanged,
             [label_raw](qreal value) {
               label_raw->setText(QString::number(value, 'f', 2) +
@@ -502,7 +526,7 @@ class SpeedCtrlWidget : public QWidget {
     QLabel* label_9 = new QLabel();
     label_9->setObjectName(QString::fromUtf8("label_9"));
     label_9->setText("线速度:");
-    label_9->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#435267")));
+    label_9->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::TextSecondary));
     horizontalLayout_21->addWidget(label_9);
 
     horizontalSlider_linear_ = new QSlider();
@@ -520,7 +544,7 @@ class SpeedCtrlWidget : public QWidget {
     label_linear->setText(
         QString::number(horizontalSlider_linear_->value() * 0.01, 'f', 2) +
         " m/s");
-    label_linear->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(QStringLiteral("#18212f")));
+    label_linear->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::Text));
     connect(horizontalSlider_linear_, &QSlider::valueChanged,
             [label_linear](qreal value) {
               label_linear->setText(
@@ -572,4 +596,71 @@ class SpeedCtrlWidget : public QWidget {
   }
 
   ~SpeedCtrlWidget() {}
+
+  // === 键盘控制 (QWEASDZXC) ===
+  static char KeyboardKeyToButtonLabel(char key) {
+    switch (key) {
+      case 'q': return 'u'; case 'w': return 'i'; case 'e': return 'o';
+      case 'a': return 'j'; case 'd': return 'l';
+      case 'z': return 'm'; case 'x': return ','; case 'c': return '.';
+      default: return '\0';
+    }
+  }
+
+  QPushButton* FindButtonByLabel(char label) {
+    if (label == 'u') return move_btn_u_;
+    if (label == 'i') return move_btn_i_;
+    if (label == 'o') return move_btn_o_;
+    if (label == 'j') return move_btn_j_;
+    if (label == 'l') return move_btn_l_;
+    if (label == 'm') return move_btn_m_;
+    if (label == ',') return move_btn_back_;
+    if (label == '.') return move_btn_backr_;
+    return nullptr;
+  }
+
+  void HighlightMoveButton(char keyboard_key) {
+    char label = KeyboardKeyToButtonLabel(keyboard_key);
+    QPushButton* btn = FindButtonByLabel(label);
+    if (btn) btn->setDown(true);
+  }
+
+  void ClearMoveHighlight() {
+    if (active_keyboard_key_ != '\0') {
+      char label = KeyboardKeyToButtonLabel(active_keyboard_key_);
+      QPushButton* btn = FindButtonByLabel(label);
+      if (btn) btn->setDown(false);
+      active_keyboard_key_ = '\0';
+    }
+  }
+
+  void keyPressEvent(QKeyEvent* event) override {
+    char key = static_cast<char>(event->key());
+    // S 键停车
+    if (key == 's' || key == 'S') {
+      ClearMoveHighlight();
+      slotStopControl();
+      return;
+    }
+    // QWEASDZXC 方向键
+    if (active_keyboard_key_ == key) return;  // 防重复
+    ClearMoveHighlight();
+    MoveBinding binding = {};
+    if (LookupMoveBinding(ResolveMoveKey(key), &binding)) {
+      active_keyboard_key_ = key;
+      HighlightMoveButton(key);
+      joystick_active_ = false;
+      StartActiveSpeed(RobotSpeed(binding.x * LinearSpeedLimit(),
+                                  binding.y * LinearSpeedLimit(),
+                                  binding.theta * AngularSpeedLimitRad()));
+    }
+  }
+
+  void keyReleaseEvent(QKeyEvent* event) override {
+    char key = static_cast<char>(event->key());
+    if (key == active_keyboard_key_) {
+      ClearMoveHighlight();
+      slotStopControl();
+    }
+  }
 };

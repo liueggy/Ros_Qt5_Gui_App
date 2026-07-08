@@ -7,7 +7,7 @@
 #include <QInputDialog>
 #include <QListWidgetItem>
 #include <QMessageBox>
-#include <QPair>
+#include <utility>
 #include <QScrollArea>
 #include <QSizePolicy>
 #include <QSpacerItem>
@@ -26,27 +26,6 @@ QString LineEditStyle() {
   return UiStyle::InputStyleSheet();
 }
 
-QString FieldLabelStyle() {
-  return QStringLiteral(
-             "QLabel { color:#435267; font-size:%1px; font-weight:700; "
-             "background:#f7faff; border:1px solid #dce6f5; border-radius:9px; padding:7px 10px; }")
-      .arg(UiStyle::FontSmallPx());
-}
-
-QString CardTitleStyle() {
-  return QStringLiteral(
-             "QLabel { color:#18212f; font-size:%1px; font-weight:700; "
-             "background:transparent; border:none; padding:0; }")
-      .arg(UiStyle::FontBasePx());
-}
-
-QString CaptionLabelStyle() {
-  return QStringLiteral(
-             "QLabel { color:#6b7a90; font-size:%1px; font-weight:700; "
-             "background:transparent; border:none; padding:4px 2px 0 2px; }")
-      .arg(UiStyle::FontSmallPx());
-}
-
 }  // namespace
 
 DisplayConfigWidget::DisplayConfigWidget(QWidget* parent)
@@ -61,21 +40,32 @@ DisplayConfigWidget::~DisplayConfigWidget() {}
 
 void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
-                    "DisplayConfigWidget { background-color:#f4f7fb; }"
-                    "DisplayConfigWidget QWidget { font-size:%1px; color:#18212f; }"
-                    "DisplayConfigWidget QLabel#pageTitle { font-size:%3px; font-weight:700; color:#18212f; padding-bottom:5px; }"
-                    "DisplayConfigWidget QLabel#pageSubtitle { font-size:%2px; color:#657386; padding-bottom:12px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav { background-color:#eef4fb; border:1px solid #dce4ef; border-radius:14px; padding:8px; outline:none; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item { color:#435267; font-size:%1px; padding:13px 12px; border-radius:10px; margin:4px 0; border:1px solid transparent; min-height:28px; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:#f7fbff; border-color:#d7e4f6; }"
-                    "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:#ffffff; border-color:#c9daf7; color:#2f6fed; font-weight:600; }"
-                    "DisplayConfigWidget QFrame#settingsCard { background-color:#ffffff; border:1px solid #dce4ef; border-radius:12px; }"
-                    "DisplayConfigWidget QTableWidget { font-size:%1px; }"
-                    "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
-                    "DisplayConfigWidget QToolTip { background:#fff; color:#202124; border:1px solid rgba(0,0,0,0.12); padding:6px 8px; border-radius:4px; }")
-                    .arg(UiStyle::FontBasePx())
-                    .arg(UiStyle::FontSmallPx())
-                    .arg(UiStyle::FontTitlePx()));
+                     "DisplayConfigWidget { background-color:%1; }"
+                     "DisplayConfigWidget QWidget { font-size:%2px; color:%3; }"
+                     "DisplayConfigWidget QLabel#pageTitle { font-size:%4px; font-weight:700; color:%3; padding-bottom:5px; }"
+                     "DisplayConfigWidget QLabel#pageSubtitle { font-size:%5px; color:%6; padding-bottom:12px; }"
+                     "DisplayConfigWidget QListWidget#settingsNav { background-color:%7; border:1px solid %8; border-radius:14px; padding:8px; outline:none; }"
+                     "DisplayConfigWidget QListWidget#settingsNav::item { color:%9; font-size:%2px; padding:13px 12px; border-radius:10px; margin:4px 0; border:1px solid transparent; min-height:28px; }"
+                     "DisplayConfigWidget QListWidget#settingsNav::item:hover { background-color:%10; border-color:%11; }"
+                     "DisplayConfigWidget QListWidget#settingsNav::item:selected { background-color:%12; border-color:%13; color:%14; font-weight:600; }"
+                     "DisplayConfigWidget QFrame#settingsCard { background-color:%12; border:1px solid %8; border-radius:12px; }"
+                     "DisplayConfigWidget QTableWidget { font-size:%2px; }"
+                     "DisplayConfigWidget QScrollArea { border:none; background:transparent; }"
+                     "DisplayConfigWidget QToolTip { background:%12; color:%3; border:1px solid %8; padding:6px 8px; border-radius:4px; }")
+                     .arg(UiStyle::Palette::Background,
+                          UiStyle::FontBasePx(),
+                          UiStyle::Palette::Text,
+                          UiStyle::FontTitlePx(),
+                          UiStyle::FontSmallPx(),
+                          UiStyle::Palette::TextSecondary,
+                          UiStyle::Palette::PrimaryLight,
+                          UiStyle::Palette::Border,
+                          UiStyle::Palette::TextSecondary,
+                          UiStyle::Palette::SurfaceHover,
+                          UiStyle::Palette::Border,
+                          UiStyle::Palette::Surface,
+                          UiStyle::Palette::BorderHover,
+                          UiStyle::Palette::Primary));
 }
 
 QFrame* DisplayConfigWidget::CreateSettingsCard(QWidget* parent) {
@@ -112,7 +102,7 @@ void DisplayConfigWidget::InitUI() {
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
-  const QVector<QPair<QString, QString>> navItems = {
+  const QVector<std::pair<QString, QString>> navItems = {
       {tr("通道"), QStringLiteral(":/icons/tabler/plug-connected.svg")},
       {tr("显示与话题"), QStringLiteral(":/icons/tabler/messages.svg")},
       {tr("摄像头"), QStringLiteral(":/icons/tabler/camera.svg")},
@@ -161,13 +151,13 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   card_layout->setSpacing(12);
 
   auto* card_title = new QLabel(tr("ROSBridge 连接"), card);
-  card_title->setStyleSheet(CardTitleStyle());
+  card_title->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
   card_layout->addWidget(card_title);
 
   QHBoxLayout* type_layout = new QHBoxLayout();
   channel_type_label_ = new QLabel(tr("方式"));
   channel_type_label_->setFixedWidth(58);
-  channel_type_label_->setStyleSheet(FieldLabelStyle());
+  channel_type_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   channel_type_combo_ = new QComboBox(card);
   channel_type_combo_->setMinimumHeight(36);
   channel_type_combo_->setStyleSheet(UiStyle::InputStyleSheet());
@@ -190,16 +180,16 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   card_layout->addLayout(type_layout);
 
   rosbridge_section_label_ = new QLabel(tr("目标地址"));
-  rosbridge_section_label_->setStyleSheet(CaptionLabelStyle());
+  rosbridge_section_label_->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
   card_layout->addWidget(rosbridge_section_label_);
 
   QHBoxLayout* ip_layout = new QHBoxLayout();
   rosbridge_ip_label_ = new QLabel(tr("地址"));
   rosbridge_ip_label_->setFixedWidth(76);
-  rosbridge_ip_label_->setStyleSheet(FieldLabelStyle());
+  rosbridge_ip_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   rosbridge_ip_edit_ = new QLineEdit(card);
   rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("192.168.31.50"));
-  rosbridge_ip_edit_->setStyleSheet(LineEditStyle());
+  rosbridge_ip_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   connect(rosbridge_ip_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
       return;
@@ -218,10 +208,10 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   QHBoxLayout* port_layout = new QHBoxLayout();
   rosbridge_port_label_ = new QLabel(tr("端口"));
   rosbridge_port_label_->setFixedWidth(76);
-  rosbridge_port_label_->setStyleSheet(FieldLabelStyle());
+  rosbridge_port_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   rosbridge_port_edit_ = new QLineEdit(card);
   rosbridge_port_edit_->setPlaceholderText(QStringLiteral("9090"));
-  rosbridge_port_edit_->setStyleSheet(LineEditStyle());
+  rosbridge_port_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   connect(rosbridge_port_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
       return;
@@ -247,7 +237,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   auto* connection_copy = new QVBoxLayout();
   connection_copy->setSpacing(2);
   connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
-  connection_status_title_->setStyleSheet(CardTitleStyle());
+  connection_status_title_->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
   connection_status_label_ = new QLabel(tr("检测中"), connection_status_card_);
   connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   connection_status_label_->setWordWrap(true);
@@ -286,15 +276,15 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
   reconnect_channel_btn_->setStyleSheet(
       connected ? UiStyle::DangerButtonStyleSheet() : UiStyle::MainButtonStyleSheet());
 
-  const QString color = connecting ? QStringLiteral("#b06000")
-                                   : (connected ? QStringLiteral("#188038")
-                                                : QStringLiteral("#d93025"));
-  const QString background = connecting ? QStringLiteral("#fff8e8")
-                                        : (connected ? QStringLiteral("#eef9f1")
-                                                     : QStringLiteral("#fff3f2"));
-  const QString border = connecting ? QStringLiteral("#f5cf78")
-                                    : (connected ? QStringLiteral("#a9dbb5")
-                                                 : QStringLiteral("#f0b8b3"));
+  const QString color = connecting ? UiStyle::Palette::Warning
+                                   : (connected ? UiStyle::Palette::Success
+                                                : UiStyle::Palette::Danger);
+  const QString background = connecting ? UiStyle::Palette::WarningBg
+                                        : (connected ? UiStyle::Palette::SuccessBg
+                                                     : UiStyle::Palette::DangerBg);
+  const QString border = connecting ? UiStyle::Palette::WarningBorder
+                                    : (connected ? UiStyle::Palette::SuccessBorder
+                                                 : UiStyle::Palette::DangerBorder);
   connection_status_title_->setText(connecting ? tr("正在连接")
                                                : (connected ? tr("小车已连接")
                                                             : tr("小车未连接")));
@@ -362,7 +352,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
       const std::string& display_name = entry.first;
 
       QWidget* row = new QWidget(card);
-      row->setStyleSheet(QStringLiteral("QWidget { background:transparent; }"));
+      row->setStyleSheet(QStringLiteral("QWidget { background:transparent; }"));  // intentional
       QHBoxLayout* h = new QHBoxLayout(row);
       h->setContentsMargins(14, 12, 14, 12);
       h->setSpacing(12);
@@ -379,7 +369,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
       topic_edit->setPlaceholderText(QStringLiteral("/topic/name"));
       topic_edit->setMinimumWidth(140);
       topic_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-      topic_edit->setStyleSheet(LineEditStyle());
+      topic_edit->setStyleSheet(UiStyle::InputStyleSheet());
       display_topic_edits_[display_name] = topic_edit;
       connect(topic_edit, &QLineEdit::editingFinished, [this, display_name, topic_edit]() {
         OnDisplayTopicChanged(display_name, topic_edit->text());
@@ -405,7 +395,7 @@ QWidget* DisplayConfigWidget::CreateLayersPage() {
       if (i + 1 < grp.rows.size()) {
         QFrame* sep = new QFrame(card);
         sep->setFixedHeight(1);
-        sep->setStyleSheet(QStringLiteral("background:rgba(0,0,0,0.06); border:none; max-height:1px;"));
+        sep->setStyleSheet(UiStyle::SeparatorStyleSheet());
         card_layout->addWidget(sep);
       }
     }
@@ -578,8 +568,8 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   robot_opacity_slider_->setRange(0, 100);
   robot_opacity_slider_->setValue(50);
   robot_opacity_slider_->setStyleSheet(
-      QStringLiteral("QSlider::groove:horizontal { height:6px; background:#e8eaed; border-radius:3px; }"
-                     "QSlider::handle:horizontal { background:#1a73e8; width:18px; margin:-6px 0; border-radius:9px; }"));
+      QStringLiteral("QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"der-radius:3px; }"
+                     "QSlider::handle:horizontal { background:%1; width:18px; margin:-6px 0; border-radius:9px; }"));
   robot_opacity_label_ = new QLabel(QStringLiteral("50%"), style_card);
   robot_opacity_label_->setFixedWidth(44);
   robot_opacity_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
@@ -621,10 +611,10 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
   QHBoxLayout* path_layout = new QHBoxLayout();
   map_path_label_ = new QLabel(tr("地图路径"));
   map_path_label_->setFixedWidth(88);
-  map_path_label_->setStyleSheet(FieldLabelStyle());
+  map_path_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   map_path_edit_ = new QLineEdit(card);
   map_path_edit_->setPlaceholderText(tr("例如 /home/maps/office.yaml"));
-  map_path_edit_->setStyleSheet(LineEditStyle());
+  map_path_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   connect(map_path_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
       return;
@@ -794,7 +784,8 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
 
   for (const auto& [key, value] : config.key_value) {
     QWidget* item_widget = new QWidget(key_value_host_);
-    item_widget->setStyleSheet(QStringLiteral("QWidget { background:#fff; border-bottom:1px solid rgba(0,0,0,0.06); }"));
+    item_widget->setStyleSheet(QStringLiteral("QWidget { background:%1; border-bottom:1px solid rgba(0,0,0,0.06); }")
+        .arg(UiStyle::Palette::Surface));
 
     QHBoxLayout* item_layout = new QHBoxLayout(item_widget);
     item_layout->setContentsMargins(14, 12, 14, 12);
@@ -807,7 +798,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
 
     QLineEdit* value_edit = new QLineEdit(QString::fromStdString(value), item_widget);
     value_edit->setPlaceholderText(tr("值"));
-    value_edit->setStyleSheet(LineEditStyle());
+    value_edit->setStyleSheet(UiStyle::InputStyleSheet());
     key_value_edits_[key] = value_edit;
     connect(value_edit, &QLineEdit::editingFinished, [this, key, value_edit]() {
       OnKeyValueChanged(key, value_edit->text());
@@ -817,7 +808,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
     QPushButton* remove_btn = new QPushButton(tr("移除"), item_widget);
     remove_btn->setFixedWidth(52);
     remove_btn->setCursor(Qt::PointingHandCursor);
-    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
+    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(UiStyle::Palette::Danger));
     connect(remove_btn, &QPushButton::clicked, [this, key]() { OnRemoveKeyValue(key); });
     item_layout->addWidget(remove_btn);
 
@@ -875,7 +866,7 @@ void DisplayConfigWidget::OnAddImageConfig() {
   QPushButton* remove_btn = new QPushButton(tr("移除"));
   remove_btn->setCursor(Qt::PointingHandCursor);
   remove_btn->setFixedWidth(58);
-  remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
+  remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(UiStyle::Palette::Danger));
   connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
   image_table_->setItem(row, 0, location_item);
@@ -981,8 +972,8 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
     robot_color_ = color;
     QString color_style = QStringLiteral("background-color: %1;").arg(color.name());
     robot_color_button_->setStyleSheet(
-        QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 12px; }"
-                       "QPushButton:hover { border-color:#2f6fed; }") +
+        QStringLiteral("QPushButton { border:1px solid %1; border-radius:8px; padding:8px 12px; }"
+                       "QPushButton:hover { border-color:%1; }") +
         color_style);
 
     auto& config = Config::ConfigManager::Instance()->GetRootConfig();
@@ -1015,7 +1006,7 @@ void DisplayConfigWidget::LoadConfig() {
 
   bool has_front_camera = false;
   bool image_config_changed = false;
-  for (auto& image_config : config.images) {
+  for (const auto& image_config : config.images) {
     if (image_config.location == "front") {
       has_front_camera = true;
       if (image_config.topic.empty()) {
@@ -1041,7 +1032,7 @@ void DisplayConfigWidget::LoadConfig() {
     Config::ConfigManager::Instance()->StoreConfig();
   }
 
-  for (auto& display_config : config.display_config) {
+  for (const auto& display_config : config.display_config) {
     auto toggle_it = display_toggle_buttons_.find(display_config.display_name);
     if (toggle_it != display_toggle_buttons_.end()) {
       toggle_it->second->blockSignals(true);
@@ -1086,7 +1077,7 @@ void DisplayConfigWidget::LoadConfig() {
     QPushButton* remove_btn = new QPushButton(tr("移除"));
     remove_btn->setCursor(Qt::PointingHandCursor);
     remove_btn->setFixedWidth(58);
-    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(QStringLiteral("#d93025")));
+    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(UiStyle::Palette::Danger));
     connect(remove_btn, &QPushButton::clicked, [this, row]() { OnRemoveImageConfig(row); });
 
     image_table_->setItem(row, 0, location_item);
@@ -1123,8 +1114,8 @@ void DisplayConfigWidget::LoadConfig() {
       robot_color_ = QColor::fromRgb(rgb);
       QString color_style = QStringLiteral("background-color: %1;").arg(robot_color_.name());
       robot_color_button_->setStyleSheet(
-          QStringLiteral("QPushButton { border:1px solid #dadce0; border-radius:8px; padding:8px 12px; }"
-                         "QPushButton:hover { border-color:#2f6fed; }") +
+          QStringLiteral("QPushButton { border:1px solid %1; border-radius:8px; padding:8px 12px; }"
+                         "QPushButton:hover { border-color:%1; }") +
           color_style);
     }
   }
@@ -1175,3 +1166,4 @@ void DisplayConfigWidget::LoadConfig() {
 void DisplayConfigWidget::SaveConfig() {
   AutoSaveConfig();
 }
+

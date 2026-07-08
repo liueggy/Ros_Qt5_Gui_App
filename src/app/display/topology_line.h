@@ -21,28 +21,28 @@ class TopologyLine : public VirtualDisplay {
   
  private:
   // 现代化配色方案
-  QColor line_color_{QColor(64, 158, 255)};        // 现代蓝色
-  QColor selected_color_{QColor(255, 107, 129)};   // 现代红色
-  QColor highlighted_color_{QColor(135, 206, 250)}; // 高亮蓝色
-  QColor preview_color_{QColor(160, 160, 160)};     // 预览灰色
-  QColor shadow_color_{QColor(0, 0, 0, 60)};        // 阴影颜色
+  QColor line_color_ = {QColor(64, 158, 255)};        // 现代蓝色
+  QColor selected_color_ = {QColor(255, 107, 129)};   // 现代红色
+  QColor highlighted_color_ = {QColor(135, 206, 250)}; // 高亮蓝色
+  QColor preview_color_ = {QColor(160, 160, 160)};     // 预览灰色
+  QColor shadow_color_ = {QColor(0, 0, 0, 60)};        // 阴影颜色
   
-  bool is_part_of_bidirectional_{false};              // 是否是双向连接的一部分
-  bool is_selected_{false};
-  int line_width_{5};                               // 线段宽度
-  int arrow_size_{20};                              // 加大箭头
-  bool is_highlighted_{false};
+  bool is_part_of_bidirectional_ = {false};              // 是否是双向连接的一部分
+  bool is_selected_ = {false};
+  int line_width_ = {5};                               // 线段宽度
+  int arrow_size_ = {20};                              // 加大箭头
+  bool is_highlighted_ = {false};
   
   // 关联的点位显示对象
   QGraphicsItem* start_item_{nullptr};
   QGraphicsItem* end_item_{nullptr};
   
   // 预览模式相关
-  bool is_preview_mode_{false};
+  bool is_preview_mode_ = {false};
   QPointF preview_end_pos_;
   
   // 动画效果相关
-  qreal animation_offset_{0.0};
+  qreal animation_offset_ = {0.0};
 
  private:
   void drawStaticArrow(QPainter *painter, const QPointF &start, const QPointF &end, const QColor &color);

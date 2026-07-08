@@ -55,9 +55,9 @@ namespace rosbridge2cpp{
       websocketpp::lib::shared_ptr<websocketpp::lib::thread> asio_thread_;
       
       std::thread receiver_thread_;
-      std::atomic_bool terminate_receiver_thread_{false};
-      std::atomic_bool is_connected_{false};
-      std::atomic_bool shutting_down_{false};
+      std::atomic_bool terminate_receiver_thread_ = {false};
+      std::atomic_bool is_connected_ = {false};
+      std::atomic_bool shutting_down_ = {false};
       bool callback_function_defined_ = false;
       
       std::function<void(json&)> incoming_message_callback_;

@@ -14,7 +14,7 @@ class JoyStick : public QWidget {
  public:
   JoyStick(QWidget* parent = 0);
   ~JoyStick();
-  enum Direction {
+  enum Direction : int {
     upleft = 0,
     up,
     upright,
@@ -36,16 +36,16 @@ class JoyStick : public QWidget {
   void mousePressEvent(QMouseEvent* event) override;
 
  private:
-  int mouseX{0};
-  int mouseY{0};
+  int mouseX = {0};
+  int mouseY = {0};
   int JoyStickX{0};  // 摇杆
-  int JoyStickY{0};
-  int JoyStickR{0};
+  int JoyStickY = {0};
+  int JoyStickR = {0};
   int padX{0};  // 底盘
-  int padY{0};
-  int padR{0};
+  int padY = {0};
+  int padR = {0};
   double handPadDis{0.0};  // 两圆圆心距离
-  bool mousePressed{false};
+  bool mousePressed = {false};
   QTimer* tim;
 
  private:
@@ -55,3 +55,4 @@ class JoyStick : public QWidget {
 };
 
 #endif  // JoyStick_H
+

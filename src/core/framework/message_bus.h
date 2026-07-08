@@ -116,32 +116,31 @@ class MessageBus {
   
   template<typename T>
   void Publish(const std::string& topic, const T& data) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = subscribers_.find(topic);
-    if (it != subscribers_.end()) {
-      const std::type_info& data_type = typeid(T);
-      size_t subscriber_count = it->second.size();
-      // LOG_INFO("[MessageBus::Publish] topic: " << topic 
-      //           << ", type: " << data_type.name() 
-      //           << ", subscribers: " << subscriber_count);
-      for (auto& pair : it->second) {
-        if (pair.second) {
-          // 保存数据的副本（因为可能在异步调用中使用）
-          auto callback_ptr = pair.second.get();
-          auto data_copy = std::make_shared<T>(data);
-          // typeid(T) 返回的引用在整个程序生命周期内有效，可以直接使用
-          const std::type_info* type_ptr = &typeid(T);
-          detail::ThreadSafeCallbackExecutor::Execute([callback_ptr, data_copy, type_ptr]() {
-            // TypedCallback 内部会进行类型匹配检查
-            // LOG_INFO("[MessageBus::Publish] Executing callback, type: " << type_ptr->name());
-            callback_ptr->call(static_cast<const void*>(data_copy.get()), *type_ptr);
-          });
+    // 在锁外提取订阅者列表，避免递归死锁，且用 shared_ptr 保持回调在异步执行期间存活
+    std::vector<std::pair<std::shared_ptr<CallbackBase>, std::shared_ptr<T>>> callbacks;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      auto it = subscribers_.find(topic);
+      if (it != subscribers_.end()) {
+        const std::type_info& data_type = typeid(T);
+        size_t subscriber_count = it->second.size();
+        for (const auto& pair : it->second) {
+          if (pair.second) {
+            callbacks.emplace_back(pair.second, std::make_shared<T>(data));
+          }
         }
+      } else {
+        LOG_INFO("[MessageBus::Publish] topic: " << topic 
+                  << ", type: " << typeid(T).name() 
+                  << ", no subscribers");
       }
-    } else {
-      LOG_INFO("[MessageBus::Publish] topic: " << topic 
-                << ", type: " << typeid(T).name() 
-                << ", no subscribers");
+    }
+    // 在锁外执行回调，避免递归死锁；shared_ptr 确保回调在异步执行期间保持存活
+    const std::type_info* type_ptr = &typeid(T);
+    for (const auto& [cb, data_copy] : callbacks) {
+      detail::ThreadSafeCallbackExecutor::Execute([cb, data_copy, type_ptr]() {
+        cb->call(static_cast<const void*>(data_copy.get()), *type_ptr);
+      });
     }
   }
   
@@ -149,8 +148,7 @@ class MessageBus {
   CallbackId Subscribe(const std::string& topic, std::function<void(const T&)> callback) {
     std::lock_guard<std::mutex> lock(mutex_);
     CallbackId id = next_callback_id_.fetch_add(1);
-    // 直接存储类型 T 的回调，无需 std::any 转换
-    subscribers_[topic][id] = std::make_unique<TypedCallback<T>>(callback);
+    subscribers_[topic][id] = std::make_shared<TypedCallback<T>>(callback);
     LOG_INFO("[MessageBus::Subscribe] topic: " << topic 
               << ", type: " << typeid(T).name() 
               << ", callback_id: " << id);
@@ -180,7 +178,7 @@ class MessageBus {
   MessageBus& operator=(const MessageBus&) = delete;
   
   mutable std::mutex mutex_;
-  std::map<std::string, std::map<CallbackId, std::unique_ptr<CallbackBase>>> subscribers_;
+  std::map<std::string, std::map<CallbackId, std::shared_ptr<CallbackBase>>> subscribers_;
   std::atomic<CallbackId> next_callback_id_{1};
 };
 

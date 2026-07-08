@@ -17,7 +17,7 @@
 
 /// declare the access function and define enum values
 #define DECLARE_ENUM(EnumType, ENUM_DEF)                  \
-  enum EnumType { ENUM_DEF(ENUM_VALUE) };                 \
+  enum EnumType : int { ENUM_DEF(ENUM_VALUE) };                 \
   inline const std::string ToString(enum EnumType dummy); \
   inline enum EnumType Get##EnumType##Value(const char *str);
 

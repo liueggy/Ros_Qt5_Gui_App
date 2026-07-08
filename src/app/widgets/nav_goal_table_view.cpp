@@ -105,13 +105,15 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   button_run->setFixedSize(62, 36);
   button_remove->setFixedSize(62, 36);
   button_run->setStyleSheet(QStringLiteral(
-      "QToolButton { background:#2f6fed; color:white; border:none; border-radius:8px; "
+      "QToolButton { background:%1; color:white; border:none; border-radius:8px; "
       "font-weight:700; padding:0; }"
-      "QToolButton:hover { background:#245ed8; }"));
+      "QToolButton:hover { background:%2; }")
+      .arg(UiStyle::Palette::Primary, UiStyle::Palette::PrimaryHover));
   button_remove->setStyleSheet(QStringLiteral(
-      "QToolButton { background:#fff7f7; color:#d93025; border:1px solid #ffd3d0; "
+      "QToolButton { background:%1; color:%2; border:1px solid %3; "
       "border-radius:8px; font-weight:700; padding:0; }"
-      "QToolButton:hover { background:#ffeceb; }"));
+      "QToolButton:hover { background:%4; }")
+      .arg(UiStyle::Palette::DangerBg, UiStyle::Palette::Danger, UiStyle::Palette::DangerBorder, UiStyle::Palette::DangerBg));
   action_layout->addWidget(button_run);
   action_layout->addWidget(button_remove);
   int row = table_model_->rowCount();

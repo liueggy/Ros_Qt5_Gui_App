@@ -41,9 +41,9 @@ class TerminalWidget : public QWidget {
   QPushButton* terminate_button_{nullptr};
   QLabel* status_label_{nullptr};
   QStringList command_history_;
-  int history_index_{0};
-  int prompt_position_{0};
+  int history_index_ = {0};
+  int prompt_position_ = {0};
   QString pending_command_;
-  bool command_running_{false};
-  bool prompt_active_{false};
+  bool command_running_ = {false};
+  bool prompt_active_ = {false};
 };

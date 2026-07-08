@@ -25,8 +25,8 @@ class RobotShape : public VirtualDisplay {
   RobotPose robot_pose_{0, 0, 0};
   RobotPath robot_footprint_;  // 存储RobotFootprint数据
   OccupancyMap map_data_;  // 地图数据，用于坐标转换
-  QColor color_{0x1E90FF};
-  float opacity_{0.5};
+  QColor color_ = {0x1E90FF};
+  float opacity_ = {0.5};
 
  private:
   void drawFrame(QPainter *painter);

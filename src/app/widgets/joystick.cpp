@@ -18,7 +18,7 @@ JoyStick::~JoyStick() {}
 void JoyStick::paintEvent(QPaintEvent*) {
   QPainter painter(this);
 
-  int side = qMin(width(), height());
+  int side = (std::min)(width(), height());
 
   padR = side / 2;       // 底盘半径
   padX = padR;           // 底盘圆心
@@ -106,7 +106,7 @@ void JoyStick::emitAxes() {
     emit axesChanged(0.0, 0.0);
     return;
   }
-  const double max_radius = qMax(1, padR - JoyStickR);
+  const double max_radius = (std::max)(1, padR - JoyStickR);
   double x = (mouseX - padX) / max_radius;
   double y = (padY - mouseY) / max_radius;
   const double magnitude = std::sqrt(x * x + y * y);
@@ -115,9 +115,10 @@ void JoyStick::emitAxes() {
     emit axesChanged(0.0, 0.0);
     return;
   }
-  const double clamped = qMin(1.0, magnitude);
+  const double clamped = (std::min)(1.0, magnitude);
   const double scaled = (clamped - dead_zone) / (1.0 - dead_zone);
   x = x / magnitude * scaled;
   y = y / magnitude * scaled;
   emit axesChanged(x, y);
 }
+

@@ -12,7 +12,7 @@
 class TopologyRouteWidget : public QWidget {
   Q_OBJECT
  public:
-  enum HandleResult { 
+  enum HandleResult : int { 
     kDelete = 0,
     kCancel = 1
   };

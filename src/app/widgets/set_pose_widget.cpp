@@ -39,7 +39,7 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
 
   QLabel* hint =
       new QLabel("在地图上选择位置并拖动确定朝向，再用数值微调");
-  hint->setStyleSheet("color: #64748b; font-size: 12px;");
+  hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
   layout->addWidget(hint);
 
   QHBoxLayout* layout_x = new QHBoxLayout();

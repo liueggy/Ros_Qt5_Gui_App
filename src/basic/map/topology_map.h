@@ -21,8 +21,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(PointType, {
 struct TopologyMap {
   // 路径属性结构体
   struct RouteInfo {
-    std::string controller{"FollowPath"};
-    std::string goal_checker{"general_goal_checker"};
+    std::string controller = {"FollowPath"};
+    std::string goal_checker = {"general_goal_checker"};
     double speed_limit{1.0};  // 默认最大速度1.0
     RouteInfo() = default;
     RouteInfo(std::string ctrl) 
@@ -37,7 +37,7 @@ struct TopologyMap {
     double y;
     double theta;
     std::string name;
-    PointType type{PointType::NavGoal};
+    PointType type = {PointType::NavGoal};
     PointInfo() {}
     PointInfo(double _x, double _y, double _theta, std::string _name)
         : x(_x), y(_y), theta(_theta), name(_name) {}
@@ -101,7 +101,7 @@ struct TopologyMap {
     // 删除相关的路径
     routes.erase(name);  // 删除以该点为起点的所有路径
     // 删除以该点为终点的所有路径
-    for (auto &route : routes) {
+    for (const auto &route : routes) {
       route.second.erase(name);
     }
   }
@@ -132,7 +132,7 @@ struct TopologyMap {
     }
     
     // 更新其他路径中的终点名称
-    for (auto &route : routes) {
+    for (const auto &route : routes) {
       if (route.second.count(old_name) > 0) {
         auto route_info = route.second[old_name];
         route.second.erase(old_name);
@@ -245,7 +245,7 @@ struct TopologyMap {
     
     // 1. 找到距离机器人最近的拓扑点作为起点
     std::string nearest_start_point;
-    double min_distance = std::numeric_limits<double>::max();
+    double min_distance = (std::numeric_limits<double>::max)();
     
     for (const auto &point : points) {
       double dx = point.x - robot_pose.x;

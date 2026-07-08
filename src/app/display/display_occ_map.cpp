@@ -1,4 +1,3 @@
-
 /*
  * @Author: chengyang chengyangkj@outlook.com
  * @Date: 2023-03-28 10:21:04
@@ -8,6 +7,7 @@
  */
 #include "display/display_occ_map.h"
 #include <QtConcurrent>
+#include <QMetaObject>
 #include <algorithm>
 #include <iostream>
 #include "core/framework/framework.h"
@@ -44,51 +44,49 @@ void DisplayOccMap::paint(QPainter *painter,
   painter->drawImage(0, 0, map_image_);
 }
 void DisplayOccMap::ParseOccupyMap() {
-  QtConcurrent::run([this]() {
+  // 在后台线程计算像素数据，避免阻塞 UI；
+  // 完成后通过 QMetaObject::invokeMethod 回到主线程更新 map_image_ 和场景。
+  OccupancyMap map_copy = map_data_;
+  QtConcurrent::run([this, map_copy]() {
+    const int cols = map_copy.Cols();
+    const int rows = map_copy.Rows();
+    QImage local_image(cols, rows, QImage::Format_ARGB32);
+    if (local_image.isNull()) {
+      return;
+    }
+
+    // 直接写入 QImage 内存缓冲区，避免逐像素 setPixel() 的函数调用和边界检查开销
+    QRgb* bits = reinterpret_cast<QRgb*>(local_image.bits());
+    const int bpl = local_image.bytesPerLine() / static_cast<int>(sizeof(QRgb));
     // Eigen::matrix 坐标系与QImage坐标系不同,这里行列反着遍历
-    //QImage坐标系
-    // **************x
-    // *
-    // *
-    // *
-    // y
-    map_image_ = QImage(map_data_.Cols(), map_data_.Rows(), QImage::Format_ARGB32);
-
-    // 遍历地图数据，设置每个像素的颜色
-    for (int i = 0; i < map_data_.Cols(); i++) {
-      for (int j = 0; j < map_data_.Rows(); j++) {
-        double map_value = map_data_(j, i);
-        QColor color;
-
+    for (int i = 0; i < cols; i++) {
+      QRgb* row = bits + i;
+      for (int j = 0; j < rows; j++) {
+        double map_value = map_copy(j, i);
         if (map_value > 0) {
-          // 将 map_value 从 0-100 映射到透明度 0-255 范围
           int alpha = static_cast<int>(std::clamp(map_value * 2.55, 0.0, 255.0));
-          color = QColor(0, 0, 0, alpha);  // 黑色, 透明度根据占据值动态调整
-        } else if (map_value == 0 ) {
-          // 自由区域和未知区域都设为白色
-          color = Qt::white;
-        } else if (map_value == -1) {
-          color = Qt::gray;
+          row[j * bpl] = qRgba(0, 0, 0, alpha);
+        } else if (map_value == 0) {
+          row[j * bpl] = qRgba(255, 255, 255, 255);
         } else {
-          color = Qt::white;  // 默认白色
+          row[j * bpl] = qRgba(128, 128, 128, 255);
         }
-
-        // 使用 RGBA 颜色值绘制像素
-        map_image_.setPixel(i, j, color.rgba());
       }
     }
 
-    // 更新边界矩形
-    SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
-    update();
-    emit signalMapReady();
-    //以0 0点为中心
-    double x, y;
-    map_data_.xy2ScenePose(0, 0, x, y);
-    if (!init_flag_) {
-      CenterOnScene(mapToScene(x, y));
-      init_flag_ = true;
-    }
+    // 回到主线程更新 QGraphicsItem 状态
+    QMetaObject::invokeMethod(this, [this, local_image, map_copy]() {
+      map_image_ = local_image;
+      SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
+      update();
+      emit signalMapReady();
+      double x, y;
+      map_copy.xy2ScenePose(0, 0, x, y);
+      if (!init_flag_) {
+        CenterOnScene(mapToScene(x, y));
+        init_flag_ = true;
+      }
+    }, Qt::QueuedConnection);
   });
 }
 void DisplayOccMap::EraseMapRange(const QPointF &pose, double range) {
@@ -99,15 +97,18 @@ void DisplayOccMap::EraseMapRange(const QPointF &pose, double range) {
     return;
   }
   // 计算擦除范围的矩形区域
-  int left = qMax(0, static_cast<int>(x - range));
-  int top = qMax(0, static_cast<int>(y - range));
-  int right = qMin(map_image_.width() - 1, static_cast<int>(x + range));
-  int bottom = qMin(map_image_.height() - 1, static_cast<int>(y + range));
+  int left = (std::max)(0, static_cast<int>(x - range));
+  int top = (std::max)(0, static_cast<int>(y - range));
+  int right = (std::min)(map_image_.width() - 1, static_cast<int>(x + range));
+  int bottom = (std::min)(map_image_.height() - 1, static_cast<int>(y + range));
 
-  // 循环遍历范围内的像素点，将其颜色设置为透明
+  // 直接写内存缓冲区替代逐像素 setPixelColor()
+  QRgb* erase_bits = reinterpret_cast<QRgb*>(map_image_.bits());
+  const int erase_bpl = map_image_.bytesPerLine() / static_cast<int>(sizeof(QRgb));
   for (int i = left; i <= right; ++i) {
+    QRgb* erase_row = erase_bits + i;
     for (int j = top; j <= bottom; ++j) {
-      map_image_.setPixelColor(i, j, Qt::white);
+      erase_row[j * erase_bpl] = qRgba(255, 255, 255, 255);
     }
   }
   update();
@@ -121,15 +122,18 @@ void DisplayOccMap::DrawMapRange(const QPointF &pose, double range) {
     return;
   }
   // 计算绘制范围的矩形区域
-  int left = qMax(0, static_cast<int>(x - range));
-  int top = qMax(0, static_cast<int>(y - range));
-  int right = qMin(map_image_.width() - 1, static_cast<int>(x + range));
-  int bottom = qMin(map_image_.height() - 1, static_cast<int>(y + range));
+  int left = (std::max)(0, static_cast<int>(x - range));
+  int top = (std::max)(0, static_cast<int>(y - range));
+  int right = (std::min)(map_image_.width() - 1, static_cast<int>(x + range));
+  int bottom = (std::min)(map_image_.height() - 1, static_cast<int>(y + range));
 
-  // 循环遍历范围内的像素点，将其颜色设置为黑色
+  // 直接写内存缓冲区替代逐像素 setPixelColor()
+  QRgb* draw_bits = reinterpret_cast<QRgb*>(map_image_.bits());
+  const int draw_bpl = map_image_.bytesPerLine() / static_cast<int>(sizeof(QRgb));
   for (int i = left; i <= right; ++i) {
+    QRgb* draw_row = draw_bits + i;
     for (int j = top; j <= bottom; ++j) {
-      map_image_.setPixelColor(i, j, Qt::black);
+      draw_row[j * draw_bpl] = qRgba(0, 0, 0, 255);
     }
   }
   update();
@@ -137,31 +141,24 @@ void DisplayOccMap::DrawMapRange(const QPointF &pose, double range) {
 
 OccupancyMap DisplayOccMap::GetOccupancyMap() {
   OccupancyMap map = map_data_;
+  const int w = map_image_.width();
+  const int h = map_image_.height();
+  const int bpl = map_image_.bytesPerLine();
+  // 使用 constBits() 直接访问内存缓冲区，避免逐像素函数调用开销
+  const uchar* bits = map_image_.constBits();
 
-  for (int i = 0; i < map_image_.width(); i++) {
-    for (int j = 0; j < map_image_.height(); j++) {
-      QRgb pixelValue = map_image_.pixel(i, j);  // 获取指定位置的像素值
-      QColor color(pixelValue);                  // 从像素值创建 QColor 对象
+  for (int j = 0; j < h; j++) {
+    const QRgb* row = reinterpret_cast<const QRgb*>(bits + j * bpl);
+    for (int i = 0; i < w; i++) {
+      QRgb pixelValue = row[i];
+      int alpha = qAlpha(pixelValue);
 
-      // 提取Alpha通道值，范围是 0-255
-      int alpha = color.alpha();
-
-      // 如果颜色是黑色且 alpha > 0，表示占据栅格
-      if (color == QColor(Qt::black) && alpha > 0) {
-        // 将 alpha 映射回 0-100 的栅格值 (之前是将 0-100 映射到 0-255 的透明度)
-        int map_value = static_cast<int>(alpha / 2.55);  // 反向还原栅格值
-        map(j, i) = map_value;                           // 还原栅格数据
-      }
-      // 如果颜色是白色，表示自由区域或未知区域
-      else if (color == QColor(Qt::white)) {
-        // 原始数据可能是自由区域或未知区域
-        if (alpha == 255) {
-          map(j, i) = 0;  // 自由区域
-        } else {
-          map(j, i) = -1;  // 未知区域
-        }
+      if (qRed(pixelValue) == 0 && qGreen(pixelValue) == 0 && qBlue(pixelValue) == 0 && alpha > 0) {
+        map(j, i) = static_cast<int>(alpha / 2.55);
+      } else if (alpha == 255) {
+        map(j, i) = 0;
       } else {
-        map(j, i) = -1;  // 未知区域，或其他情况
+        map(j, i) = -1;
       }
     }
   }
@@ -182,7 +179,6 @@ void DisplayOccMap::EndDrawLine(const QPointF &pose, bool is_draw) {
   painter.setPen(QPen(Qt::black, 1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
   painter.drawLine(line_start_pose_, pose);
   if (is_draw) {
-    //结束绘制
     is_draw_line_ = false;
   }
   update();
@@ -220,3 +216,6 @@ void DisplayOccMap::SetMapImage(const QImage &image) {
   update();
 }
 }  // namespace Display
+
+
+

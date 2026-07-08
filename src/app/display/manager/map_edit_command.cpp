@@ -6,9 +6,9 @@
 #include "display/point_shape.h"
 #include "display/virtual_display.h"
 #include "display/topology_line.h"
-#include <algorithm>
 #include <QtCore/qmath.h>
 #include <QtCore/qglobal.h>
+#include <algorithm>
 
 namespace Display {
 
@@ -16,10 +16,10 @@ EraseCommand::EraseCommand(DisplayOccMap* map_ptr, const QPointF& pose, double r
     : map_ptr_(map_ptr) {
   float x = pose.x();
   float y = pose.y();
-  int left = qMax(0, static_cast<int>(x - range));
-  int top = qMax(0, static_cast<int>(y - range));
-  int right = qMin(map_ptr_->GetMapImage().width() - 1, static_cast<int>(x + range));
-  int bottom = qMin(map_ptr_->GetMapImage().height() - 1, static_cast<int>(y + range));
+  int left = (std::max)(0, static_cast<int>(x - range));
+  int top = (std::max)(0, static_cast<int>(y - range));
+  int right = (std::min)(map_ptr_->GetMapImage().width() - 1, static_cast<int>(x + range));
+  int bottom = (std::min)(map_ptr_->GetMapImage().height() - 1, static_cast<int>(y + range));
   region_ = QRectF(left, top, right - left + 1, bottom - top + 1);
   saved_image_ = map_ptr_->GetMapImageRegion(region_);
 }
@@ -293,3 +293,6 @@ void UpdatePointNameCommand::Redo(SceneManager* manager) {
 }
 
 }  // namespace Display
+
+
+

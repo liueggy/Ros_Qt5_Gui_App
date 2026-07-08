@@ -23,6 +23,7 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QMenu>
+#include <QMetaObject>
 #include <QScreen>
 #include <QSplitter>
 #include <QStatusBar>
@@ -78,9 +79,11 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   pill->setFixedSize(width, 34);
   pill->setToolTip(tooltip);
   pill->setStyleSheet(QStringLiteral(
-      "QFrame#topStatusPill { background:#f8fbff; border:1px solid #dce4ef; border-radius:11px; }"
-      "QFrame#topStatusPill:hover { background:#ffffff; border-color:#bcd3fb; }"
-      "QFrame#topStatusPill QLabel { background:transparent; border:none; }"));
+      "QFrame#topStatusPill { background:%1; border:1px solid %2; border-radius:11px; }"
+      "QFrame#topStatusPill:hover { background:%3; border-color:%4; }"
+      "QFrame#topStatusPill QLabel { background:transparent; border:none; }")
+      .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
+           UiStyle::Palette::Surface, UiStyle::Palette::BorderHover));
 
   auto* layout = new QHBoxLayout(pill);
   layout->setContentsMargins(8, 0, 8, 0);
@@ -144,11 +147,11 @@ QString MeterReadingText(const nlohmann::json& meter) {
 }
 
 struct AiInspectionDisplay {
-  bool valid{false};
+  bool valid = {false};
   QString waypoint;
-  QString targetName{QStringLiteral("水表")};
-  QString reading{QStringLiteral("未识别")};
-  QString status{QStringLiteral("未识别")};
+  QString targetName = {QStringLiteral("水表")};
+  QString reading = {QStringLiteral("未识别")};
+  QString status = {QStringLiteral("未识别")};
   QString conclusion;
 };
 
@@ -527,7 +530,7 @@ bool MainWindow::openChannel() {
     // 延迟检查连接状态（连接超时是5秒）
     auto* channel = channel_manager_.GetChannel();
     if (channel) {
-      QTimer::singleShot(1800, this, [this, attempt_id]() {
+      QTimer::singleShot(800, this, [this, attempt_id]() {
         if (attempt_id != connection_attempt_id_) {
           return;
         }
@@ -538,7 +541,7 @@ bool MainWindow::openChannel() {
           return;
         }
         if (channel->IsConnecting()) {
-          QTimer::singleShot(3000, this, [this, attempt_id]() {
+          QTimer::singleShot(2000, this, [this, attempt_id]() {
             if (attempt_id != connection_attempt_id_) return;
             auto* retry_ch = channel_manager_.GetChannel();
             if (!retry_ch || retry_ch->IsConnectionFailed()) {
@@ -732,9 +735,7 @@ void MainWindow::registerChannel() {
         is_kimi_stage = (stage == "kimi_running" || stage == "kimi_complete");
       } catch (const std::exception&) {}
       if (is_kimi_stage) {
-        inspection_status_label_->setStyleSheet(QStringLiteral(
-            "font-weight:700; color:#0f766e; background:#ccfbf1; "
-            "border:1px solid #5eead4; border-radius:6px; padding:6px 10px; font-size:13px;"));
+        inspection_status_label_->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
       } else {
         inspection_status_label_->setStyleSheet(QStringLiteral(""));
       }
@@ -771,10 +772,14 @@ void MainWindow::registerChannel() {
           }
           if (inspection_status_card_) {
             const QString flashStyle = QStringLiteral(
-                "QFrame { background:#d1fae5; border:2px solid #10b981; border-radius:12px; }"
-                "QLabel { background:transparent; border:none; color:#334155; }"
-                "QPlainTextEdit { background:#0f172a; color:#e5eefb; border:1px solid #1e293b; "
-                "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }");
+                "QFrame { background:%1; border:2px solid %2; border-radius:12px; }"
+                "QLabel { background:transparent; border:none; color:%3; }"
+                "QPlainTextEdit { background:%4; color:%5; border:1px solid %6; "
+                "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }")
+                .arg(UiStyle::Palette::SuccessBg, UiStyle::Palette::Success,
+                     UiStyle::Palette::TextSecondary,
+                     UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
+                     UiStyle::Palette::TerminalBorder);
             const QString normalStyle = inspection_status_card_->styleSheet();
             inspection_status_card_->setStyleSheet(flashStyle);
             QTimer::singleShot(1200, this, [this, normalStyle]() {
@@ -824,6 +829,14 @@ void MainWindow::RecvChannelMsg(const MsgId& id, const std::any& data) {
 
 void MainWindow::SlotRecvImage(const std::string& location, std::shared_ptr<cv::Mat> data) {
   if (image_frame_map_.count(location)) {
+    // 帧节流：同源摄像头最小间隔 33ms（约30FPS），避免高频无效渲染
+    constexpr qint64 kMinFrameIntervalMs = 33;
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    auto it = last_frame_times_.find(location);
+    if (it != last_frame_times_.end() && (now - it->second) < kMinFrameIntervalMs) {
+      return;
+    }
+    last_frame_times_[location] = now;
     QImage image(data->data, data->cols, data->rows, data->step[0], QImage::Format_RGB888);
     image_frame_map_[location]->setImage(image);
   }
@@ -861,17 +874,11 @@ void MainWindow::setupUi() {
   QVBoxLayout* center_layout = new QVBoxLayout();    // 垂直
   QHBoxLayout* center_h_layout = new QHBoxLayout();  // 水平
 
-  const QString window_ctrl_btn_style = UiStyle::WindowControlButtonStyleSheet();
 
   QWidget* tools_strip = new QWidget();
   custom_title_bar_ = tools_strip;
   tools_strip->installEventFilter(this);
-  tools_strip->setStyleSheet(R"(
-    QWidget {
-      background-color: #fbfdff;
-      border-bottom: 1px solid #d9e3f0;
-    }
-  )");
+  tools_strip->setStyleSheet(UiStyle::ToolStripStyleSheet());
 
   ///////////////////////////////////////////////////////////////地图工具栏
   QHBoxLayout* horizontalLayout_tools = new QHBoxLayout(tools_strip);
@@ -972,10 +979,12 @@ void MainWindow::setupUi() {
   battery_bar_->setFormat(QStringLiteral("%p%"));
   battery_bar_->setFixedSize(QSize(68, 22));
   battery_bar_->setStyleSheet(QStringLiteral(
-                                  "QProgressBar#battery_bar_ { border:1px solid #b8cdf2; background:#edf3fb; "
-                                  "border-radius:7px; text-align:center; "
-                                  "color:#18212f; font-size:%1px; font-weight:700; }"
-                                  "QProgressBar#battery_bar_::chunk { background:#79a7f8; border-radius:6px; }")
+      "QProgressBar#battery_bar_ { border:1px solid %1; background:%2; "
+      "border-radius:7px; text-align:center; color:%3; "
+      "font-size:%4px; font-weight:700; }"
+      "QProgressBar#battery_bar_::chunk { background:%1; border-radius:6px; }")
+      .arg(UiStyle::Palette::BorderHover, UiStyle::Palette::PrimaryLight, UiStyle::Palette::Primary,
+           UiStyle::Palette::Text, QString::number(UiStyle::Font::Small)))
                                   .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(
@@ -1023,11 +1032,9 @@ void MainWindow::setupUi() {
     button->setCursor(Qt::PointingHandCursor);
     button->setFocusPolicy(Qt::NoFocus);
   }
-  min_btn->setStyleSheet(window_ctrl_btn_style);
-  maximize_button_->setStyleSheet(window_ctrl_btn_style);
-  close_btn->setStyleSheet(window_ctrl_btn_style +
-                           "\nQPushButton:hover { background-color: #ef5350; color: white; "
-                           "border-color: #ef5350; }");
+  min_btn->setStyleSheet(UiStyle::WindowControlButtonStyleSheet());
+  maximize_button_->setStyleSheet(UiStyle::WindowControlButtonStyleSheet());
+  close_btn->setStyleSheet(UiStyle::CloseButtonStyleSheet());
   connect(min_btn, &QPushButton::clicked, this, &QWidget::showMinimized);
   connect(maximize_button_, &QPushButton::clicked, [this]() {
     if (isMaximized()) {
@@ -1047,14 +1054,9 @@ void MainWindow::setupUi() {
 
   //////////////////////////////////////////////////////////////编辑地图工具栏 - 现代化设计
   QWidget* tools_edit_map_widget = new QWidget();
-  tools_edit_map_widget->setStyleSheet(R"(
-    QWidget {
-      background-color: #ffffff;
-      border: 1px solid #dce4ef;
-      border-radius: 8px;
-    }
-  )");
-
+  tools_edit_map_widget->setStyleSheet(QStringLiteral(
+    "QWidget { background-color:%1; border:1px solid %2; border-radius:8px; }" " QLabel { color:%3; }").arg(UiStyle::Palette::Surface,
+         UiStyle::Palette::Border, UiStyle::Palette::TextSecondary));
   QVBoxLayout* layout_tools_edit_map = new QVBoxLayout();
   tools_edit_map_widget->setLayout(layout_tools_edit_map);
   layout_tools_edit_map->setSpacing(4);
@@ -1126,7 +1128,7 @@ void MainWindow::setupUi() {
   QFrame* separator = new QFrame();
   separator->setFrameShape(QFrame::HLine);
   separator->setFrameShadow(QFrame::Sunken);
-  separator->setStyleSheet("QFrame { background-color: #dce4ef; }");
+  separator->setStyleSheet(UiStyle::SeparatorStyleSheet());
   layout_tools_edit_map->addWidget(separator);
 
   // 橡皮擦按钮
@@ -1201,11 +1203,8 @@ void MainWindow::setupUi() {
 
   /////////////////////////////////////////////////中心主窗体
   QWidget* center_widget = new QWidget();
-  center_widget->setStyleSheet(R"(
-    QWidget {
-      background-color: #ffffff;
-    }
-  )");
+  center_widget->setStyleSheet(QStringLiteral(
+    "QWidget { background-color:%1; }").arg(UiStyle::Palette::Surface));
   center_widget->setLayout(center_layout);
   CDockWidget* CentralDockWidget = new CDockWidget("CentralWidget");
   CentralDockWidget->setWidget(center_widget);
@@ -1293,15 +1292,19 @@ void MainWindow::setupUi() {
   auto* inspection_status_card = new QFrame();
   inspection_status_card_ = inspection_status_card;
   inspection_status_card->setStyleSheet(QStringLiteral(
-      "QFrame { background:#f8fbff; border:1px solid #dce6f2; border-radius:12px; }"
-      "QLabel { background:transparent; border:none; color:#334155; }"
-      "QPlainTextEdit { background:#0f172a; color:#e5eefb; border:1px solid #1e293b; "
-      "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }"));
+      "QFrame { background:%1; border:1px solid %2; border-radius:12px; }"
+      "QLabel { background:transparent; border:none; color:%3; }"
+      "QPlainTextEdit { background:%4; color:%5; border:1px solid %6; "
+      "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }")
+      .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
+           UiStyle::Palette::TextSecondary,
+           UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
+           UiStyle::Palette::TerminalBorder));
   auto* inspection_status_layout = new QVBoxLayout(inspection_status_card);
   inspection_status_layout->setContentsMargins(12, 10, 12, 12);
   inspection_status_layout->setSpacing(8);
   auto* inspection_title = new QLabel(QStringLiteral("巡检实时反馈"));
-  inspection_title->setStyleSheet(QStringLiteral("font-weight:700; color:#0f172a;"));
+  inspection_title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   inspection_status_label_ = new QLabel(QStringLiteral("待命。添加点位后点击开始任务链。"));
   inspection_status_label_->setWordWrap(true);
   inspection_result_view_ = new QPlainTextEdit();
@@ -1314,8 +1317,10 @@ void MainWindow::setupUi() {
   inspection_kimi_banner_ = new QLabel();
   inspection_kimi_banner_->setWordWrap(true);
   inspection_kimi_banner_->setStyleSheet(QStringLiteral(
-      "QLabel { background:#e7f7ed; color:#1a4d2e; border:1px solid #8fcf9f; "
-      "border-radius:8px; padding:10px 14px; font-size:14px; font-weight:700; }"));
+      "QLabel { background:%1; color:%2; border:1px solid %3; "
+      "border-radius:8px; padding:10px 14px; font-size:14px; font-weight:700; }")
+      .arg(UiStyle::Palette::SuccessBg, UiStyle::Palette::Success,
+           UiStyle::Palette::SuccessBorder));
   inspection_kimi_banner_->setVisible(false);
   inspection_status_layout->addWidget(inspection_kimi_banner_);
 
@@ -1630,8 +1635,8 @@ void MainWindow::ApplyCenteredWindowGeometry() {
 
   const QRect available = target_screen->availableGeometry();
   const QSize target_size(
-      qMin(available.width(), qMax(960, qRound(available.width() * 0.88))),
-      qMin(available.height(), qMax(640, qRound(available.height() * 0.90))));
+      (std::min)(available.width(), (std::max)(960, qRound(available.width() * 0.88))),
+      (std::min)(available.height(), (std::max)(640, qRound(available.height() * 0.90))));
   resize(target_size);
   move(available.center() - QPoint(target_size.width() / 2, target_size.height() / 2));
 }
@@ -1664,16 +1669,16 @@ void MainWindow::ApplyDefaultDockSizes() {
     }
 
     const int total = std::accumulate(sizes.cbegin(), sizes.cend(), 0);
-    const int clamped_target = qMin(target_width, qMax(320, total / 2));
-    const int remaining = qMax(1, total - clamped_target);
-    const int old_other_total = qMax(1, total - sizes.at(branch_index));
+    const int clamped_target = (std::min)(target_width, (std::max)(320, total / 2));
+    const int remaining = (std::max)(1, total - clamped_target);
+    const int old_other_total = (std::max)(1, total - sizes.at(branch_index));
     int assigned = 0;
     for (int i = 0; i < sizes.size(); ++i) {
       if (i == branch_index) {
         sizes[i] = clamped_target;
         continue;
       }
-      sizes[i] = qMax(1, remaining * sizes.at(i) / old_other_total);
+      sizes[i] = (std::max)(1, remaining * sizes.at(i) / old_other_total);
       assigned += sizes.at(i);
     }
     for (int i = 0; i < sizes.size() && assigned < remaining; ++i) {
@@ -1719,8 +1724,8 @@ void MainWindow::CenterFloatingDock(ads::CDockWidget* dock,
   }
 
   const QRect host = frameGeometry();
-  const QSize target(qMin(preferred_size.width(), qRound(host.width() * 0.75)),
-                     qMin(preferred_size.height(), qRound(host.height() * 0.80)));
+  const QSize target((std::min)(preferred_size.width(), qRound(host.width() * 0.75)),
+                     (std::min)(preferred_size.height(), qRound(host.height() * 0.80)));
   container->resize(target);
   container->move(host.center() - QPoint(target.width() / 2, target.height() / 2));
   container->raise();
@@ -1828,7 +1833,7 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
 
   const double resolution = map.map_config.resolution;
   const int clearance_cells =
-      std::max(1, static_cast<int>(std::ceil(0.15 / resolution)));
+      (std::max)(1, static_cast<int>(std::ceil(0.15 / resolution)));
   for (int dr = -clearance_cells; dr <= clearance_cells; ++dr) {
     for (int dc = -clearance_cells; dc <= clearance_cells; ++dc) {
       const int check_row = display_row + dr;
@@ -1853,24 +1858,24 @@ QMenu* MainWindow::CreateRelocationMenu(QToolButton* reloc_button) {
   auto* panel = new QFrame(menu);
   panel->setMinimumWidth(330);
   panel->setStyleSheet(QStringLiteral(
-      "QFrame { background:#ffffff; border:1px solid #dce6f2; border-radius:14px; }"
-      "QLabel { background:transparent; border:none; color:#334155; }"));
+      "QFrame { background:%1; border:1px solid %2; border-radius:14px; }"
+      "QLabel { background:transparent; border:none; color:%3; }")
+      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Border,
+           UiStyle::Palette::TextSecondary));
   auto* layout = new QVBoxLayout(panel);
   layout->setContentsMargins(14, 12, 14, 14);
   layout->setSpacing(10);
   auto* title = new QLabel(tr("重定位"), panel);
-  title->setStyleSheet(QStringLiteral("font-weight:800; color:#0f172a; font-size:15px;"));
+  title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   auto* hint = new QLabel(tr("手动：在地图点选位置和朝向。自动：用当前激光轮廓匹配静态地图，5秒超时。"), panel);
   hint->setWordWrap(true);
-  hint->setStyleSheet(QStringLiteral("color:#64748b;"));
+  hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
   auto* manual_btn = new QPushButton(tr("手动重定位"), panel);
   auto_relocalization_start_button_ = new QPushButton(tr("自动定位（激光匹配）"), panel);
   auto_relocalization_cancel_button_ = new QPushButton(tr("取消自动定位"), panel);
   auto_relocalization_status_label_ = new QLabel(tr("自动定位：待命"), panel);
   auto_relocalization_status_label_->setWordWrap(true);
-  auto_relocalization_status_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#2563eb; background:#eff6ff; border:1px solid #bfdbfe; "
-      "border-radius:10px; padding:8px 10px; }"));
+  auto_relocalization_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
   manual_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   auto_relocalization_start_button_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   auto_relocalization_cancel_button_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
@@ -2197,3 +2202,6 @@ bool MainWindow::LoadMap(const std::string& file_path) {
 
   return false;
 }
+
+
+

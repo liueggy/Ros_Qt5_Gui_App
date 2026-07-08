@@ -1,0 +1,50 @@
+name: Build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt5 and system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qtbase5-dev \
+            libqt5svg5-dev \
+            libqt5concurrent5 \
+            libwebsocketpp-dev \
+            libeigen3-dev \
+            libopencv-dev \
+            nlohmann-json3-dev \
+            rapidjson-dev \
+            cmake \
+            build-essential
+
+      - name: Install easylogging++
+        run: |
+          curl -sSL https://github.com/amrayn/easyloggingpp/archive/refs/tags/v9.97.1.tar.gz -o elpp.tar.gz
+          tar xzf elpp.tar.gz
+          sudo cp easyloggingpp-9.97.1/src/easylogging++.h /usr/local/include/
+          sudo cp easyloggingpp-9.97.1/src/easylogging++.cc /usr/local/include/
+
+      - name: Install ADS (Qt-Advanced-Docking-System)
+        run: |
+          git clone --depth 1 --branch 4.3.2 https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System.git ads-src
+          cd ads-src
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF
+          cmake --build build --parallel $(nproc)
+          sudo cmake --install build
+          cd ..
+
+      - name: Configure CMake
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel $(nproc)

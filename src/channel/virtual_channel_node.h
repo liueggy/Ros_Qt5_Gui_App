@@ -57,6 +57,7 @@ class VirtualChannelNode {
   virtual bool IsReconnecting() const { return false; }
 
  public:
-  int loop_rate_{20};
+  int loop_rate_ = {20};
   std::atomic<bool> run_flag_{false};
 };
+

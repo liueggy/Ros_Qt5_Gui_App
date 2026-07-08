@@ -35,9 +35,9 @@ namespace {
 QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) {
   auto* title = new QLabel(text, parent);
   title->setStyleSheet(QStringLiteral(
-                           "QLabel { color:#18212f; font-size:%1px; font-weight:800; "
+                           "QLabel { color:%1; font-size:%2px; font-weight:800; "
                            "padding:0 0 2px 0; background:transparent; border:none; }")
-                           .arg(UiStyle::FontBasePx()));
+                           .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   layout->addWidget(title);
   return title;
 }
@@ -82,9 +82,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addWidget(overview_group);
   SetConnectionOverview(false, tr("等待状态"));
   SetOverviewPill(nav_overview_label_, tr("导航"), tr("等待刷新"),
-                  QStringLiteral("#657386"), QStringLiteral("#f6f8fb"), QStringLiteral("#dce4ef"));
+                  UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
   SetOverviewPill(task_overview_label_, tr("任务"), tr("空闲"),
-                  QStringLiteral("#435267"), QStringLiteral("#f8fbff"), QStringLiteral("#dce6f5"));
+                  UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
   SetDiagnosticOverview(0, 0, 0);
   auto* camera_group = new QFrame(this);
   camera_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -95,14 +95,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->setSpacing(8);
   auto* camera_title = new QLabel(tr("摄像头"), camera_group);
   camera_title->setStyleSheet(QStringLiteral(
-                                  "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
-                                  .arg(UiStyle::FontBasePx()));
+                                  "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                                  .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
   camera_state_label_->setAlignment(Qt::AlignCenter);
   camera_state_label_->setStyleSheet(QStringLiteral(
-                                         "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
-                                         "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
-                                         .arg(UiStyle::FontSmallPx()));
+                                         "QLabel { color:%1; background:%2; border:1px solid %3; "
+                                         "border-radius:9px; padding:6px 10px; font-size:%4px; font-weight:700; }")
+                                         .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
   camera_header->addWidget(camera_title);
   camera_header->addStretch();
   camera_header->addWidget(camera_state_label_);
@@ -110,8 +110,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_inspection_label_ = new QLabel(camera_group);
   camera_inspection_label_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
   camera_inspection_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:#475569; background:#f8fafc; border:1px solid #e2e8f0; "
-      "border-radius:8px; padding:8px 10px; font-size:12px; font-weight:600; }"));
+      "QLabel { color:%1; background:%2; border:1px solid %3; "
+      "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:600; }")
+      .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontMiniPx()));
   camera_inspection_label_->setVisible(false);
   camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
@@ -165,14 +166,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_header->setSpacing(8);
   auto* nav_title = new QLabel(tr("导航模式"), nav_group);
   nav_title->setStyleSheet(QStringLiteral(
-                               "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
-                               .arg(UiStyle::FontBasePx()));
+                               "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                               .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   nav_mode_label_ = new QLabel(tr("等待刷新"), nav_group);
   nav_mode_label_->setAlignment(Qt::AlignCenter);
   nav_mode_label_->setStyleSheet(QStringLiteral(
-                                     "QLabel { color:#657386; background:#f6f9fe; border:1px solid #dce6f5; "
-                                     "border-radius:9px; padding:6px 10px; font-size:%1px; font-weight:700; }")
-                                     .arg(UiStyle::FontSmallPx()));
+                                     "QLabel { color:%1; background:%2; border:1px solid %3; "
+                                     "border-radius:9px; padding:6px 10px; font-size:%4px; font-weight:700; }")
+                                     .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
   nav_header->addWidget(nav_title);
   nav_header->addStretch();
   nav_header->addWidget(nav_mode_label_);
@@ -214,8 +215,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_header->setSpacing(8);
   auto* status_title = new QLabel(tr("运行状态"), status_group);
   status_title->setStyleSheet(QStringLiteral(
-                                  "QLabel { color:#18212f; font-size:%1px; font-weight:700; background:transparent; border:none; }")
-                                  .arg(UiStyle::FontBasePx()));
+                                  "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                                  .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
   auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
   status_header->addWidget(status_title);
@@ -227,9 +228,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_summary_label_->setWordWrap(true);
   status_summary_label_->setMinimumHeight(48);
   status_summary_label_->setStyleSheet(QStringLiteral(
-                                           "QLabel { color:#536277; background:#f8fbff; border:1px solid #dce6f5; "
-                                           "border-radius:12px; padding:10px 12px; font-size:%1px; }")
-                                           .arg(UiStyle::FontSmallPx()));
+                                           "QLabel { color:%1; background:%2; border:1px solid %3; "
+                                           "border-radius:12px; padding:10px 12px; font-size:%4px; }")
+                                           .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
@@ -319,12 +320,12 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
             "QToolButton { color:%1; background:%2; border:1px solid %3; "
             "border-radius:11px; padding:8px 12px; text-align:left; "
             "font-size:%4px; font-weight:700; }")
-            .arg(wifi_connected ? QStringLiteral("#176b3a")
-                                : QStringLiteral("#657386"),
-                 wifi_connected ? QStringLiteral("#eef9f2")
-                                : QStringLiteral("#f6f8fb"),
-                 wifi_connected ? QStringLiteral("#b9e2c8")
-                                : QStringLiteral("#dce4ef"))
+            .arg(wifi_connected ? UiStyle::Palette::Success
+                                : UiStyle::Palette::TextSecondary,
+                 wifi_connected ? UiStyle::Palette::SuccessBg
+                                : UiStyle::Palette::SurfaceAlt,
+                 wifi_connected ? UiStyle::Palette::SuccessBorder
+                                : UiStyle::Palette::Border)
             .arg(UiStyle::FontSmallPx()));
   }
   if (cellular_status_label_) {
@@ -338,12 +339,12 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
             "QToolButton { color:%1; background:%2; border:1px solid %3; "
             "border-radius:11px; padding:8px 12px; text-align:left; "
             "font-size:%4px; font-weight:700; }")
-            .arg(cellular_connected ? QStringLiteral("#174ea6")
-                                    : QStringLiteral("#657386"),
-                 cellular_connected ? QStringLiteral("#eef5ff")
-                                    : QStringLiteral("#f6f8fb"),
-                 cellular_connected ? QStringLiteral("#bcd3fb")
-                                    : QStringLiteral("#dce4ef"))
+            .arg(cellular_connected ? UiStyle::Palette::Info
+                                    : UiStyle::Palette::TextSecondary,
+                 cellular_connected ? UiStyle::Palette::InfoBg
+                                    : UiStyle::Palette::SurfaceAlt,
+                 cellular_connected ? UiStyle::Palette::InfoBorder
+                                    : UiStyle::Palette::Border)
             .arg(UiStyle::FontSmallPx()));
   }
   const bool connected = wifi_connected || cellular_connected;
@@ -359,20 +360,20 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   }
 
   QString text = tr("未知");
-  QString color = QStringLiteral("#657386");
-  QString bg = QStringLiteral("#f6f8fb");
-  QString border = QStringLiteral("#dce4ef");
+  QString color = UiStyle::Palette::TextSecondary;
+  QString bg = UiStyle::Palette::SurfaceAlt;
+  QString border = UiStyle::Palette::Border;
   const QString normalized = mode.trimmed();
   if (normalized == QStringLiteral("mapping_slam")) {
     text = tr("建图模式");
-    color = QStringLiteral("#8a5a00");
-    bg = QStringLiteral("#fff7e6");
-    border = QStringLiteral("#f4d28b");
+    color = UiStyle::Palette::Warning;
+    bg = UiStyle::Palette::WarningBg;
+    border = UiStyle::Palette::WarningBorder;
   } else if (normalized == QStringLiteral("static_nav")) {
     text = tr("AMCL导航");
-    color = QStringLiteral("#174ea6");
-    bg = QStringLiteral("#eef5ff");
-    border = QStringLiteral("#bcd3fb");
+    color = UiStyle::Palette::Info;
+    bg = UiStyle::Palette::InfoBg;
+    border = UiStyle::Palette::InfoBorder;
   } else if (!normalized.isEmpty()) {
     text = normalized;
   }
@@ -590,9 +591,9 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                      is_online("/eggy_external_imu_odom_fuser") ? tr("在线") : tr("离线"));
   SetStatusSummary(summary, detail);
   SetOverviewPill(task_overview_label_, tr("任务"), online_count == core_nodes.size() ? tr("可执行") : tr("待检查"),
-                  online_count == core_nodes.size() ? QStringLiteral("#176b3a") : QStringLiteral("#8a5a00"),
-                  online_count == core_nodes.size() ? QStringLiteral("#eef9f2") : QStringLiteral("#fff7e6"),
-                  online_count == core_nodes.size() ? QStringLiteral("#b9e2c8") : QStringLiteral("#f4d28b"));
+                  online_count == core_nodes.size() ? UiStyle::Palette::Success : UiStyle::Palette::Warning,
+                  online_count == core_nodes.size() ? UiStyle::Palette::SuccessBg : UiStyle::Palette::WarningBg,
+                  online_count == core_nodes.size() ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::WarningBorder);
 }
 
 void CommandCenterWidget::SetRelocalizationStatus(const std::string& json) {
@@ -627,19 +628,19 @@ void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
   }
   const bool normal = (status == QStringLiteral("正常"));
   const bool abnormal = (status == QStringLiteral("异常"));
-  const QString color = normal ? QStringLiteral("#166534")
-                        : abnormal ? QStringLiteral("#b91c1c")
-                        : QStringLiteral("#92400e");
-  const QString bg = normal ? QStringLiteral("#f0fdf4")
-                     : abnormal ? QStringLiteral("#fef2f2")
-                     : QStringLiteral("#fffbeb");
-  const QString border = normal ? QStringLiteral("#bbf7d0")
-                         : abnormal ? QStringLiteral("#fecaca")
-                         : QStringLiteral("#fde68a");
+  const QString color = normal ? UiStyle::Palette::Success
+                        : abnormal ? UiStyle::Palette::Danger
+                        : UiStyle::Palette::Warning;
+  const QString bg = normal ? UiStyle::Palette::SuccessBg
+                     : abnormal ? UiStyle::Palette::DangerBg
+                     : UiStyle::Palette::WarningBg;
+  const QString border = normal ? UiStyle::Palette::SuccessBorder
+                         : abnormal ? UiStyle::Palette::DangerBorder
+                         : UiStyle::Palette::WarningBorder;
   camera_inspection_label_->setStyleSheet(QStringLiteral(
       "QLabel { color:%1; background:%2; border:1px solid %3; "
-      "border-radius:8px; padding:8px 10px; font-size:12px; font-weight:700; }")
-      .arg(color, bg, border));
+      "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:700; }")
+      .arg(color, bg, border, UiStyle::FontMiniPx()));
   const QString displayReading = reading.isEmpty() ? QStringLiteral("未识别") : reading;
   const QString displayStatus = status.isEmpty() ? QStringLiteral("未识别") : status;
   camera_inspection_label_->setText(
@@ -659,8 +660,9 @@ void CommandCenterWidget::SetOverviewPill(QLabel* label, const QString& title, c
   if (!label) {
     return;
   }
-  label->setText(QStringLiteral("<span style='font-size:%1px;color:#657386;font-weight:600;'>%2</span><br/><span style='font-size:%3px;color:%4;font-weight:800;'>%5</span>")
+  label->setText(QStringLiteral("<span style='font-size:%1px;color:%2;font-weight:600;'>%3</span><br/><span style='font-size:%4px;color:%5;font-weight:800;'>%6</span>")
                      .arg(UiStyle::FontMiniPx())
+                     .arg(UiStyle::Palette::TextSecondary)
                      .arg(title.toHtmlEscaped())
                      .arg(UiStyle::FontBasePx())
                      .arg(color)
@@ -675,29 +677,29 @@ void CommandCenterWidget::SetOverviewPill(QLabel* label, const QString& title, c
 void CommandCenterWidget::SetConnectionOverview(bool online, const QString& detail) {
   SetOverviewPill(connection_overview_label_, tr("连接"),
                   online ? detail : tr("等待连接"),
-                  online ? QStringLiteral("#176b3a") : QStringLiteral("#657386"),
-                  online ? QStringLiteral("#eef9f2") : QStringLiteral("#f6f8fb"),
-                  online ? QStringLiteral("#b9e2c8") : QStringLiteral("#dce4ef"));
+                  online ? UiStyle::Palette::Success : UiStyle::Palette::TextSecondary,
+                  online ? UiStyle::Palette::SuccessBg : UiStyle::Palette::SurfaceAlt,
+                  online ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::Border);
 }
 
 void CommandCenterWidget::SetDiagnosticOverview(int total, int abnormal, int worstLevel) {
-  QString color = QStringLiteral("#657386");
-  QString bg = QStringLiteral("#f6f8fb");
-  QString border = QStringLiteral("#dce4ef");
+  QString color = UiStyle::Palette::TextSecondary;
+  QString bg = UiStyle::Palette::SurfaceAlt;
+  QString border = UiStyle::Palette::Border;
   QString value = total == 0 ? tr("暂无数据") : tr("%1 异常 / %2").arg(abnormal).arg(total);
   if (total > 0 && abnormal == 0) {
-    color = QStringLiteral("#176b3a");
-    bg = QStringLiteral("#eef9f2");
-    border = QStringLiteral("#b9e2c8");
+    color = UiStyle::Palette::Success;
+    bg = UiStyle::Palette::SuccessBg;
+    border = UiStyle::Palette::SuccessBorder;
     value = tr("全部正常");
   } else if (worstLevel == 1) {
-    color = QStringLiteral("#8a5a00");
-    bg = QStringLiteral("#fff7e6");
-    border = QStringLiteral("#f4d28b");
+    color = UiStyle::Palette::Warning;
+    bg = UiStyle::Palette::WarningBg;
+    border = UiStyle::Palette::WarningBorder;
   } else if (worstLevel == 2 || worstLevel == 3) {
-    color = QStringLiteral("#b3261e");
-    bg = QStringLiteral("#fff1f0");
-    border = QStringLiteral("#f3b8b3");
+    color = UiStyle::Palette::Danger;
+    bg = UiStyle::Palette::DangerBg;
+    border = UiStyle::Palette::DangerBorder;
   }
   SetOverviewPill(diagnostic_overview_label_, tr("诊断"), value, color, bg, border);
 }

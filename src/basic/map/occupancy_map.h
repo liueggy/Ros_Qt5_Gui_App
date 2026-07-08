@@ -43,7 +43,7 @@
 
 namespace basic {
 struct MapConfig {
-  enum MapMode{
+  enum MapMode : int {
     TRINARY,
     SCALE,
     RAW
@@ -51,9 +51,9 @@ struct MapConfig {
   std::string image = "./";
   double resolution = 0.1;
   std::vector<double> origin;
-  int negate{0};
-  double occupied_thresh{0.25};
-  double free_thresh{0.65};
+  int negate = {0};
+  double occupied_thresh = {0.25};
+  double free_thresh = {0.65};
   MapMode mode;
   MapConfig() {
     origin.resize(3);

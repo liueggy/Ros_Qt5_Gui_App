@@ -27,9 +27,9 @@ class ViewManager : public QGraphicsView {
   QSlider *tool_size_slider_;
   QLabel *tool_size_value_label_;
   QWidget *map_empty_state_;
-  qreal map_view_rotation_deg_{-90.0};
-  bool map_auto_fit_done_{false};
-  bool user_map_view_adjusted_{false};
+  qreal map_view_rotation_deg_ = {-90.0};
+  bool map_auto_fit_done_ = {false};
+  bool user_map_view_adjusted_ = {false};
   void ApplyMapViewScale(qreal factor, QGraphicsView::ViewportAnchor anchor = QGraphicsView::AnchorViewCenter);
 
  public:

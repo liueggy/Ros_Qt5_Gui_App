@@ -106,15 +106,15 @@ QString DiagnosticDockWidget::LevelDisplayName(int level) const {
 QColor DiagnosticDockWidget::LevelColor(int level) {
   switch (level) {
     case 0:
-      return QColor(QStringLiteral("#2e7d32"));
+      return QColor(UiStyle::Palette::Success);
     case 1:
-      return QColor(QStringLiteral("#f57c00"));
+      return QColor(UiStyle::Palette::Warning);
     case 2:
-      return QColor(QStringLiteral("#d32f2f"));
+      return QColor(UiStyle::Palette::Danger);
     case 3:
-      return QColor(QStringLiteral("#616161"));
+      return QColor(UiStyle::Palette::DisabledText);
     default:
-      return QColor(QStringLiteral("#333333"));
+      return QColor(UiStyle::Palette::TextMuted);
   }
 }
 
@@ -170,7 +170,7 @@ void DiagnosticDockWidget::UpdateOverallStatus() {
                                  .arg(LevelDisplayName(overall_level))
                                  .arg(total)
                                  .arg(abnormal);
-  const QColor color = total == 0 ? QColor(QStringLiteral("#616161"))
+  const QColor color = total == 0 ? QColor(UiStyle::Palette::DisabledText)
                                   : LevelColor(overall_level);
   overall_status_->setText(text);
   overall_status_->setStyleSheet(

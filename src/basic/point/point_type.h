@@ -17,9 +17,9 @@ typedef OrientedPoint RobotPose;
 typedef std::vector<Point> RobotPath;
 typedef Eigen::Vector3d Color;
 struct RobotSpeed {
-  double vx{0};
-  double vy{0};
-  double w{0};
+  double vx = {0};
+  double vy = {0};
+  double w = {0};
   RobotSpeed() {}
   RobotSpeed(double vx, double vy, double w) : vx(vx), vy(vy), w(w) {}
 };

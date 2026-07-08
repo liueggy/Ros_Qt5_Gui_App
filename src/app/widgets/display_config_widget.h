@@ -119,6 +119,6 @@ class DisplayConfigWidget : public QWidget {
   QPushButton *robot_add_vertex_btn_{nullptr};
   QPushButton *robot_remove_vertex_btn_{nullptr};
 
-  bool is_loading_config_{false};
+  bool is_loading_config_ = {false};
   std::vector<std::string> channel_list_;
 };

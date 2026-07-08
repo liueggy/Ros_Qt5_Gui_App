@@ -103,9 +103,10 @@ class rclcomm : public VirtualChannelNode {
   rclcpp::executors::MultiThreadedExecutor *m_executor;
   rclcpp::CallbackGroup::SharedPtr callback_group_laser;
   rclcpp::CallbackGroup::SharedPtr callback_group_other;
-  std::atomic_bool init_flag_{false};
+  std::atomic_bool init_flag_ = {false};
 
  private:
 };
 
 #endif  // RCLCOMM_H
+

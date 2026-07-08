@@ -26,3 +26,4 @@ namespace rosbridge2cpp {
 		return ROSTime(seconds_since_epoch, nanosecond_difference);
 	}
 }
+

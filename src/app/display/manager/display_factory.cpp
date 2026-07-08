@@ -164,7 +164,7 @@ bool FactoryDisplay::UpdateDisplayName(const std::string &old_name, const std::s
   auto iter = total_display_map_.find(old_name);
   if (iter == total_display_map_.end()) {
     LOG_ERROR("Display with old name not found: " << old_name);
-    for(auto &item : total_display_map_) {
+    for (const auto &item : total_display_map_) {
       LOG_INFO("Display name: " << item.first);
     }
     return false;

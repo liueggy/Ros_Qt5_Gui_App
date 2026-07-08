@@ -22,7 +22,7 @@ constexpr double kRobotFootprintHeightScenePx = 4.0;
 constexpr double kRobotIconFootprintFitRatio = 0.50;
 
 QRectF RobotIconRect() {
-  const double size = std::min(kRobotFootprintWidthScenePx,
+  const double size = (std::min)(kRobotFootprintWidthScenePx,
                                kRobotFootprintHeightScenePx) *
                       kRobotIconFootprintFitRatio;
   return QRectF(-size / 2.0, -size / 2.0, size, size);
@@ -183,3 +183,4 @@ void PointShape::drawNavGoal(QPainter *painter) {
 void PointShape::drawParticle(QPainter *painter) {}
 // NOLINTEND
 }  // namespace Display
+

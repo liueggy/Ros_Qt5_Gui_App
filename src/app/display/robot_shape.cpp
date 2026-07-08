@@ -60,8 +60,8 @@ void RobotShape::updateFootprintPath() {
   // 计算边界框
   double max_x = std::numeric_limits<double>::lowest();
   double max_y = std::numeric_limits<double>::lowest();
-  double min_x = std::numeric_limits<double>::max();
-  double min_y = std::numeric_limits<double>::max();
+  double min_x = (std::numeric_limits<double>::max)();
+  double min_y = (std::numeric_limits<double>::max)();
   
   bool first_point = true;
   for (const auto& point : robot_footprint_) {

@@ -16,7 +16,7 @@ using namespace basic;
 class NavGoalWidget : public QWidget {
   Q_OBJECT
  public:
-  enum HandleResult { kSend = 0,
+  enum HandleResult : int { kSend = 0,
                       kRemove = 1,
                       kCancel = 2,
                       kChangeName = 3 };
@@ -56,3 +56,4 @@ class NavGoalWidget : public QWidget {
   NavGoalWidget(QWidget *parent = 0);
   ~NavGoalWidget() {}
 };
+

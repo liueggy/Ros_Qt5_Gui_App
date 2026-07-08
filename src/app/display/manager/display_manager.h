@@ -49,11 +49,11 @@ class DisplayManager : public QObject {
   RobotPose local_cost_world_pose_;
   OccupancyMap local_cost_map_;
   double global_scal_value_ = 1;
-  bool is_reloc_mode_{false};
+  bool is_reloc_mode_ = {false};
   ViewManager *graphics_view_ptr_;
   SetPoseWidget *set_reloc_pose_widget_;
   SceneManager *scene_manager_ptr_;
-  bool init_flag_{false};
+  bool init_flag_ = {false};
 
 
  signals:
@@ -117,3 +117,4 @@ class DisplayManager : public QObject {
 };
 
 }  // namespace Display
+

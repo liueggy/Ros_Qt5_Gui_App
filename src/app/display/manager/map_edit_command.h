@@ -40,7 +40,7 @@ class DrawPointCommand : public MapEditCommand {
   QRectF region_;
   QImage saved_image_;
   DisplayOccMap* map_ptr_;
-  bool is_continuous_operation_{false};  // 是否为连续操作
+  bool is_continuous_operation_ = {false};  // 是否为连续操作
 
  public:
   // 从单个点创建命令（向后兼容）
@@ -141,4 +141,5 @@ class UpdatePointNameCommand : public MapEditCommand {
 };
 
 }  // namespace Display
+
 

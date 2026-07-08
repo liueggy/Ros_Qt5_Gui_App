@@ -292,10 +292,10 @@ void RosNode::LocalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
 
   // 只清零并填充局部代价地图覆盖的区域，不遍历全图
   sized_cost_map.map_data.setZero();
-  int x_start = std::max(0, (int)map_o_x);
-  int y_start = std::max(0, (int)map_o_y);
-  int x_end = std::min((int)occ_map_.rows, (int)map_o_x + cost_map.rows);
-  int y_end = std::min((int)occ_map_.cols, (int)map_o_y + cost_map.cols);
+  int x_start = (std::max)(0, (int)map_o_x);
+  int y_start = (std::max)(0, (int)map_o_y);
+  int x_end = (std::min)((int)occ_map_.rows, (int)map_o_x + cost_map.rows);
+  int y_end = (std::min)((int)occ_map_.cols, (int)map_o_y + cost_map.cols);
   for (int x = x_start; x < x_end; x++)
     for (int y = y_start; y < y_end; y++)
       sized_cost_map(x, y) = cost_map(x - (int)map_o_x, y - (int)map_o_y);
@@ -527,3 +527,4 @@ void RosNode::RobotFootprintCallback(geometry_msgs::PolygonStamped::ConstPtr msg
     LOG_ERROR("RobotFootprintCallback transform error: " << ex.what());
   }
 }
+

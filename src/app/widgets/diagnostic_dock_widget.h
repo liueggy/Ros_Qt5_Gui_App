@@ -29,7 +29,7 @@ class DiagnosticDockWidget : public QWidget {
 
   basic::DiagnosticSnapshot snapshot_;
   QSet<QString> expanded_items_;
-  bool show_all_modules_{false};
+  bool show_all_modules_ = {false};
 
   QLabel* overall_status_{nullptr};
   QLabel* empty_label_{nullptr};

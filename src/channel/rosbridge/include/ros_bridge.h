@@ -121,3 +121,4 @@ namespace rosbridge2cpp {
 		spinlock change_topics_mutex_;
 	};
 }
+

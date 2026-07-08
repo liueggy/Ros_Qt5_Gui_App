@@ -5,7 +5,7 @@
  */
 
 #include "rosbridge_comm.h"
-#include <opencv2/imgproc/types_c.h>
+#include <opencv2/imgproc.hpp>
 #include <algorithm>
 #include <boost/asio.hpp>
 #include <cctype>
@@ -128,7 +128,7 @@ RosbridgeComm::RosbridgeComm() {
 
   // 设置默认图像配置：确保 front 摄像头始终自动填充压缩图像话题
   bool has_front_camera = false;
-  for (auto& image_config : config.images) {
+  for (const auto& image_config : config.images) {
     if (image_config.location == "front") {
       has_front_camera = true;
       if (image_config.topic.empty()) {
@@ -1745,3 +1745,5 @@ void RosbridgeComm::PubTopologyMapUpdate(const TopologyMap& topology_map) {
     it->second->Publish(msg);
   }
 }
+
+

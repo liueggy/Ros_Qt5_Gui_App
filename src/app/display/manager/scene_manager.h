@@ -17,7 +17,7 @@
 
 namespace Display {
 
-enum MapEditMode {
+enum MapEditMode : int {
   kStopEdit = 0,
   kMoveCursor,        // 正常编辑模式
   kErase,         // 橡皮擦模式
@@ -43,9 +43,9 @@ class SceneManager : public QGraphicsScene {
 
   TopologyMap topology_map_;
   MapEditMode current_mode_;
-  bool right_pressed_{false};
-  bool left_pressed_{false};
-  double pen_range_{0.5};
+  bool right_pressed_ = {false};
+  bool left_pressed_ = {false};
+  double pen_range_ = {0.5};
   QCursor eraser_cursor_;
   QCursor move_cursor_;
   QCursor line_cursor_;
@@ -56,23 +56,25 @@ class SceneManager : public QGraphicsScene {
   
   // 拓扑连接相关
   QString first_selected_point_;
-  bool is_linking_mode_{false};
+  bool is_linking_mode_ = {false};
   std::vector<TopologyLine*> topology_lines_;
   TopologyLine* selected_topology_line_{nullptr};
+  
+  QTimer* advance_timer_{nullptr};
   
   // 预览线段相关
   TopologyLine* preview_line_{nullptr};
   QPointF first_point_pos_;
-  bool is_drawing_line_{false};
+  bool is_drawing_line_ = {false};
   QPointF line_start_pose_;
   
   // 点位移动跟踪（用于撤销）
   std::map<std::string, TopologyMap::PointInfo> point_move_start_positions_;
   
   // 擦除/绘制操作跟踪（用于撤销）
-  bool is_erase_operation_active_{false};
-  bool is_draw_point_operation_active_{false};
-  bool is_draw_line_operation_active_{false};
+  bool is_erase_operation_active_ = {false};
+  bool is_draw_point_operation_active_ = {false};
+  bool is_draw_line_operation_active_ = {false};
   QRectF erase_operation_region_;
   QImage erase_operation_saved_image_;
   QRectF draw_point_operation_region_;
@@ -82,7 +84,7 @@ class SceneManager : public QGraphicsScene {
   
   // 撤销/重做系统
   std::vector<std::unique_ptr<MapEditCommand>> command_history_;
-  size_t command_history_index_{0};
+  size_t command_history_index_ = {0};
   static constexpr size_t kMaxHistorySize = 50;
   
   signals:
@@ -139,6 +141,8 @@ class SceneManager : public QGraphicsScene {
   void Undo();
   void Redo();
   void ClearCommandHistory();
+  void StartAdvanceTimer();
+  void StopAdvanceTimer();
   
   // 供命令类访问的友元声明
   friend class EraseCommand;

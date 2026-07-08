@@ -61,10 +61,10 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   output_edit_->setStyleSheet(
       UiStyle::InputStyleSheet() +
       QStringLiteral(
-          "QPlainTextEdit { background:#18212f; color:#e8eef7; border:1px solid #2b3a4f;"
+          "QPlainTextEdit { background:%1; color:%2; border:1px solid %3;"
           " border-radius:8px; padding:10px; font-family:Consolas,\"Microsoft YaHei Mono\",monospace;"
-          " font-size:%1px; selection-background-color:#315b86; }")
-          .arg(UiStyle::FontBasePx()));
+          " font-size:%4px; selection-background-color:%5; }")
+          .arg(UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText, UiStyle::Palette::TerminalBorder, UiStyle::FontBasePx(), UiStyle::Palette::TerminalSelection));
   root->addWidget(output_edit_, 1);
   output_edit_->installEventFilter(this);
   AddPrompt();
@@ -260,7 +260,7 @@ void TerminalWidget::NavigateHistory(int direction) {
   }
 
   history_index_ += direction;
-  history_index_ = qBound(0, history_index_, command_history_.size());
+  history_index_ = std::clamp(history_index_, 0, static_cast<int>(command_history_.size()));
   if (history_index_ == command_history_.size()) {
     SetCommandText(pending_command_);
   } else {
@@ -288,3 +288,7 @@ QString TerminalWidget::CurrentCommand() const {
   }
   return output_edit_->toPlainText().mid(prompt_position_);
 }
+
+
+
+

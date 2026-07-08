@@ -39,8 +39,8 @@ class PointShape : public VirtualDisplay {
   QSvgRenderer robot_svg_renderer_;
   ePointType type_;
   RobotPose robot_pose_;
-  double deg_offset_{0};
-  bool enable_{true};
+  double deg_offset_ = {0};
+  bool enable_ = {true};
 
  private:
   void drawRobot(QPainter *painter);
