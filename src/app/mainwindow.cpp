@@ -983,8 +983,11 @@ void MainWindow::setupUi() {
       "border-radius:7px; text-align:center; color:%3; "
       "font-size:%4px; font-weight:700; }"
       "QProgressBar#battery_bar_::chunk { background:%1; border-radius:6px; }")
-      .arg(UiStyle::Palette::BorderHover, UiStyle::Palette::PrimaryLight, UiStyle::Palette::Primary,
-           UiStyle::Palette::Text, QString::number(UiStyle::Font::Small)))
+      .arg(UiStyle::Palette::BorderHover)
+      .arg(UiStyle::Palette::PrimaryLight)
+      .arg(UiStyle::Palette::Primary)
+      .arg(UiStyle::Palette::Text)
+      .arg(QString::number(UiStyle::Font::Small)))
                                   .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(

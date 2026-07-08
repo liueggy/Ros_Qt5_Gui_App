@@ -102,7 +102,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_state_label_->setStyleSheet(QStringLiteral(
                                          "QLabel { color:%1; background:%2; border:1px solid %3; "
                                          "border-radius:9px; padding:6px 10px; font-size:%4px; font-weight:700; }")
-                                         .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
+                                         .arg(UiStyle::Palette::TextSecondary).arg(UiStyle::Palette::SurfaceAlt).arg(UiStyle::Palette::Border).arg(UiStyle::FontSmallPx()));
   camera_header->addWidget(camera_title);
   camera_header->addStretch();
   camera_header->addWidget(camera_state_label_);
@@ -112,7 +112,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_inspection_label_->setStyleSheet(QStringLiteral(
       "QLabel { color:%1; background:%2; border:1px solid %3; "
       "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:600; }")
-      .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontMiniPx()));
+      .arg(UiStyle::Palette::TextSecondary).arg(UiStyle::Palette::SurfaceAlt).arg(UiStyle::Palette::Border).arg(UiStyle::FontMiniPx()));
   camera_inspection_label_->setVisible(false);
   camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
@@ -173,7 +173,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_mode_label_->setStyleSheet(QStringLiteral(
                                      "QLabel { color:%1; background:%2; border:1px solid %3; "
                                      "border-radius:9px; padding:6px 10px; font-size:%4px; font-weight:700; }")
-                                     .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
+                                     .arg(UiStyle::Palette::TextSecondary).arg(UiStyle::Palette::SurfaceAlt).arg(UiStyle::Palette::Border).arg(UiStyle::FontSmallPx()));
   nav_header->addWidget(nav_title);
   nav_header->addStretch();
   nav_header->addWidget(nav_mode_label_);
@@ -230,7 +230,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_summary_label_->setStyleSheet(QStringLiteral(
                                            "QLabel { color:%1; background:%2; border:1px solid %3; "
                                            "border-radius:12px; padding:10px 12px; font-size:%4px; }")
-                                           .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border, UiStyle::FontSmallPx()));
+                                           .arg(UiStyle::Palette::TextSecondary).arg(UiStyle::Palette::SurfaceAlt).arg(UiStyle::Palette::Border).arg(UiStyle::FontSmallPx()));
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
@@ -640,7 +640,7 @@ void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
   camera_inspection_label_->setStyleSheet(QStringLiteral(
       "QLabel { color:%1; background:%2; border:1px solid %3; "
       "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:700; }")
-      .arg(color, bg, border, UiStyle::FontMiniPx()));
+      .arg(color).arg(bg).arg(border).arg(UiStyle::FontMiniPx()));
   const QString displayReading = reading.isEmpty() ? QStringLiteral("未识别") : reading;
   const QString displayStatus = status.isEmpty() ? QStringLiteral("未识别") : status;
   camera_inspection_label_->setText(
