@@ -987,7 +987,7 @@ void MainWindow::setupUi() {
       .arg(UiStyle::Palette::PrimaryLight)
       .arg(UiStyle::Palette::Primary)
       .arg(UiStyle::Palette::Text)
-      .arg(QString::number(UiStyle::Font::Small)))
+      .arg(QString::number(UiStyle::Font::Small))
                                   .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(

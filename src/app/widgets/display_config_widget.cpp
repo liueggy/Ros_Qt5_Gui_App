@@ -568,7 +568,7 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   robot_opacity_slider_->setRange(0, 100);
   robot_opacity_slider_->setValue(50);
   robot_opacity_slider_->setStyleSheet(
-      QStringLiteral("QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"der-radius:3px; }"
+      QStringLiteral("QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"
                      "QSlider::handle:horizontal { background:%1; width:18px; margin:-6px 0; border-radius:9px; }"));
   robot_opacity_label_ = new QLabel(QStringLiteral("50%"), style_card);
   robot_opacity_label_->setFixedWidth(44);
