@@ -47,7 +47,7 @@ void DisplayOccMap::ParseOccupyMap() {
   // 在后台线程计算像素数据，避免阻塞 UI；
   // 完成后通过 QMetaObject::invokeMethod 回到主线程更新 map_image_ 和场景。
   OccupancyMap map_copy = map_data_;
-  QtConcurrent::run([this, map_copy]() {
+  QtConcurrent::run([this, map_copy]() mutable {
     const int cols = map_copy.Cols();
     const int rows = map_copy.Rows();
     QImage local_image(cols, rows, QImage::Format_ARGB32);
