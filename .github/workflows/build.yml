@@ -36,7 +36,7 @@ jobs:
 
       - name: Install ADS (Qt-Advanced-Docking-System)
         run: |
-          git clone --depth 1 --branch 4.3.2 https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System.git ads-src
+          git clone --depth 1 --branch v4.3.2 https://github.com/githubuser0xFFFF/Qt-Advanced-Docking-System.git ads-src
           cd ads-src
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF
           cmake --build build --parallel $(nproc)
