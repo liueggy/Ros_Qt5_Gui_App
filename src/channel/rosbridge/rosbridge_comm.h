@@ -84,6 +84,10 @@ class RosbridgeComm : public VirtualChannelNode {
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> publishers_;
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> subscribers_;
   std::unordered_map<std::string, ROSCallbackHandle<FunVrROSPublishMsg>> callback_handles_;
+  // Owns the complete transport graph. A ROSBridge references its WebSocket,
+  // and every ROSTopic references the ROSBridge, so reads and teardown must be
+  // serialized as one unit across connect, reconnect, process and UI threads.
+  mutable std::mutex transport_mutex_;
 
   std::unordered_map<std::string, TransformData> tf_cache_;
   std::mutex tf_cache_mutex_;
@@ -105,6 +109,7 @@ class RosbridgeComm : public VirtualChannelNode {
 
   void ConnectAsync();
   void ReconnectLoop();
+  void CleanupTransportLocked();
 
   std::atomic_bool reconnect_enabled_ = {true};
   std::atomic_bool reconnecting_ = {false};

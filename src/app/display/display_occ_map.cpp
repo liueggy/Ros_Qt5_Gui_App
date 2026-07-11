@@ -25,6 +25,13 @@ DisplayOccMap::DisplayOccMap(const std::string &display_type,
             << map_image_.height() << std::endl);
   });
 }
+
+DisplayOccMap::~DisplayOccMap() {
+  // Background conversions capture this only while the object is alive. Wait
+  // before QObject teardown; queued deliveries targeting this object are then
+  // either applied before destruction or discarded by Qt with the receiver.
+  map_tasks_.waitForFinished();
+}
 bool DisplayOccMap::SetDisplayConfig(const std::string &config_name,
                                      const std::any &config_data) {
   if (config_name == "SubMapValue") {
@@ -47,7 +54,8 @@ void DisplayOccMap::ParseOccupyMap() {
   // 在后台线程计算像素数据，避免阻塞 UI；
   // 完成后通过 QMetaObject::invokeMethod 回到主线程更新 map_image_ 和场景。
   OccupancyMap map_copy = map_data_;
-  QtConcurrent::run([this, map_copy]() mutable {
+  const std::uint64_t generation = ++map_generation_;
+  map_tasks_.addFuture(QtConcurrent::run([this, map_copy, generation]() mutable {
     const int cols = map_copy.Cols();
     const int rows = map_copy.Rows();
     QImage local_image(cols, rows, QImage::Format_ARGB32);
@@ -75,7 +83,10 @@ void DisplayOccMap::ParseOccupyMap() {
     }
 
     // 回到主线程更新 QGraphicsItem 状态
-    QMetaObject::invokeMethod(this, [this, local_image, map_copy]() mutable {
+    QMetaObject::invokeMethod(this, [this, local_image, map_copy, generation]() mutable {
+      if (generation != map_generation_.load()) {
+        return;
+      }
       map_image_ = local_image;
       SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
       update();
@@ -87,7 +98,7 @@ void DisplayOccMap::ParseOccupyMap() {
         init_flag_ = true;
       }
     }, Qt::QueuedConnection);
-  });
+  }));
 }
 void DisplayOccMap::EraseMapRange(const QPointF &pose, double range) {
   float x = pose.x();

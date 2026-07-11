@@ -7,7 +7,10 @@
  */
 #ifndef ROBO_MAP_H
 #define ROBO_MAP_H
+#include <atomic>
+#include <cstdint>
 #include <Eigen/Dense>
+#include <QFutureSynchronizer>
 #include "occupancy_map.h"
 #include "virtual_display.h"
 namespace Display {
@@ -19,7 +22,7 @@ class DisplayOccMap : public VirtualDisplay {
  public:
   DisplayOccMap(const std::string &display_type, const int &z_value,
                 std::string parent_name = "");
-  ~DisplayOccMap() = default;
+  ~DisplayOccMap() override;
  signals:
   void signalMapReady();
  public:
@@ -46,6 +49,8 @@ class DisplayOccMap : public VirtualDisplay {
   bool init_flag_ = {false};
   QPointF line_start_pose_;
   QImage line_tmp_image_;  // 用于存储绘制线条的图像，以便在绘制完成后进行处理
+  std::atomic<std::uint64_t> map_generation_{0};
+  QFutureSynchronizer<void> map_tasks_;
  private:
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
              QWidget *widget = nullptr) override;

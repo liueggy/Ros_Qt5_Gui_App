@@ -160,6 +160,7 @@ bool RosbridgeComm::Start() {
 
   connection_failed_ = false;
   connecting_ = true;
+  reconnect_enabled_ = true;
   {
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
     connection_error_msg_.clear();
@@ -182,6 +183,12 @@ void RosbridgeComm::ConnectAsync() {
     connection_failed_ = true;
     connecting_ = false;
     LOG_ERROR("ROSBridge TCP preflight failed; channel startup aborted.");
+    return;
+  }
+
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+  if (!reconnect_enabled_) {
+    connecting_ = false;
     return;
   }
 
@@ -524,16 +531,24 @@ bool RosbridgeComm::Stop() {
     connection_thread_.join();
   }
 
+  {
+    std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+    CleanupTransportLocked();
+  }
+  return true;
+}
+
+void RosbridgeComm::CleanupTransportLocked() {
+  // Stop the socket receiver before destroying topics and ROSBridge objects
+  // whose callbacks/references it may still use.
+  if (websocket_connection_) {
+    websocket_connection_->Disconnect();
+  }
   subscribers_.clear();
   publishers_.clear();
   callback_handles_.clear();
   ros_bridge_.reset();
-
-  if (websocket_connection_) {
-    websocket_connection_->Disconnect();
-  }
   websocket_connection_.reset();
-  return true;
 }
 
 /**
@@ -569,15 +584,10 @@ void RosbridgeComm::ReconnectLoop() {
       connection_thread_.join();
     }
 
-    subscribers_.clear();
-    publishers_.clear();
-    callback_handles_.clear();
-    ros_bridge_.reset();
-
-    if (websocket_connection_) {
-      websocket_connection_->Disconnect();
+    {
+      std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+      CleanupTransportLocked();
     }
-    websocket_connection_.reset();
 
     connecting_ = true;
     connection_failed_ = false;
@@ -611,6 +621,7 @@ void RosbridgeComm::ReconnectLoop() {
  * @brief 处理循环，定期更新机器人位姿
  */
 void RosbridgeComm::Process() {
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   if (init_flag_ && ros_bridge_ && ros_bridge_->IsHealthy()) {
     GetRobotPose();
   }
@@ -1549,6 +1560,7 @@ void RosbridgeComm::PubRelocPose(const basic::RobotPose& pose) {
   msg.AddMember("pose", pose_with_covariance, allocator);
 
   // 发布消息
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_SET_RELOC_POSE));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1600,6 +1612,7 @@ void RosbridgeComm::PubNavGoal(const basic::RobotPose& pose) {
   msg.AddMember("pose", pose_value, allocator);
 
   // 发布消息
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(DISPLAY_GOAL));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1631,6 +1644,7 @@ void RosbridgeComm::PubRobotSpeed(const basic::RobotSpeed& speed) {
   msg.AddMember("angular", angular, allocator);
 
   // 发布消息
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1646,6 +1660,7 @@ void RosbridgeComm::PubCommandRequest(const std::string& json_request) {
   auto& allocator = msg.GetAllocator();
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1658,6 +1673,7 @@ void RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_re
   auto& allocator = msg.GetAllocator();
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(ToString(id)));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1670,6 +1686,7 @@ void RosbridgeComm::PubInspectionRequest(const std::string& json_request) {
   auto& allocator = msg.GetAllocator();
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_INSPECTION_REQUEST));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
@@ -1740,6 +1757,7 @@ void RosbridgeComm::PubTopologyMapUpdate(const TopologyMap& topology_map) {
   msg.AddMember("routes", routes, allocator);
 
   // 发布消息
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE));
   if (it != publishers_.end()) {
     it->second->Publish(msg);
