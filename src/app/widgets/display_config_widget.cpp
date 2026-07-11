@@ -6,6 +6,7 @@
 #include <QHeaderView>
 #include <QIcon>
 #include <QInputDialog>
+#include <QIntValidator>
 #include <QListWidgetItem>
 #include <QMessageBox>
 #include <utility>
@@ -211,12 +212,24 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   rosbridge_port_label_->setFixedWidth(56);
   rosbridge_port_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   rosbridge_port_edit_ = new QLineEdit(card);
+  rosbridge_port_edit_->setValidator(new QIntValidator(1, 65535, rosbridge_port_edit_));
   rosbridge_port_edit_->setPlaceholderText(QStringLiteral("9090"));
   rosbridge_port_edit_->setStyleSheet(UiStyle::InputStyleSheet());
   connect(rosbridge_port_edit_, &QLineEdit::editingFinished, [this]() {
     if (is_loading_config_) {
       return;
     }
+    if (!rosbridge_port_edit_->hasAcceptableInput()) {
+      const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
+      const QString saved_port = QString::fromStdString(
+          config.channel_config.rosbridge_config.port.empty()
+              ? std::string("9090")
+              : config.channel_config.rosbridge_config.port);
+      rosbridge_port_edit_->setText(saved_port);
+      rosbridge_port_edit_->setToolTip(tr("端口必须是 1 到 65535 之间的整数"));
+      return;
+    }
+    rosbridge_port_edit_->setToolTip(QString());
     QString new_port = rosbridge_port_edit_->text();
     Config::ConfigManager::Instance()->UpdateRootConfig([&new_port](auto& config) {
       config.channel_config.rosbridge_config.port = new_port.toStdString();

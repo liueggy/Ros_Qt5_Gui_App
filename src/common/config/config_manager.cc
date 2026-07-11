@@ -1,6 +1,7 @@
 #include "config/config_manager.h"
 #include <QFile>
 #include <boost/dll.hpp>
+#include <chrono>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -52,12 +53,42 @@ bool ConfigManager::ReadRootConfig() {
   std::lock_guard<std::mutex> lock(mutex_);
   std::ifstream file(config_path_);
   try {
-    nlohmann::json j;
-    file >> j;
-    config_root_ = j.get<Config::ConfigRoot>();
+    if (!file.is_open()) {
+      throw std::runtime_error("cannot open configuration file");
+    }
+    const std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
+    ConfigRoot parsed;
+    std::string parse_error;
+    if (!ParseRootConfig(content, parsed, &parse_error)) {
+      throw std::runtime_error(parse_error);
+    }
+    config_root_ = std::move(parsed);
   } catch (const std::exception &e) {
     fprintf(stderr, "Error parsing config.json error: %s\n", e.what());
-    std::exit(1);
+    file.close();
+
+    const auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+    const boost::filesystem::path original(config_path_);
+    const boost::filesystem::path backup(config_path_ + ".corrupt." +
+                                         std::to_string(timestamp));
+    boost::system::error_code backup_error;
+    if (boost::filesystem::exists(original)) {
+      boost::filesystem::rename(original, backup, backup_error);
+      if (backup_error) {
+        fprintf(stderr, "Unable to preserve invalid config: %s\n",
+                backup_error.message().c_str());
+      }
+    }
+
+    config_root_ = ConfigRoot{};
+    if (!StoreConfigUnlocked()) {
+      fprintf(stderr, "Unable to write default configuration to %s\n",
+              config_path_.c_str());
+    }
+    return false;
   }
   file.close();
 
@@ -72,6 +103,20 @@ bool ConfigManager::StoreConfigUnlocked() {
   nlohmann::json j = config_root_;
   std::string pretty_json = j.dump(2);
   return writeStringToFile(config_path_, pretty_json);
+}
+
+bool ConfigManager::ParseRootConfig(const std::string &content,
+                                    ConfigRoot &config, std::string *error) {
+  try {
+    ConfigRoot parsed = nlohmann::json::parse(content).get<ConfigRoot>();
+    config = std::move(parsed);
+    return true;
+  } catch (const std::exception &exception) {
+    if (error) {
+      *error = exception.what();
+    }
+    return false;
+  }
 }
 std::string ConfigManager::GetTopicName(const std::string &frame_name) const {
   std::lock_guard<std::mutex> lock(mutex_);

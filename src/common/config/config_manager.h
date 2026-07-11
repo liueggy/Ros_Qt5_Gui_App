@@ -48,6 +48,8 @@ class ConfigManager {
   void Init(const std::string &config_path);
   static bool writeStringToFile(const std::string &filePath,
                                 const std::string &content);
+  static bool ParseRootConfig(const std::string &content, ConfigRoot &config,
+                              std::string *error = nullptr);
 
   std::string GetTopicName(const std::string &frame_name) const;
   void SetDefaultConfig(const std::string &name, const std::string &value);

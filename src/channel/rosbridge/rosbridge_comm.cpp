@@ -10,6 +10,7 @@
 #include <boost/asio.hpp>
 #include <cctype>
 #include <chrono>
+#include <charconv>
 #include <cmath>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
@@ -138,7 +139,24 @@ bool RosbridgeComm::Start() {
   // 从配置读取ROSBridge服务器地址和端口
   const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
   rosbridge_ip_ = config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
-  rosbridge_port_ = std::stoi(config.channel_config.rosbridge_config.port.empty() ? "9090" : config.channel_config.rosbridge_config.port);
+  const std::string port_text = config.channel_config.rosbridge_config.port.empty()
+                                    ? "9090"
+                                    : config.channel_config.rosbridge_config.port;
+  int parsed_port = 0;
+  const auto parse_result =
+      std::from_chars(port_text.data(), port_text.data() + port_text.size(), parsed_port);
+  if (parse_result.ec != std::errc{} ||
+      parse_result.ptr != port_text.data() + port_text.size() ||
+      parsed_port < 1 || parsed_port > 65535) {
+    connecting_ = false;
+    connection_failed_ = true;
+    std::lock_guard<std::mutex> lock(error_msg_mutex_);
+    connection_error_msg_ = "Invalid ROSBridge port: " + port_text +
+                            ". Expected an integer from 1 to 65535.";
+    LOG_ERROR(connection_error_msg_);
+    return false;
+  }
+  rosbridge_port_ = parsed_port;
 
   connection_failed_ = false;
   connecting_ = true;

@@ -17,6 +17,17 @@ TEST(ConfigManagerTest, RootSnapshotIsDetachedAndUpdatesAreControlled) {
       [&original](auto& config) { config = original; }, false));
 }
 
+TEST(ConfigManagerTest, MalformedRootConfigIsRejectedWithoutPartialMutation) {
+  Config::ConfigRoot parsed;
+  parsed.map_config.path = "unchanged";
+  std::string error;
+
+  EXPECT_FALSE(Config::ConfigManager::ParseRootConfig(
+      R"({"channel_config": )", parsed, &error));
+  EXPECT_FALSE(error.empty());
+  EXPECT_EQ(parsed.map_config.path, "unchanged");
+}
+
 TEST(TopologyMapTest, MissingPointHasSafeDefaultPose) {
   TopologyMap map;
 
