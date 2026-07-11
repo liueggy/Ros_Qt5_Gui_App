@@ -1455,12 +1455,12 @@ void MainWindow::setupUi() {
   command_center_dock_->toggleView(true);
   ui->menuView->addAction(command_center_dock_->toggleViewAction());
 
-  //////////////////////////////////////////////////////模拟终端
+  //////////////////////////////////////////////////////板端终端
   terminal_widget_ = new TerminalWidget();
-  terminal_dock_ = new ads::CDockWidget("模拟终端");
+  terminal_dock_ = new ads::CDockWidget("板端终端");
   terminal_dock_->setWidget(terminal_widget_);
-  ConfigureDockWidget(terminal_dock_, QSize(620, 420), QSize(860, 580));
-  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+  ConfigureDockWidget(terminal_dock_, QSize(720, 220), QSize(1100, 320));
+  dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                terminal_dock_, center_docker_area_);
   terminal_dock_->toggleView(false);
   ConfigureFloatingOnOpen(terminal_dock_, QSize(860, 580));

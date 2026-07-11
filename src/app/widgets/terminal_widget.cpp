@@ -1,6 +1,7 @@
 #include "terminal_widget.h"
 
 #include <QDateTime>
+#include <QComboBox>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QJsonDocument>
@@ -11,6 +12,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextCursor>
+#include <QTime>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QtGlobal>
@@ -37,68 +39,93 @@ const ShortcutCommand kShortcutCommands[] = {
 }  // namespace
 
 TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
-  setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::InputStyleSheet());
+  setObjectName(QStringLiteral("terminalRoot"));
+  setStyleSheet(QStringLiteral(
+      "#terminalRoot { background:#111827; }"
+      "QLabel { color:#CBD5E1; background:transparent; }"
+      "QPushButton, QComboBox { min-height:26px; padding:2px 9px;"
+      " border:1px solid #334155; border-radius:4px; color:#DCE7F3;"
+      " background:#1E293B; font-size:13px; }"
+      "QPushButton:hover, QComboBox:hover { border-color:#64748B; background:#273449; }"
+      "QPushButton:pressed { background:#334155; }"
+      "QPushButton:disabled { color:#64748B; background:#172033; }"
+      "QComboBox::drop-down { border:0; width:22px; }"
+      "QComboBox QAbstractItemView { color:#DCE7F3; background:#1E293B;"
+      " border:1px solid #475569; selection-background-color:#2563EB; }"));
 
   auto* root = new QVBoxLayout(this);
-  root->setContentsMargins(12, 12, 12, 12);
-  root->setSpacing(10);
+  root->setContentsMargins(0, 0, 0, 0);
+  root->setSpacing(0);
 
-  auto* title_row = new QHBoxLayout();
-  auto* title_label = new QLabel(tr("模拟终端"));
-  title_label->setStyleSheet(UiStyle::TitleLabelStyleSheet());
-  title_row->addWidget(title_label);
-  title_row->addStretch();
+  auto* toolbar = new QWidget();
+  toolbar->setObjectName(QStringLiteral("terminalToolbar"));
+  toolbar->setStyleSheet(QStringLiteral(
+      "#terminalToolbar { background:#182235; border-bottom:1px solid #2B3A51; }"));
+  auto* title_row = new QHBoxLayout(toolbar);
+  title_row->setContentsMargins(10, 5, 8, 5);
+  title_row->setSpacing(7);
+
+  status_dot_ = new QLabel(QStringLiteral("●"));
+  status_dot_->setFixedWidth(12);
+  title_row->addWidget(status_dot_);
+
+  auto* session_label = new QLabel(tr("root@firefly  ·  rosbridge shell"));
+  session_label->setStyleSheet(QStringLiteral(
+      "font-family:Consolas,'Microsoft YaHei UI'; font-size:13px; color:#E2E8F0;"));
+  title_row->addWidget(session_label);
 
   status_label_ = new QLabel(tr("就绪"));
-  status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  status_label_->setStyleSheet(QStringLiteral("font-size:12px; color:#94A3B8;"));
   title_row->addWidget(status_label_);
-  root->addLayout(title_row);
+  title_row->addStretch();
+
+  quick_command_combo_ = new QComboBox();
+  quick_command_combo_->setMinimumWidth(150);
+  quick_command_combo_->addItem(tr("快捷命令…"), QString());
+  for (const auto& shortcut : kShortcutCommands) {
+    quick_command_combo_->addItem(tr(shortcut.label),
+                                  QString::fromLatin1(shortcut.command));
+  }
+  connect(quick_command_combo_, QOverload<int>::of(&QComboBox::activated),
+          this, [this](int index) {
+            const QString command = quick_command_combo_->itemData(index).toString();
+            if (!command.isEmpty()) {
+              SetCommandText(command);
+            }
+            quick_command_combo_->setCurrentIndex(0);
+          });
+  title_row->addWidget(quick_command_combo_);
+
+  terminate_button_ = new QPushButton(tr("■ 终止"));
+  terminate_button_->setToolTip(tr("终止当前命令（Ctrl+C）"));
+  terminate_button_->setEnabled(false);
+  connect(terminate_button_, &QPushButton::clicked, this,
+          &TerminalWidget::TerminateCommand);
+  title_row->addWidget(terminate_button_);
+
+  auto* clear_button = new QPushButton(tr("清屏"));
+  clear_button->setToolTip(tr("清空终端（Ctrl+L）"));
+  connect(clear_button, &QPushButton::clicked, this,
+          &TerminalWidget::ClearOutput);
+  title_row->addWidget(clear_button);
+  root->addWidget(toolbar);
 
   output_edit_ = new QPlainTextEdit();
   output_edit_->setReadOnly(false);
   output_edit_->setUndoRedoEnabled(false);
-  output_edit_->setPlaceholderText(tr("在 $ 提示符后输入命令，按回车执行"));
-  auto terminal_style = UiStyle::InputStyleSheet() +
-      QString(
-          "QPlainTextEdit { background:%1; color:%2; border:1px solid %3;"
-          " border-radius:8px; padding:10px; font-family:Consolas,\"Microsoft YaHei Mono\",monospace;"
-          " font-size:%4px; selection-background-color:%5; }")
-          .arg(UiStyle::Palette::TerminalBg).arg(UiStyle::Palette::TerminalText).arg(UiStyle::Palette::TerminalBorder).arg(UiStyle::FontBasePx()).arg(UiStyle::Palette::TerminalSelection);
-  output_edit_->setStyleSheet(terminal_style);
+  output_edit_->setMaximumBlockCount(5000);
+  output_edit_->setLineWrapMode(QPlainTextEdit::NoWrap);
+  output_edit_->setTabStopWidth(32);
+  output_edit_->setPlaceholderText(tr("输入板端白名单命令，按 Enter 执行"));
+  output_edit_->setStyleSheet(QStringLiteral(
+      "QPlainTextEdit { background:#111827; color:#D7E2EE; border:0;"
+      " padding:9px 12px; font-family:Consolas,'Cascadia Mono','Microsoft YaHei UI';"
+      " font-size:14px; selection-background-color:#264F78;"
+      " selection-color:#FFFFFF; }"));
   root->addWidget(output_edit_, 1);
   output_edit_->installEventFilter(this);
   AddPrompt();
-
-  auto* shortcut_label = new QLabel(tr("快捷命令"));
-  shortcut_label->setStyleSheet(UiStyle::SectionLabelStyleSheet());
-  root->addWidget(shortcut_label);
-
-  auto* shortcut_row = new QHBoxLayout();
-  shortcut_row->setSpacing(6);
-  for (const auto& shortcut : kShortcutCommands) {
-    auto* button = new QPushButton(tr(shortcut.label));
-    button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-    button->setToolTip(QString::fromLatin1(shortcut.command));
-    connect(button, &QPushButton::clicked, this,
-            [this, shortcut]() { SetCommandText(QString::fromLatin1(shortcut.command)); });
-    shortcut_row->addWidget(button);
-  }
-  shortcut_row->addStretch();
-  root->addLayout(shortcut_row);
-
-  auto* command_row = new QHBoxLayout();
-  command_row->addStretch();
-  terminate_button_ = new QPushButton(tr("终止"));
-  terminate_button_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  terminate_button_->setEnabled(false);
-  connect(terminate_button_, &QPushButton::clicked, this, &TerminalWidget::TerminateCommand);
-  command_row->addWidget(terminate_button_);
-
-  auto* clear_button = new QPushButton(tr("清空"));
-  clear_button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  connect(clear_button, &QPushButton::clicked, this, &TerminalWidget::ClearOutput);
-  command_row->addWidget(clear_button);
-  root->addLayout(command_row);
+  UpdateStatus(false, tr("就绪"));
 }
 
 void TerminalWidget::AppendOutput(const QString& text) {
@@ -116,9 +143,9 @@ void TerminalWidget::AppendStatus(const QString& text) {
   if (text.isEmpty()) {
     return;
   }
-  const QString timestamp = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss"));
+  const QString timestamp = QTime::currentTime().toString(QStringLiteral("HH:mm:ss"));
   AppendOutput(QStringLiteral("[%1] %2\n").arg(timestamp, text));
-  status_label_->setText(text);
+  UpdateStatus(command_running_, text);
 }
 
 void TerminalWidget::SetCommandRunning(bool running) {
@@ -128,7 +155,8 @@ void TerminalWidget::SetCommandRunning(bool running) {
   output_edit_->setTextInteractionFlags(
       running ? Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse
               : Qt::TextEditorInteraction);
-  status_label_->setText(running ? tr("命令执行中") : tr("就绪"));
+  quick_command_combo_->setEnabled(!running);
+  UpdateStatus(running, running ? tr("命令执行中") : tr("就绪"));
   if (was_running && !running) {
     AddPrompt();
   } else if (!running) {
@@ -139,6 +167,16 @@ void TerminalWidget::SetCommandRunning(bool running) {
 bool TerminalWidget::eventFilter(QObject* watched, QEvent* event) {
   if (watched == output_edit_ && event->type() == QEvent::KeyPress) {
     auto* key_event = static_cast<QKeyEvent*>(event);
+    if (key_event->modifiers().testFlag(Qt::ControlModifier) &&
+        key_event->key() == Qt::Key_L) {
+      ClearOutput();
+      return true;
+    }
+    if (command_running_ && key_event->modifiers().testFlag(Qt::ControlModifier) &&
+        key_event->key() == Qt::Key_C) {
+      TerminateCommand();
+      return true;
+    }
     if (command_running_) {
       return key_event->matches(QKeySequence::Paste) ||
              key_event->key() == Qt::Key_Return ||
@@ -191,7 +229,7 @@ void TerminalWidget::ExecuteCommand() {
   }
   const QString command = CurrentCommand().trimmed();
   if (command.isEmpty()) {
-    status_label_->setText(tr("请输入命令"));
+    UpdateStatus(false, tr("请输入命令"));
     return;
   }
 
@@ -213,7 +251,7 @@ void TerminalWidget::TerminateCommand() {
   if (!command_running_) {
     return;
   }
-  status_label_->setText(tr("正在终止"));
+  UpdateStatus(true, tr("正在终止"));
   terminate_button_->setEnabled(false);
   emit TerminateRequested();
 }
@@ -224,7 +262,7 @@ void TerminalWidget::ClearOutput() {
   if (!command_running_) {
     AddPrompt();
   }
-  status_label_->setText(command_running_ ? tr("命令执行中") : tr("就绪"));
+  UpdateStatus(command_running_, command_running_ ? tr("命令执行中") : tr("就绪"));
 }
 
 QString TerminalWidget::MakeRequestJson(const QString& command) const {
@@ -275,7 +313,7 @@ void TerminalWidget::AddPrompt() {
       !output_edit_->toPlainText().endsWith(QLatin1Char('\n'))) {
     cursor.insertText(QStringLiteral("\n"));
   }
-  cursor.insertText(QStringLiteral("$ "));
+  cursor.insertText(QStringLiteral("root@firefly:~# "));
   prompt_position_ = cursor.position();
   prompt_active_ = true;
   output_edit_->setTextCursor(cursor);
@@ -287,6 +325,13 @@ QString TerminalWidget::CurrentCommand() const {
     return QString();
   }
   return output_edit_->toPlainText().mid(prompt_position_);
+}
+
+void TerminalWidget::UpdateStatus(bool running, const QString& text) {
+  status_label_->setText(text);
+  status_dot_->setStyleSheet(
+      running ? QStringLiteral("color:#FBBF24; font-size:11px;")
+              : QStringLiteral("color:#34D399; font-size:11px;"));
 }
 
 

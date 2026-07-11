@@ -7,6 +7,7 @@
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
+class QComboBox;
 
 class TerminalWidget : public QWidget {
   Q_OBJECT
@@ -36,10 +37,13 @@ class TerminalWidget : public QWidget {
   QString CurrentCommand() const;
   void SetCommandText(const QString& command);
   void NavigateHistory(int direction);
+  void UpdateStatus(bool running, const QString& text);
 
   QPlainTextEdit* output_edit_{nullptr};
   QPushButton* terminate_button_{nullptr};
   QLabel* status_label_{nullptr};
+  QLabel* status_dot_{nullptr};
+  QComboBox* quick_command_combo_{nullptr};
   QStringList command_history_;
   int history_index_ = {0};
   int prompt_position_ = {0};
