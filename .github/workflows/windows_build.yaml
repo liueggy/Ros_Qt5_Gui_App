@@ -1,4 +1,4 @@
-name: Windows:RosBridge
+name: Windows:Build and Publish
 
 on:
   push:
@@ -25,6 +25,7 @@ env:
   CMAKE_GENERATOR: Ninja
   SCCACHE_DIR: ${{ github.workspace }}\.sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  BINARY_BRANCH: windows-latest-bin
 
 jobs:
   build:
@@ -64,6 +65,21 @@ jobs:
             vcpkg-installed-${{ runner.os }}-x64-windows-vcpkg2024.12.16-
             vcpkg-installed-${{ runner.os }}-x64-windows-
 
+      # Restoring Ninja's build tree preserves dependency scanning, generated Qt
+      # UI/MOC files and link state. The SHA suffix makes saved caches immutable;
+      # restore-keys selects the newest compatible build from this branch.
+      - name: Restore incremental Ninja build
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build
+            !build/install
+            !build/artifacts
+          key: ninja-build-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'cmake/**', 'src/**/CMakeLists.txt', 'install/CMakeLists.txt', 'build.bat') }}-${{ github.sha }}
+          restore-keys: |
+            ninja-build-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'cmake/**', 'src/**/CMakeLists.txt', 'install/CMakeLists.txt', 'build.bat') }}-
+            ninja-build-${{ runner.os }}-${{ github.ref_name }}-
+
       - name: Build via project script
         env:
           VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
@@ -83,17 +99,91 @@ jobs:
         run: |
           ctest --test-dir build -C Release --output-on-failure
 
+      - name: Save incremental Ninja build
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build
+            !build/install
+            !build/artifacts
+          key: ninja-build-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('vcpkg.json', 'CMakeLists.txt', 'cmake/**', 'src/**/CMakeLists.txt', 'install/CMakeLists.txt', 'build.bat') }}-${{ github.sha }}
+
       - name: Package
+        shell: pwsh
         run: |
-          cd build\install\bin
-          powershell "Get-ChildItem . -Recurse -Filter *.lib | Remove-Item -Force"
-          powershell Compress-Archive -Path * -DestinationPath ros_qt5_gui_app_windows_x64.zip -Force
+          $ErrorActionPreference = 'Stop'
+          $binDir = Join-Path $env:GITHUB_WORKSPACE 'build/install/bin'
+          $artifactDir = Join-Path $env:GITHUB_WORKSPACE 'build/artifacts'
+          New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+          Get-ChildItem $binDir -Recurse -Filter *.lib | Remove-Item -Force
+          Compress-Archive -Path "$binDir/*" -DestinationPath (Join-Path $artifactDir 'ros_qt5_gui_app_windows_x64.zip') -Force
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ros_qt5_gui_app_windows_x64
-          path: build/install/bin/ros_qt5_gui_app_windows_x64.zip
+          path: build/artifacts/ros_qt5_gui_app_windows_x64.zip
+
+      - name: Prepare binary branch payload
+        if: github.ref == 'refs/heads/master'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE '_binary_branch_payload'
+          $binDir = Join-Path $env:GITHUB_WORKSPACE 'build/install/bin'
+          Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $publishDir | Out-Null
+          Copy-Item "$binDir/*" $publishDir -Recurse -Force
+          Get-ChildItem $publishDir -Recurse -Filter *.lib | Remove-Item -Force
+          Get-ChildItem $publishDir -Recurse -Include *.log,*.dmp,*.mdmp,myeasylog.* | Remove-Item -Force -ErrorAction SilentlyContinue
+
+          $commit = $env:GITHUB_SHA
+          $shortCommit = $commit.Substring(0, 7)
+          $runUrl = "https://github.com/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          @"
+          Ros_Qt5_Gui_App Windows latest binary branch
+
+          Source commit: $commit
+          Short commit : $shortCommit
+          Source branch: $env:GITHUB_REF_NAME
+          Workflow run : $runUrl
+          Build time   : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss K')
+          Target branch: $env:BINARY_BRANCH
+          "@ | Set-Content (Join-Path $publishDir 'BUILD_INFO.txt') -Encoding UTF8
+
+          Copy-Item '.github/binary-branch/run.bat' (Join-Path $publishDir 'run.bat') -Force
+          Copy-Item '.github/binary-branch/update_and_run.bat' (Join-Path $publishDir 'update_and_run.bat') -Force
+          @"
+          *.log
+          logs/
+          myeasylog.*
+          state.ini
+          config.json
+          map.pgm
+          map.yaml
+          map.yml
+          map.topology
+          .codegraph/
+          crash*.dmp
+          *.mdmp
+          "@ | Set-Content (Join-Path $publishDir '.gitignore') -Encoding ASCII
+
+      - name: Publish unpacked binaries to windows-latest-bin
+        if: github.ref == 'refs/heads/master'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-Location (Join-Path $env:GITHUB_WORKSPACE '_binary_branch_payload')
+          git init
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B $env:BINARY_BRANCH
+          git add -A
+          git commit -m "publish Windows binaries from $($env:GITHUB_SHA.Substring(0, 7))"
+          git push --force "https://x-access-token:$env:GH_TOKEN@github.com/$env:GITHUB_REPOSITORY.git" "HEAD:$env:BINARY_BRANCH"
 
       - name: Publish latest Windows package to Release
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
@@ -102,7 +192,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: qt-windows-latest
           RELEASE_TITLE: Ros Qt5 GUI App Windows x64 Latest
-          PACKAGE_PATH: build/install/bin/ros_qt5_gui_app_windows_x64.zip
+          PACKAGE_PATH: build/artifacts/ros_qt5_gui_app_windows_x64.zip
         run: |
           $ErrorActionPreference = 'Stop'
           $repo = $env:GITHUB_REPOSITORY
