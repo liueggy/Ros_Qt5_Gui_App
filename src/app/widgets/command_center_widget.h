@@ -8,6 +8,7 @@
 
 class DiagnosticDockWidget;
 class QComboBox;
+class QFrame;
 class QJsonArray;
 class QLabel;
 class QPlainTextEdit;
@@ -59,6 +60,8 @@ class CommandCenterWidget : public QWidget {
   QLabel* diagnostic_overview_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
   QLabel* camera_inspection_label_{nullptr};
+  QPushButton* camera_start_btn_{nullptr};
+  QPushButton* camera_stop_btn_{nullptr};
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};
   QLabel* nav_mode_label_{nullptr};
@@ -68,4 +71,5 @@ class CommandCenterWidget : public QWidget {
   QLabel* status_summary_label_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
+  QFrame* diagnostic_group_{nullptr};
 };

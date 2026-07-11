@@ -117,18 +117,21 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
   camera_row->setSpacing(10);
-  auto* camera_start_btn = new QPushButton(tr("启动摄像头"), camera_group);
-  auto* camera_stop_btn = new QPushButton(tr("停止摄像头"), camera_group);
-  camera_start_btn->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  camera_stop_btn->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  camera_row->addWidget(camera_start_btn);
-  camera_row->addWidget(camera_stop_btn);
+  camera_start_btn_ = new QPushButton(tr("启动摄像头"), camera_group);
+  camera_stop_btn_ = new QPushButton(tr("停止摄像头"), camera_group);
+  camera_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  camera_stop_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  camera_start_btn_->setAccessibleDescription(tr("启动机器人前置摄像头"));
+  camera_stop_btn_->setAccessibleDescription(tr("停止机器人前置摄像头"));
+  camera_stop_btn_->setVisible(false);
+  camera_row->addWidget(camera_start_btn_);
+  camera_row->addWidget(camera_stop_btn_);
   camera_row->addStretch();
   camera_layout->addLayout(camera_row);
   root->addWidget(camera_group);
 
-  connect(camera_start_btn, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
-  connect(camera_stop_btn, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
+  connect(camera_start_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
+  connect(camera_stop_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
 
   auto* network_group = new QFrame(this);
   network_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -242,15 +245,17 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(refresh_status_btn, &QPushButton::clicked, this, &CommandCenterWidget::SendStatusRequest);
   connect(clear_btn, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
 
-  auto* diagnostic_group = new QFrame(this);
-  diagnostic_group->setStyleSheet(UiStyle::CardStyleSheet());
-  auto* diagnostic_layout = new QVBoxLayout(diagnostic_group);
+  diagnostic_group_ = new QFrame(this);
+  diagnostic_group_->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* diagnostic_layout = new QVBoxLayout(diagnostic_group_);
   diagnostic_layout->setContentsMargins(16, 14, 16, 16);
   diagnostic_layout->setSpacing(10);
-  AddCardTitle(diagnostic_layout, tr("系统诊断"), diagnostic_group);
-  diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group);
+  AddCardTitle(diagnostic_layout, tr("系统诊断"), diagnostic_group_);
+  diagnostic_widget_ = new DiagnosticDockWidget(diagnostic_group_);
   diagnostic_layout->addWidget(diagnostic_widget_);
-  root->addWidget(diagnostic_group, 2);
+  diagnostic_group_->setVisible(false);
+  root->addWidget(diagnostic_group_);
+  root->addStretch(1);
 
   SUBSCRIBE(MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { AppendResponse(json); }, Qt::QueuedConnection);
@@ -286,6 +291,9 @@ void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot&
         worst_level = component.second.level;
       }
     }
+  }
+  if (diagnostic_group_) {
+    diagnostic_group_->setVisible(total > 0);
   }
   SetDiagnosticOverview(total, abnormal, worst_level);
 }
@@ -652,6 +660,16 @@ void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
 void CommandCenterWidget::SetCameraStateText(const QString& text) {
   if (camera_state_label_) {
     camera_state_label_->setText(text);
+  }
+  const bool pending = text.contains(tr("正在"));
+  const bool running = text.contains(tr("在线")) || text.contains(tr("运行"));
+  if (camera_start_btn_) {
+    camera_start_btn_->setVisible(!running);
+    camera_start_btn_->setEnabled(!pending);
+  }
+  if (camera_stop_btn_) {
+    camera_stop_btn_->setVisible(running);
+    camera_stop_btn_->setEnabled(!pending);
   }
 }
 
