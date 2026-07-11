@@ -12,9 +12,9 @@ void SetPoseWidget::paintEvent(QPaintEvent* event) {
 
   // 绘制圆角矩形背景
   QRectF rect = this->rect();
-  painter.setPen(QPen(QColor(224, 224, 224), 1));
-  painter.setBrush(QColor(255, 255, 255));
-  painter.drawRoundedRect(rect, 8, 8);
+  painter.setPen(QPen(QColor(UiStyle::Palette::Border), 1));
+  painter.setBrush(QColor(UiStyle::Palette::Surface));
+  painter.drawRoundedRect(rect, UiStyle::Radius::LG, UiStyle::Radius::LG);
 
   QWidget::paintEvent(event);
 }
@@ -33,8 +33,10 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
 
   // 设置调色板确保背景不透明
   QPalette pal = palette();
-  pal.setColor(QPalette::Window, QColor(255, 255, 255));
-  pal.setColor(QPalette::Base, QColor(255, 255, 255));
+  pal.setColor(QPalette::Window, QColor(UiStyle::Palette::Surface));
+  pal.setColor(QPalette::Base, QColor(UiStyle::Palette::Surface));
+  pal.setColor(QPalette::Text, QColor(UiStyle::Palette::Text));
+  pal.setColor(QPalette::WindowText, QColor(UiStyle::Palette::Text));
   setPalette(pal);
 
   QLabel* hint =

@@ -10,7 +10,10 @@
 #endif
 
 #include <QApplication>
+#include <QColor>
+#include <QPalette>
 #include <QScreen>
+#include <QSettings>
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDir>
@@ -27,6 +30,8 @@
 #include "widgets/ui_style.h"
 
 namespace {
+
+constexpr int kRestartForThemeChange = 773;
 
 void ApplyApplicationFont(QApplication* app) {
   const QStringList preferredFontFamilies = {
@@ -47,6 +52,27 @@ void ApplyApplicationFont(QApplication* app) {
   QFont uiFont(selectedFontFamily, 10);
   uiFont.setStyleStrategy(QFont::PreferAntialias);
   app->setFont(uiFont);
+}
+
+void ApplyApplicationPalette(QApplication* app) {
+  QPalette palette;
+  palette.setColor(QPalette::Window, QColor(UiStyle::Palette::Background));
+  palette.setColor(QPalette::WindowText, QColor(UiStyle::Palette::Text));
+  palette.setColor(QPalette::Base, QColor(UiStyle::Palette::Surface));
+  palette.setColor(QPalette::AlternateBase, QColor(UiStyle::Palette::SurfaceAlt));
+  palette.setColor(QPalette::Text, QColor(UiStyle::Palette::Text));
+  palette.setColor(QPalette::Button, QColor(UiStyle::Palette::Surface));
+  palette.setColor(QPalette::ButtonText, QColor(UiStyle::Palette::Text));
+  palette.setColor(QPalette::Highlight, QColor(UiStyle::Palette::Primary));
+  palette.setColor(QPalette::HighlightedText,
+                   QColor(UiStyle::Palette::TextOnPrimary));
+  palette.setColor(QPalette::Disabled, QPalette::Text,
+                   QColor(UiStyle::Palette::DisabledText));
+  palette.setColor(QPalette::Disabled, QPalette::ButtonText,
+                   QColor(UiStyle::Palette::DisabledText));
+  palette.setColor(QPalette::Disabled, QPalette::Base,
+                   QColor(UiStyle::Palette::DisabledBg));
+  app->setPalette(palette);
 }
 
 
@@ -78,14 +104,22 @@ int main(int argc, char* argv[]) {
     return 0;
   }
   ApplyApplicationFont(&a);
-  a.setStyleSheet(UiStyle::ApplicationStyleSheet());
   g_app = &a;
 
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  MainWindow main_window;
-  main_window.show();
-  LOG_INFO("ros_qt5_gui_app init!");
-  return a.exec();
+  int result = 0;
+  do {
+    QSettings appearance_settings(QStringLiteral("state.ini"), QSettings::IniFormat);
+    UiStyle::SetDarkTheme(
+        appearance_settings.value(QStringLiteral("appearance/darkTheme"), false).toBool());
+    ApplyApplicationPalette(&a);
+    a.setStyleSheet(UiStyle::ApplicationStyleSheet());
+    MainWindow main_window;
+    main_window.show();
+    LOG_INFO("ros_qt5_gui_app init!");
+    result = a.exec();
+  } while (result == kRestartForThemeChange);
+  return result;
 }

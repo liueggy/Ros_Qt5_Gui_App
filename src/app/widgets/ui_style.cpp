@@ -2,6 +2,96 @@
 
 namespace UiStyle {
 
+namespace {
+bool g_dark_theme = false;
+}
+
+void SetDarkTheme(bool dark) {
+  g_dark_theme = dark;
+  using namespace Palette;
+  if (!dark) {
+    Primary = QStringLiteral("#0f766e");
+    PrimaryHover = QStringLiteral("#0b5f59");
+    PrimaryPress = QStringLiteral("#084c47");
+    PrimaryLight = QStringLiteral("#e5f4f1");
+    Background = QStringLiteral("#f2f3f1");
+    Surface = QStringLiteral("#fbfcfa");
+    SurfaceHover = QStringLiteral("#f0f3f0");
+    SurfaceAlt = QStringLiteral("#f6f7f5");
+    Text = QStringLiteral("#1b2422");
+    TextSecondary = QStringLiteral("#45524f");
+    TextMuted = QStringLiteral("#687572");
+    TextOnPrimary = QStringLiteral("#ffffff");
+    Border = QStringLiteral("#d3d8d5");
+    BorderHover = QStringLiteral("#86aaa4");
+    BorderFocus = Primary;
+    Success = QStringLiteral("#18775f");
+    SuccessBg = QStringLiteral("#e4f3ed");
+    SuccessBorder = QStringLiteral("#91c4b5");
+    Danger = QStringLiteral("#b83a3a");
+    DangerBg = QStringLiteral("#faecea");
+    DangerBorder = QStringLiteral("#dea29d");
+    DangerHover = QStringLiteral("#962f2f");
+    Warning = QStringLiteral("#b76512");
+    WarningBg = QStringLiteral("#fbf0df");
+    WarningBorder = QStringLiteral("#d8ad70");
+    Info = QStringLiteral("#356b73");
+    InfoBg = QStringLiteral("#e9f1f2");
+    InfoBorder = QStringLiteral("#9cbfc3");
+    ToolbarBg = QStringLiteral("#f8f9f7");
+    Separator = Border;
+    Scrollbar = QStringLiteral("#b9c1bd");
+    ScrollbarHvr = QStringLiteral("#87938e");
+    DisabledText = QStringLiteral("#99a29e");
+    DisabledBg = QStringLiteral("#eceeec");
+    TerminalBg = QStringLiteral("#1b2221");
+    TerminalBorder = QStringLiteral("#35413e");
+    TerminalText = QStringLiteral("#e2e9e6");
+    TerminalSelection = QStringLiteral("#315f58");
+    return;
+  }
+  Primary = QStringLiteral("#3fb5a6");
+  PrimaryHover = QStringLiteral("#58c7b8");
+  PrimaryPress = QStringLiteral("#2d9588");
+  PrimaryLight = QStringLiteral("#173b37");
+  Background = QStringLiteral("#171b1a");
+  Surface = QStringLiteral("#1d2321");
+  SurfaceHover = QStringLiteral("#252d2a");
+  SurfaceAlt = QStringLiteral("#202725");
+  Text = QStringLiteral("#e7ece9");
+  TextSecondary = QStringLiteral("#bac5c0");
+  TextMuted = QStringLiteral("#8d9b95");
+  TextOnPrimary = QStringLiteral("#071c19");
+  Border = QStringLiteral("#39433f");
+  BorderHover = QStringLiteral("#55746d");
+  BorderFocus = Primary;
+  Success = QStringLiteral("#63c69f");
+  SuccessBg = QStringLiteral("#17362c");
+  SuccessBorder = QStringLiteral("#356d59");
+  Danger = QStringLiteral("#ee817a");
+  DangerBg = QStringLiteral("#402321");
+  DangerBorder = QStringLiteral("#78433f");
+  DangerHover = QStringLiteral("#ff948d");
+  Warning = QStringLiteral("#e4a34e");
+  WarningBg = QStringLiteral("#3b2e1b");
+  WarningBorder = QStringLiteral("#76572f");
+  Info = QStringLiteral("#74b9c1");
+  InfoBg = QStringLiteral("#203438");
+  InfoBorder = QStringLiteral("#3d6870");
+  ToolbarBg = QStringLiteral("#1a201e");
+  Separator = Border;
+  Scrollbar = QStringLiteral("#46514d");
+  ScrollbarHvr = QStringLiteral("#65736d");
+  DisabledText = QStringLiteral("#6f7a75");
+  DisabledBg = QStringLiteral("#242a28");
+  TerminalBg = QStringLiteral("#111715");
+  TerminalBorder = QStringLiteral("#34413d");
+  TerminalText = QStringLiteral("#dce7e2");
+  TerminalSelection = QStringLiteral("#285f57");
+}
+
+bool IsDarkTheme() { return g_dark_theme; }
+
 // ── Legacy compatibility shims ─────────────
 
 int FontBasePx()  { return Font::Base; }
@@ -14,6 +104,7 @@ int ControlHeightPx() { return Control::Height; }
 
 QString ApplicationStyleSheet() {
   using namespace Palette;
+  const QString dock_tab = IsDarkTheme() ? SurfaceAlt : QStringLiteral("#eef1ee");
   return QStringLiteral(
     "QWidget { color:%1; font-size:%2px; }"
     "QMainWindow, QDialog { background:%3; }"
@@ -21,11 +112,11 @@ QString ApplicationStyleSheet() {
     "QMenu { background:%4; border:1px solid %5; border-radius:%7px; padding:6px; }"
     "QMenu::item { padding:%8px 28px %8px %9px; border-radius:%6px; }"
     "QMenu::item:selected { color:%10; background:%11; }"
-    "QMenu::separator { height:1px; background:#e8edf5; margin:5px %8px; }"
+    "QMenu::separator { height:1px; background:%5; margin:5px %8px; }"
     "QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:top right; "
-    "width:34px; border:none; border-left:1px solid #e4e9f1; }"
+    "width:34px; border:none; border-left:1px solid %5; }"
     "QComboBox::down-arrow { image:url(:/icons/tabler/arrow-down.svg); width:14px; height:14px; }"
-    "QComboBox QAbstractItemView { background:%4; color:%1; border:1px solid #cfd8e6; "
+    "QComboBox QAbstractItemView { background:%4; color:%1; border:1px solid %5; "
     "border-radius:%8px; padding:6px; outline:none; selection-background-color:%11; "
     "selection-color:%10; }"
     "QComboBox QAbstractItemView::item { min-height:34px; padding:5px 10px; }"
@@ -36,12 +127,12 @@ QString ApplicationStyleSheet() {
     "QScrollBar::handle:horizontal { min-width:32px; border-radius:4px; background:%12; }"
     "QScrollBar::handle:horizontal:hover { background:%13; }"
     "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
-    "QTabWidget::pane { border:1px solid %5; border-radius:10px; background:%4; top:-1px; }"
+    "QTabWidget::pane { border:1px solid %5; border-radius:5px; background:%4; top:-1px; }"
     "QTabBar::tab { min-height:30px; padding:6px 16px; color:%2; background:transparent; border:none; }"
     "QTabBar::tab:hover { color:%10; background:%11; }"
     "QTabBar::tab:selected { color:%10; font-weight:600; border-bottom:2px solid %14; }"
     "ads--CDockAreaTitleBar, ads--CDockAreaWidget, ads--CDockContainerWidget { background:%3; }"
-    "ads--CDockWidgetTab { background:#f1f5fb; color:%2; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
+    "ads--CDockWidgetTab { background:%15; color:%2; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
     "ads--CDockWidgetTab[activeTab=\"true\"] { background:%11; color:%10; border-bottom:2px solid %14; font-weight:700; }"
     "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
     "ads--CTitleBarButton { background:transparent; border:none; border-radius:5px; padding:2px; }"
@@ -52,7 +143,7 @@ QString ApplicationStyleSheet() {
         QString::number(Radius::SM), QString::number(Radius::LG),
         QString::number(Space::SM),
         QString::number(Space::MD), Primary, PrimaryLight,
-        Scrollbar, ScrollbarHvr, BorderHover);
+        Scrollbar, ScrollbarHvr, BorderHover, dock_tab);
 }
 
 // ── Panel ───────────────────────────────────
@@ -62,16 +153,16 @@ QString PanelStyleSheet() {
   return QStringLiteral(
     "QWidget { color:%1; font-size:%2px; background:transparent; }"
     "QScrollArea { border:none; background:transparent; }"
-    "QGroupBox { border:1px solid %3; border-radius:14px; margin-top:0; "
+    "QGroupBox { border:1px solid %3; border-radius:5px; margin-top:0; "
     "padding:14px; font-weight:600; color:%1; background:%4; }"
     "QGroupBox::title { subcontrol-origin:padding; subcontrol-position:top left; "
     "padding:0; color:%1; background:transparent; }"
     "QLabel#pageTitle { font-size:%5px; font-weight:700; color:%1; }"
     "QLabel#pageSubtitle { font-size:%6px; color:%7; }"
-    "QPlainTextEdit { border:1px solid #cfd8e6; border-radius:10px; background:%8; padding:%9px; "
+    "QPlainTextEdit { border:1px solid %3; border-radius:5px; background:%8; padding:%9px; "
     "font-family:%10; font-size:%6px; }"
-    "QTreeWidget { border:1px solid #cfd8e6; border-radius:10px; background:%4; alternate-background-color:%8; }"
-    "QHeaderView::section { background:#f0f4f9; color:%2; border:none; padding:6px %9px; font-weight:600; }"
+    "QTreeWidget { border:1px solid %3; border-radius:5px; background:%4; alternate-background-color:%8; }"
+    "QHeaderView::section { background:%8; color:%2; border:none; padding:6px %9px; font-weight:600; }"
   ).arg(Text, TextSecondary, Border, Surface,
         QString::number(Font::Title), QString::number(Font::Small),
         TextMuted, SurfaceHover,
@@ -379,16 +470,17 @@ QString StatusInfoStyleSheet() {
 QString TableStyleSheet() {
   using namespace Palette;
   return QStringLiteral(
-    "QTableWidget, QTableView, QTreeWidget { border:1px solid #cfd8e6; border-radius:10px; "
-    "background:%1; gridline-color:#edf0f4; selection-background-color:%2; "
+    "QTableWidget, QTableView, QTreeWidget { border:1px solid %7; border-radius:%8px; "
+    "background:%1; gridline-color:%7; selection-background-color:%2; "
     "selection-color:%3; alternate-background-color:%4; outline:none; }"
     "QTableWidget::item, QTableView::item, QTreeWidget::item { padding:5px %5px; border:none; }"
     "QTableWidget::item:selected, QTableView::item:selected, QTreeWidget::item:selected "
     "{ color:%3; background:%2; }"
-    "QHeaderView::section { background:#f0f4f9; color:%6; border:none; "
+    "QHeaderView::section { background:%4; color:%6; border:none; "
     "padding:7px %5px; font-weight:600; }"
   ).arg(Surface, PrimaryLight, Primary, SurfaceHover,
-        QString::number(Space::SM), TextSecondary);
+        QString::number(Space::SM), TextSecondary, Border,
+        QString::number(Radius::LG));
 }
 
 // ── Layout chrome ──────────────────────────

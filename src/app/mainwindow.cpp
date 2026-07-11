@@ -61,6 +61,7 @@ using namespace ads;
 namespace {
 
 constexpr int kUiLayoutVersion = 11;
+constexpr int kRestartForThemeChange = 773;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -79,7 +80,7 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   pill->setFixedSize(width, 34);
   pill->setToolTip(tooltip);
   pill->setStyleSheet(QStringLiteral(
-      "QFrame#topStatusPill { background:%1; border:1px solid %2; border-radius:11px; }"
+      "QFrame#topStatusPill { background:%1; border:1px solid %2; border-radius:4px; }"
       "QFrame#topStatusPill:hover { background:%3; border-color:%4; }"
       "QFrame#topStatusPill QLabel { background:transparent; border:none; }")
       .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
@@ -1027,6 +1028,24 @@ void MainWindow::setupUi() {
   });
 
   horizontalLayout_tools->addSpacing(8);
+  auto* theme_btn = new QToolButton(this);
+  theme_btn->setText(UiStyle::IsDarkTheme() ? QStringLiteral("☀")
+                                            : QStringLiteral("☾"));
+  theme_btn->setToolTip(UiStyle::IsDarkTheme() ? tr("切换到明亮模式")
+                                               : tr("切换到暗色模式"));
+  theme_btn->setAccessibleName(theme_btn->toolTip());
+  theme_btn->setFixedSize(32, 28);
+  theme_btn->setStyleSheet(UiStyle::MiniToolButtonStyleSheet());
+  connect(theme_btn, &QToolButton::clicked, this, []() {
+    QSettings settings(QStringLiteral("state.ini"), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("appearance/darkTheme"),
+                      !UiStyle::IsDarkTheme());
+    settings.sync();
+    qApp->exit(kRestartForThemeChange);
+  });
+  horizontalLayout_tools->addWidget(theme_btn);
+
+  horizontalLayout_tools->addSpacing(4);
   QPushButton* min_btn = new QPushButton(this);
   maximize_button_ = new QPushButton(this);
   QPushButton* close_btn = new QPushButton(this);

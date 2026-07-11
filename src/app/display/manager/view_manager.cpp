@@ -94,8 +94,9 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_layout->addWidget(empty_hint);
   map_empty_state_->setMaximumWidth(340);
   map_empty_state_->setStyleSheet(QStringLiteral(
-      "QWidget { background:rgba(250,252,255,242); border:1px solid %2; border-radius:20px; } "
-      "QLabel { background:transparent; border:none; }"));
+      "QWidget { background:%1; border:1px solid %2; border-radius:5px; } "
+      "QLabel { background:transparent; border:none; }")
+      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Border));
   map_empty_state_->adjustSize();
   map_empty_state_->raise();
   center_layout->addItem(
@@ -274,7 +275,8 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   const qreal left = std::floor(rect.left() / minor_step) * minor_step;
   const qreal top = std::floor(rect.top() / minor_step) * minor_step;
 
-  QPen minor_pen(QColor(224, 233, 244, 46));
+  QPen minor_pen(UiStyle::IsDarkTheme() ? QColor(116, 146, 138, 34)
+                                        : QColor(96, 125, 117, 22));
   minor_pen.setWidthF(0.0);
   painter->setPen(minor_pen);
   for (qreal x = left; x < rect.right(); x += minor_step) {
@@ -284,7 +286,8 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
   }
 
-  QPen major_pen(QColor(194, 209, 230, 68));
+  QPen major_pen(UiStyle::IsDarkTheme() ? QColor(116, 158, 147, 58)
+                                        : QColor(75, 115, 105, 38));
   major_pen.setWidthF(0.0);
   painter->setPen(major_pen);
   const qreal major_left = std::floor(rect.left() / major_step) * major_step;

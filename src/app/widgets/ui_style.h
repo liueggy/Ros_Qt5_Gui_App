@@ -15,52 +15,52 @@ namespace UiStyle {
 
 namespace Palette {
   // Primary
-  inline constexpr auto Primary      = "#1e5fd9";
-  inline constexpr auto PrimaryHover = "#174eaf";
-  inline constexpr auto PrimaryPress = "#123d8c";
-  inline constexpr auto PrimaryLight = "#e8f0fe";
+  inline QString Primary      = QStringLiteral("#0f766e");
+  inline QString PrimaryHover = QStringLiteral("#0b5f59");
+  inline QString PrimaryPress = QStringLiteral("#084c47");
+  inline QString PrimaryLight = QStringLiteral("#e5f4f1");
   // Surface
-  inline constexpr auto Background   = "#f4f7fb";
-  inline constexpr auto Surface      = "#ffffff";
-  inline constexpr auto SurfaceHover = "#f8fafd";
-  inline constexpr auto SurfaceAlt   = "#f8fbff";
+  inline QString Background   = QStringLiteral("#f2f3f1");
+  inline QString Surface      = QStringLiteral("#fbfcfa");
+  inline QString SurfaceHover = QStringLiteral("#f0f3f0");
+  inline QString SurfaceAlt   = QStringLiteral("#f6f7f5");
   // Text
-  inline constexpr auto Text         = "#0f172a";
-  inline constexpr auto TextSecondary= "#435267";
-  inline constexpr auto TextMuted    = "#64748b";
-  inline constexpr auto TextOnPrimary= "#ffffff";
+  inline QString Text         = QStringLiteral("#1b2422");
+  inline QString TextSecondary= QStringLiteral("#45524f");
+  inline QString TextMuted    = QStringLiteral("#687572");
+  inline QString TextOnPrimary= QStringLiteral("#ffffff");
   // Border
-  inline constexpr auto Border       = "#dce4ef";
-  inline constexpr auto BorderHover  = "#bcd3fb";
-  inline constexpr auto BorderFocus  = "#1e5fd9";
+  inline QString Border       = QStringLiteral("#d3d8d5");
+  inline QString BorderHover  = QStringLiteral("#86aaa4");
+  inline QString BorderFocus  = QStringLiteral("#0f766e");
   // Semantic
-  inline constexpr auto Success      = "#0f766e";
-  inline constexpr auto SuccessBg    = "#ccfbf1";
-  inline constexpr auto SuccessBorder= "#5eead4";
-  inline constexpr auto Danger       = "#dc2626";
-  inline constexpr auto DangerBg     = "#fef2f2";
-  inline constexpr auto DangerBorder = "#fca5a5";
-  inline constexpr auto DangerHover  = "#b91c1c";
-  inline constexpr auto Warning      = "#ea580c";
-  inline constexpr auto WarningBg    = "#fff7ed";
-  inline constexpr auto WarningBorder= "#fdba74";
+  inline QString Success      = QStringLiteral("#18775f");
+  inline QString SuccessBg    = QStringLiteral("#e4f3ed");
+  inline QString SuccessBorder= QStringLiteral("#91c4b5");
+  inline QString Danger       = QStringLiteral("#b83a3a");
+  inline QString DangerBg     = QStringLiteral("#faecea");
+  inline QString DangerBorder = QStringLiteral("#dea29d");
+  inline QString DangerHover  = QStringLiteral("#962f2f");
+  inline QString Warning      = QStringLiteral("#b76512");
+  inline QString WarningBg    = QStringLiteral("#fbf0df");
+  inline QString WarningBorder= QStringLiteral("#d8ad70");
   // Info
-  inline constexpr auto Info         = "#174ea6";
-  inline constexpr auto InfoBg       = "#eef5ff";
-  inline constexpr auto InfoBorder   = "#bcd3fb";
+  inline QString Info         = QStringLiteral("#356b73");
+  inline QString InfoBg       = QStringLiteral("#e9f1f2");
+  inline QString InfoBorder   = QStringLiteral("#9cbfc3");
   // Chrome
-  inline constexpr auto ToolbarBg    = "#fbfdff";
-  inline constexpr auto Separator    = "#dce4ef";
-  inline constexpr auto Scrollbar    = "#c5cfdd";
-  inline constexpr auto ScrollbarHvr = "#9eacbf";
+  inline QString ToolbarBg    = QStringLiteral("#f8f9f7");
+  inline QString Separator    = QStringLiteral("#d3d8d5");
+  inline QString Scrollbar    = QStringLiteral("#b9c1bd");
+  inline QString ScrollbarHvr = QStringLiteral("#87938e");
   // Disabled
-  inline constexpr auto DisabledText = "#94a3b8";
-  inline constexpr auto DisabledBg   = "#f1f5f9";
+  inline QString DisabledText = QStringLiteral("#99a29e");
+  inline QString DisabledBg   = QStringLiteral("#eceeec");
   // Terminal (dark theme)
-  inline constexpr auto TerminalBg        = "#18212f";
-  inline constexpr auto TerminalBorder    = "#2b3a4f";
-  inline constexpr auto TerminalText      = "#e8eef7";
-  inline constexpr auto TerminalSelection = "#315b86";
+  inline QString TerminalBg        = QStringLiteral("#1b2221");
+  inline QString TerminalBorder    = QStringLiteral("#35413e");
+  inline QString TerminalText      = QStringLiteral("#e2e9e6");
+  inline QString TerminalSelection = QStringLiteral("#315f58");
 }  // namespace Palette
 
 // ── Typography Scale ─────────────────────────
@@ -93,10 +93,10 @@ namespace Space {
 // ── Radii ────────────────────────────────────
 
 namespace Radius {
-  inline constexpr int  SM   = 6;
-  inline constexpr int  MD   = 9;
-  inline constexpr int  LG   = 12;
-  inline constexpr int  XL   = 16;
+  inline constexpr int  SM   = 3;
+  inline constexpr int  MD   = 4;
+  inline constexpr int  LG   = 5;
+  inline constexpr int  XL   = 6;
 }  // namespace Radius
 
 // ── Control Heights ──────────────────────────
@@ -116,6 +116,8 @@ int ControlHeightPx();
 
 // ── App-level sheet ──────────────────────────
 QString ApplicationStyleSheet();
+void SetDarkTheme(bool dark);
+bool IsDarkTheme();
 
 // ── Panel / Card / Group ─────────────────────
 QString PanelStyleSheet();
