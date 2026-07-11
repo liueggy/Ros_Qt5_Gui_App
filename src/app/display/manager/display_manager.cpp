@@ -304,7 +304,7 @@ void DisplayManager::ApplyConfiguredDisplayVisibility() {
   }
 
   for (const auto& display_config :
-       Config::ConfigManager::Instance()->GetRootConfig().display_config) {
+       Config::ConfigManager::Instance()->GetRootConfigSnapshot().display_config) {
     auto* display = GetDisplay(display_config.display_name);
     if (display) {
       display->setVisible(display_config.visible);

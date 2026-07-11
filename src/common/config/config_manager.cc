@@ -15,9 +15,11 @@ bool ConfigManager::writeStringToFile(const std::string &filePath,
 
   std::ofstream outputFile(filePath);
   if (outputFile) {
-    outputFile << content;  // 写入内容
-    outputFile.close();     // 关闭文件
-    return true;
+    outputFile << content;
+    outputFile.flush();
+    const bool success = outputFile.good();
+    outputFile.close();
+    return success && !outputFile.fail();
   } else {
     std::cerr << "无法创建文件 " << filePath << std::endl;
     return false;
@@ -40,6 +42,7 @@ void ConfigManager::Init(const std::string &config_path) {
   ReadRootConfig();
 }
 ConfigManager::~ConfigManager() {
+  std::lock_guard<std::mutex> lock(mutex_);
   nlohmann::json j = config_root_;
   std::string pretty_json = j.dump(2);
   std::cout << "write json" << std::endl;
@@ -68,10 +71,10 @@ bool ConfigManager::StoreConfig() {
 bool ConfigManager::StoreConfigUnlocked() {
   nlohmann::json j = config_root_;
   std::string pretty_json = j.dump(2);
-  writeStringToFile(config_path_, pretty_json);
-  return true;
+  return writeStringToFile(config_path_, pretty_json);
 }
-std::string ConfigManager::GetTopicName(const std::string &frame_name) {
+std::string ConfigManager::GetTopicName(const std::string &frame_name) const {
+  std::lock_guard<std::mutex> lock(mutex_);
   auto iter = std::find_if(config_root_.display_config.begin(),
                            config_root_.display_config.end(),
                            [&frame_name](const auto &item) {
@@ -81,6 +84,18 @@ std::string ConfigManager::GetTopicName(const std::string &frame_name) {
     return "";
   }
   return iter->topic;
+}
+
+ConfigRoot ConfigManager::GetRootConfigSnapshot() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return config_root_;
+}
+
+bool ConfigManager::UpdateRootConfig(
+    const std::function<void(ConfigRoot&)> &update, bool persist) {
+  std::lock_guard<std::mutex> lock(mutex_);
+  update(config_root_);
+  return !persist || StoreConfigUnlocked();
 }
 
 void ConfigManager::SetDefaultTopicName(const std::string &frame_name,

@@ -27,14 +27,12 @@ RosNode::RosNode(/* args */) {
   SET_DEFAULT_TOPIC_NAME("MoveBaseStatus", "/move_base/status")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT, "/move_base/local_costmap/published_footprint")
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
-  if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
-    Config::ConfigManager::Instance()->GetRootConfig().images.push_back(
-        Config::ImageDisplayConfig{.location = "front",
-                                   .topic = "/camera/front/image/compressed",
-                                   .enable = true});
-
-  }
-  Config::ConfigManager::Instance()->StoreConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
+    if (config.images.empty()) {
+      config.images.push_back(Config::ImageDisplayConfig{
+          .location = "front", .topic = "/camera/front/image/compressed", .enable = true});
+    }
+  });
   std::cout << "ros node start" << std::endl;
 }
 basic::RobotPose Convert(const geometry_msgs::Pose &pose) {
@@ -120,7 +118,7 @@ void RosNode::init() {
   robot_footprint_subscriber_ = nh.subscribe(GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT), 1,
                                              &RosNode::RobotFootprintCallback, this);
 
-  for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
+  for (const auto& one_image_display : Config::ConfigManager::Instance()->GetRootConfigSnapshot().images) {
     LOG_INFO("image location:" << one_image_display.location << " topic:" << one_image_display.topic);
     std::string location = one_image_display.location;
     bool is_compressed = (one_image_display.topic.find("compressed") != std::string::npos);

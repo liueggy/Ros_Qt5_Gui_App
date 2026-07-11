@@ -503,7 +503,7 @@ MainWindow::MainWindow(QWidget* parent)
   QTimer::singleShot(30, this, [this]() { openChannel(); });
   QTimer::singleShot(50, this, [this]() {
     RestoreState();
-    std::string map_path = Config::ConfigManager::Instance()->GetRootConfig().map_config.path;
+    std::string map_path = Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_config.path;
     if (!map_path.empty()) {
       std::string yaml_path = map_path;
       if (yaml_path.find(".yaml") == std::string::npos && yaml_path.find(".yml") == std::string::npos) {
@@ -1472,7 +1472,7 @@ void MainWindow::setupUi() {
   });
 
   //////////////////////////////////////////////////////图片
-  for (auto one_image : Config::ConfigManager::Instance()->GetRootConfig().images) {
+  for (const auto& one_image : Config::ConfigManager::Instance()->GetRootConfigSnapshot().images) {
     LOG_INFO("init image window location:" << one_image.location << " topic:" << one_image.topic);
     image_frame_map_[one_image.location] = new RatioLayoutedFrame();
     ads::CDockWidget* dock_widget = new ads::CDockWidget(std::string("image/" + one_image.location).c_str());
@@ -2191,8 +2191,8 @@ bool MainWindow::LoadMap(const std::string& file_path) {
       map_path_ = map_path_.substr(0, last_dot);
     }
 
-    Config::ConfigManager::Instance()->GetRootConfig().map_config.path = map_path_;
-    Config::ConfigManager::Instance()->StoreConfig();
+    Config::ConfigManager::Instance()->UpdateRootConfig(
+        [this](auto& config) { config.map_config.path = map_path_; });
 
     OccupancyMap map;
     if (map.Load(file_path)) {

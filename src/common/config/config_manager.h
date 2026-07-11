@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <mutex>
 #include "config_define.h"
 #include "topology_map.h"
@@ -36,7 +37,7 @@ class ConfigManager {
  private:
   std::string config_path_ = "./config.json";
   ConfigRoot config_root_;  // 配置文件根节点
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
 
   bool ReadRootConfig();
   bool StoreConfigUnlocked();  // 内部版本，不获取锁（假设调用者已持有锁）
@@ -48,14 +49,16 @@ class ConfigManager {
   static bool writeStringToFile(const std::string &filePath,
                                 const std::string &content);
 
-  std::string GetTopicName(const std::string &frame_name);
+  std::string GetTopicName(const std::string &frame_name) const;
   void SetDefaultConfig(const std::string &name, const std::string &value);
   void SetDefaultTopicName(const std::string &frame_name,
                            const std::string &topic_name);
   std::string GetConfigValue(const std::string &key, const std::string &default_value = "");
   void SetConfigValue(const std::string &key, const std::string &value);
   void SetDefaultKeyValue(const std::string &key, const std::string &value);
-  ConfigRoot &GetRootConfig() { return config_root_; }
+  ConfigRoot GetRootConfigSnapshot() const;
+  bool UpdateRootConfig(const std::function<void(ConfigRoot&)> &update,
+                        bool persist = true);
   bool ReadTopologyMap(const std::string &map_path, TopologyMap &map);
   bool WriteTopologyMap(const std::string &map_path,
                         const TopologyMap &topology_map);

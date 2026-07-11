@@ -71,7 +71,7 @@ bool ChannelManager::OpenChannelAuto() {
     CloseChannel();
   }
 
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
+  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
   std::string channel_type = config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   if (channel_type != "auto") {
     channel_type = NormalizeStoredChannelType(channel_type);

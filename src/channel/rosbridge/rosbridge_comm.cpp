@@ -115,37 +115,19 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
 
   // 设置默认通道配置
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  if (config.channel_config.channel_type.empty()) {
-    config.channel_config.channel_type = "rosbridge";
-  }
-  if (config.channel_config.rosbridge_config.ip.empty()) {
-    config.channel_config.rosbridge_config.ip = "192.168.31.50";
-  }
-  if (config.channel_config.rosbridge_config.port.empty()) {
-    config.channel_config.rosbridge_config.port = "9090";
-  }
-
-  // 设置默认图像配置：确保 front 摄像头始终自动填充压缩图像话题
-  bool has_front_camera = false;
-  for (auto& image_config : config.images) {
-    if (image_config.location == "front") {
-      has_front_camera = true;
-      if (image_config.topic.empty()) {
-        image_config.topic = "/camera/front/image/compressed";
-      }
-      image_config.enable = true;
-      break;
+  Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
+    if (config.channel_config.channel_type.empty()) config.channel_config.channel_type = "rosbridge";
+    if (config.channel_config.rosbridge_config.ip.empty()) config.channel_config.rosbridge_config.ip = "192.168.31.50";
+    if (config.channel_config.rosbridge_config.port.empty()) config.channel_config.rosbridge_config.port = "9090";
+    auto front = std::find_if(config.images.begin(), config.images.end(),
+                              [](const auto& image) { return image.location == "front"; });
+    if (front == config.images.end()) {
+      config.images.push_back({"front", "/camera/front/image/compressed", true});
+    } else {
+      if (front->topic.empty()) front->topic = "/camera/front/image/compressed";
+      front->enable = true;
     }
-  }
-  if (!has_front_camera) {
-    Config::ImageDisplayConfig default_image_config;
-    default_image_config.location = "front";
-    default_image_config.topic = "/camera/front/image/compressed";
-    default_image_config.enable = true;
-    config.images.push_back(default_image_config);
-  }
-  Config::ConfigManager::Instance()->StoreConfig();
+  });
 }
 
 /**
@@ -154,7 +136,7 @@ RosbridgeComm::RosbridgeComm() {
  */
 bool RosbridgeComm::Start() {
   // 从配置读取ROSBridge服务器地址和端口
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
+  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
   rosbridge_ip_ = config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
   rosbridge_port_ = std::stoi(config.channel_config.rosbridge_config.port.empty() ? "9090" : config.channel_config.rosbridge_config.port);
 
@@ -393,7 +375,7 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(MSG_ID_VOICE_COMMAND)] = std::move(voice_topic);
 
   // 图像话题订阅（动态配置）
-  for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
+  for (const auto& one_image_display : Config::ConfigManager::Instance()->GetRootConfigSnapshot().images) {
     if (!one_image_display.enable) continue;
     LOG_INFO("image location:" << one_image_display.location << " topic:" << one_image_display.topic);
     std::string msg_type = (one_image_display.topic.find("compressed") != std::string::npos)

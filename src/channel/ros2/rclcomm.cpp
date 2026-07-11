@@ -32,13 +32,12 @@ rclcomm::rclcomm() {
   SET_DEFAULT_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP, "/map/topology")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE, "/map/topology/update")
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
-  if (Config::ConfigManager::Instance()->GetRootConfig().images.empty()) {
-    Config::ConfigManager::Instance()->GetRootConfig().images.push_back(
-        Config::ImageDisplayConfig{.location = "front",
-                                   .topic = "/camera/front/image/compressed",
-                                   .enable = true});
-  }
-  Config::ConfigManager::Instance()->StoreConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
+    if (config.images.empty()) {
+      config.images.push_back(Config::ImageDisplayConfig{
+          .location = "front", .topic = "/camera/front/image/compressed", .enable = true});
+    }
+  });
 }
 bool rclcomm::Start() {
   message_bus_subscriptions_.clear();
@@ -122,7 +121,7 @@ bool rclcomm::Start() {
   topology_map_update_publisher_ = node->create_publisher<topology_msgs::msg::TopologyMap>(
       GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE), 
       rclcpp::QoS(rclcpp::KeepLast(1)).reliable().transient_local());
-  for (auto one_image_display : Config::ConfigManager::Instance()->GetRootConfig().images) {
+  for (const auto& one_image_display : Config::ConfigManager::Instance()->GetRootConfigSnapshot().images) {
     LOG_INFO("image location:" << one_image_display.location << "topic:" << one_image_display.topic);
     std::string location = one_image_display.location;
     bool is_compressed = (one_image_display.topic.find("compressed") != std::string::npos);

@@ -171,15 +171,12 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     if (is_loading_config_) {
       return;
     }
-    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     std::string channel_type = channel_type_combo_->itemData(index).toString().toStdString();
-    QString old_channel_type = QString::fromStdString(config.channel_config.channel_type);
-    config.channel_config.channel_type = channel_type;
-    AutoSaveConfig();
+    Config::ConfigManager::Instance()->UpdateRootConfig(
+        [&channel_type](auto& config) { config.channel_config.channel_type = channel_type; });
     bool show_rosbridge = (channel_type == "rosbridge");
     rosbridge_ip_edit_->setEnabled(show_rosbridge);
     rosbridge_port_edit_->setEnabled(show_rosbridge);
-    Q_UNUSED(old_channel_type);
   });
   type_layout->addWidget(channel_type_label_);
   type_layout->addWidget(channel_type_combo_, 1);
@@ -200,12 +197,10 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     if (is_loading_config_) {
       return;
     }
-    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString new_ip = rosbridge_ip_edit_->text();
-    QString old_ip = QString::fromStdString(config.channel_config.rosbridge_config.ip);
-    config.channel_config.rosbridge_config.ip = new_ip.toStdString();
-    AutoSaveConfig();
-    Q_UNUSED(old_ip);
+    Config::ConfigManager::Instance()->UpdateRootConfig([&new_ip](auto& config) {
+      config.channel_config.rosbridge_config.ip = new_ip.toStdString();
+    });
   });
   ip_layout->addWidget(rosbridge_ip_label_);
   ip_layout->addWidget(rosbridge_ip_edit_, 1);
@@ -222,12 +217,10 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     if (is_loading_config_) {
       return;
     }
-    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString new_port = rosbridge_port_edit_->text();
-    QString old_port = QString::fromStdString(config.channel_config.rosbridge_config.port);
-    config.channel_config.rosbridge_config.port = new_port.toStdString();
-    AutoSaveConfig();
-    Q_UNUSED(old_port);
+    Config::ConfigManager::Instance()->UpdateRootConfig([&new_port](auto& config) {
+      config.channel_config.rosbridge_config.port = new_port.toStdString();
+    });
   });
   port_layout->addWidget(rosbridge_port_label_);
   port_layout->addWidget(rosbridge_port_edit_, 1);
@@ -626,8 +619,9 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
     if (is_loading_config_) {
       return;
     }
-    Config::ConfigManager::Instance()->GetRootConfig().map_config.path = map_path_edit_->text().toStdString();
-    AutoSaveConfig();
+    const std::string path = map_path_edit_->text().toStdString();
+    Config::ConfigManager::Instance()->UpdateRootConfig(
+        [&path](auto& config) { config.map_config.path = path; });
   });
   map_browse_btn_ = new QPushButton(tr("浏览…"), card);
   map_browse_btn_->setCursor(Qt::PointingHandCursor);
@@ -638,8 +632,9 @@ QWidget* DisplayConfigWidget::CreateMapPage() {
     if (!f.isEmpty()) {
       map_path_edit_->setText(f);
       if (!is_loading_config_) {
-        Config::ConfigManager::Instance()->GetRootConfig().map_config.path = f.toStdString();
-        AutoSaveConfig();
+        const std::string path = f.toStdString();
+        Config::ConfigManager::Instance()->UpdateRootConfig(
+            [&path](auto& config) { config.map_config.path = path; });
       }
     }
   });
@@ -701,7 +696,7 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel
     channel_type_combo_->addItem(q, q);
   }
 
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
+  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
   std::string channel_type =
       config.channel_config.channel_type.empty() ? "rosbridge" : config.channel_config.channel_type;
   int index = channel_type_combo_->findData(QString::fromStdString(channel_type));
@@ -723,32 +718,27 @@ void DisplayConfigWidget::SetDisplayManager(Display::DisplayManager* manager) {
 
 void DisplayConfigWidget::OnToggleDisplay(const std::string& display_name, bool visible) {
   UpdateDisplayVisibility(display_name, visible);
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
-                         [&display_name](const auto& item) { return item.display_name == display_name; });
   auto topic_it = display_topic_edits_.find(display_name);
   std::string topic =
       (topic_it != display_topic_edits_.end()) ? topic_it->second->text().toStdString() : std::string();
-  if (it != config.display_config.end()) {
-    it->visible = visible;
-  } else {
-    config.display_config.push_back(Config::DisplayConfig(display_name, topic, visible));
-  }
-  AutoSaveConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig([&](auto& config) {
+    auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
+                           [&display_name](const auto& item) { return item.display_name == display_name; });
+    if (it != config.display_config.end()) it->visible = visible;
+    else config.display_config.push_back(Config::DisplayConfig(display_name, topic, visible));
+  });
 }
 
 void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name, const QString& topic) {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
-                         [&display_name](const auto& item) { return item.display_name == display_name; });
-  if (it != config.display_config.end()) {
-    it->topic = topic.toStdString();
-  } else {
-    auto toggle_it = display_toggle_buttons_.find(display_name);
-    bool vis = (toggle_it != display_toggle_buttons_.end()) ? toggle_it->second->isChecked() : true;
-    config.display_config.push_back(Config::DisplayConfig(display_name, topic.toStdString(), vis));
-  }
-  AutoSaveConfig();
+  auto toggle_it = display_toggle_buttons_.find(display_name);
+  const bool visible = (toggle_it != display_toggle_buttons_.end()) ? toggle_it->second->isChecked() : true;
+  const std::string topic_name = topic.toStdString();
+  Config::ConfigManager::Instance()->UpdateRootConfig([&](auto& config) {
+    auto it = std::find_if(config.display_config.begin(), config.display_config.end(),
+                           [&display_name](const auto& item) { return item.display_name == display_name; });
+    if (it != config.display_config.end()) it->topic = topic_name;
+    else config.display_config.push_back(Config::DisplayConfig(display_name, topic_name, visible));
+  });
 }
 
 void DisplayConfigWidget::OnKeyValueChanged(const std::string& key, const QString& value) {
@@ -768,9 +758,8 @@ void DisplayConfigWidget::OnAddKeyValue() {
 }
 
 void DisplayConfigWidget::OnRemoveKeyValue(const std::string& key) {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  config.key_value.erase(key);
-  AutoSaveConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig(
+      [&key](auto& config) { config.key_value.erase(key); });
   RefreshKeyValueTab();
 }
 
@@ -787,7 +776,7 @@ void DisplayConfigWidget::RefreshKeyValueTab() {
   }
   key_value_edits_.clear();
 
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
+  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
 
   for (const auto& [key, value] : config.key_value) {
     QWidget* item_widget = new QWidget(key_value_host_);
@@ -890,11 +879,11 @@ void DisplayConfigWidget::OnRemoveImageConfig(int row) {
   image_table_->removeRow(row);
   UpdateImageTableHeight();
 
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  if (row < static_cast<int>(config.images.size())) {
-    config.images.erase(config.images.begin() + row);
-    AutoSaveConfig();
-  }
+  Config::ConfigManager::Instance()->UpdateRootConfig([row](auto& config) {
+    if (row >= 0 && row < static_cast<int>(config.images.size())) {
+      config.images.erase(config.images.begin() + row);
+    }
+  });
 
   for (int i = row; i < image_table_->rowCount(); i++) {
     QPushButton* btn = qobject_cast<QPushButton*>(image_table_->cellWidget(i, 3));
@@ -917,8 +906,6 @@ void DisplayConfigWidget::OnImageConfigChanged(int row) {
     return;
   }
 
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-
   QTableWidgetItem* location_item = image_table_->item(row, 0);
   QTableWidgetItem* topic_item = image_table_->item(row, 1);
   QCheckBox* enable_checkbox = qobject_cast<QCheckBox*>(image_table_->cellWidget(row, 2));
@@ -932,21 +919,18 @@ void DisplayConfigWidget::OnImageConfigChanged(int row) {
   image_config.topic = topic_item->text().toStdString();
   image_config.enable = enable_checkbox->isChecked();
 
-  if (row < static_cast<int>(config.images.size())) {
-    config.images[row] = image_config;
-  } else {
-    config.images.push_back(image_config);
-  }
+  Config::ConfigManager::Instance()->UpdateRootConfig([row, &image_config](auto& config) {
+    if (row < static_cast<int>(config.images.size())) config.images[row] = image_config;
+    else config.images.push_back(image_config);
+  });
 
   location_item->setToolTip(location_item->text());
   topic_item->setToolTip(topic_item->text());
 
-  AutoSaveConfig();
 }
 
 void DisplayConfigWidget::OnRobotShapePointChanged() {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  config.robot_shape_config.shaped_points.clear();
+  std::vector<Config::Point> points;
 
   for (int row = 0; row < robot_points_table_->rowCount(); row++) {
     QTableWidgetItem* x_item = robot_points_table_->item(row, 0);
@@ -959,18 +943,18 @@ void DisplayConfigWidget::OnRobotShapePointChanged() {
       double y = y_item->text().toDouble(&y_ok);
 
       if (x_ok && y_ok) {
-        config.robot_shape_config.shaped_points.push_back({x, y});
+        points.push_back({x, y});
       }
     }
   }
 
-  AutoSaveConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig(
+      [&points](auto& config) { config.robot_shape_config.shaped_points = points; });
 }
 
 void DisplayConfigWidget::OnRobotShapeIsEllipseChanged(bool checked) {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  config.robot_shape_config.is_ellipse = checked;
-  AutoSaveConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig(
+      [checked](auto& config) { config.robot_shape_config.is_ellipse = checked; });
 }
 
 void DisplayConfigWidget::OnRobotShapeColorChanged() {
@@ -983,17 +967,17 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
                        "QPushButton:hover { border-color:%1; }") +
         color_style);
 
-    auto& config = Config::ConfigManager::Instance()->GetRootConfig();
     QString color_str = QStringLiteral("0x%1").arg(color.rgb(), 8, 16, QChar('0')).toUpper();
-    config.robot_shape_config.color = color_str.toStdString();
-    AutoSaveConfig();
+    const std::string value = color_str.toStdString();
+    Config::ConfigManager::Instance()->UpdateRootConfig(
+        [&value](auto& config) { config.robot_shape_config.color = value; });
   }
 }
 
 void DisplayConfigWidget::OnRobotShapeOpacityChanged(int value) {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-  config.robot_shape_config.opacity = value / 100.0f;
-  AutoSaveConfig();
+  Config::ConfigManager::Instance()->UpdateRootConfig([value](auto& config) {
+    config.robot_shape_config.opacity = value / 100.0f;
+  });
 }
 
 void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
@@ -1009,35 +993,17 @@ void DisplayConfigWidget::AutoSaveConfig() {
 }
 
 void DisplayConfigWidget::LoadConfig() {
-  auto& config = Config::ConfigManager::Instance()->GetRootConfig();
-
-  bool has_front_camera = false;
-  bool image_config_changed = false;
-  for (auto& image_config : config.images) {
-    if (image_config.location == "front") {
-      has_front_camera = true;
-      if (image_config.topic.empty()) {
-        image_config.topic = "/camera/front/image/compressed";
-        image_config_changed = true;
-      }
-      if (!image_config.enable) {
-        image_config.enable = true;
-        image_config_changed = true;
-      }
-      break;
+  Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
+    auto front = std::find_if(config.images.begin(), config.images.end(),
+                              [](const auto& image) { return image.location == "front"; });
+    if (front == config.images.end()) {
+      config.images.push_back({"front", "/camera/front/image/compressed", true});
+    } else {
+      if (front->topic.empty()) front->topic = "/camera/front/image/compressed";
+      front->enable = true;
     }
-  }
-  if (!has_front_camera) {
-    Config::ImageDisplayConfig default_image_config;
-    default_image_config.location = "front";
-    default_image_config.topic = "/camera/front/image/compressed";
-    default_image_config.enable = true;
-    config.images.push_back(default_image_config);
-    image_config_changed = true;
-  }
-  if (image_config_changed) {
-    Config::ConfigManager::Instance()->StoreConfig();
-  }
+  });
+  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
 
   for (const auto& display_config : config.display_config) {
     auto toggle_it = display_toggle_buttons_.find(display_config.display_name);

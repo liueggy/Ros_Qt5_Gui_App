@@ -1,6 +1,22 @@
 #include "config/config_manager.h"
 #include <gtest/gtest.h>
 
+TEST(ConfigManagerTest, RootSnapshotIsDetachedAndUpdatesAreControlled) {
+  auto* manager = Config::ConfigManager::Instance();
+  const auto original = manager->GetRootConfigSnapshot();
+  auto detached = original;
+  detached.map_config.path = "detached-only";
+
+  EXPECT_NE(manager->GetRootConfigSnapshot().map_config.path, "detached-only");
+
+  EXPECT_TRUE(manager->UpdateRootConfig(
+      [](auto& config) { config.map_config.path = "controlled-update"; }, false));
+  EXPECT_EQ(manager->GetRootConfigSnapshot().map_config.path, "controlled-update");
+
+  EXPECT_TRUE(manager->UpdateRootConfig(
+      [&original](auto& config) { config = original; }, false));
+}
+
 TEST(TopologyMapTest, MissingPointHasSafeDefaultPose) {
   TopologyMap map;
 
