@@ -11,8 +11,12 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QSyntaxHighlighter>
 #include <QTextCursor>
+#include <QTextCharFormat>
 #include <QTime>
+#include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QtGlobal>
@@ -36,6 +40,47 @@ const ShortcutCommand kShortcutCommands[] = {
     {"系统服务", "systemctl list-units --no-pager --type=service --state=running,failed"},
 };
 
+class TerminalHighlighter final : public QSyntaxHighlighter {
+ public:
+  explicit TerminalHighlighter(QTextDocument* document)
+      : QSyntaxHighlighter(document) {}
+
+ protected:
+  void highlightBlock(const QString& text) override {
+    Highlight(text, QStringLiteral("^root@firefly:[^#]*#"),
+              QStringLiteral("#4ADE80"), true);
+    Highlight(text, QStringLiteral(
+                  "\\b(rosnode|rostopic|rosservice|rosparam|roslaunch|rosrun|systemctl)\\b"),
+              QStringLiteral("#67E8F9"), true);
+    Highlight(text, QStringLiteral("(^|\\s)--?[A-Za-z0-9_-]+"),
+              QStringLiteral("#C4B5FD"), false);
+    Highlight(text, QStringLiteral(
+                  "\\b(error|failed|failure|denied|timeout|异常|失败|错误|超时)\\b"),
+              QStringLiteral("#FCA5A5"), true,
+              QRegularExpression::CaseInsensitiveOption);
+    Highlight(text, QStringLiteral(
+                  "\\b(ok|success|completed|active|running|成功|完成|正常)\\b"),
+              QStringLiteral("#86EFAC"), false,
+              QRegularExpression::CaseInsensitiveOption);
+  }
+
+ private:
+  void Highlight(const QString& text, const QString& pattern,
+                 const QString& color, bool bold,
+                 QRegularExpression::PatternOption option =
+                     QRegularExpression::NoPatternOption) {
+    QRegularExpression expression(pattern, option);
+    QTextCharFormat format;
+    format.setForeground(QColor(color));
+    if (bold) format.setFontWeight(QFont::DemiBold);
+    auto matches = expression.globalMatch(text);
+    while (matches.hasNext()) {
+      const auto match = matches.next();
+      setFormat(match.capturedStart(), match.capturedLength(), format);
+    }
+  }
+};
+
 }  // namespace
 
 TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
@@ -45,7 +90,7 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
       "QLabel { color:#CBD5E1; background:transparent; }"
       "QPushButton, QComboBox { min-height:26px; padding:2px 9px;"
       " border:1px solid #334155; border-radius:4px; color:#DCE7F3;"
-      " background:#1E293B; font-size:13px; }"
+      " background:#1E293B; font-size:14px; }"
       "QPushButton:hover, QComboBox:hover { border-color:#64748B; background:#273449; }"
       "QPushButton:pressed { background:#334155; }"
       "QPushButton:disabled { color:#64748B; background:#172033; }"
@@ -71,7 +116,7 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
 
   auto* session_label = new QLabel(tr("root@firefly  ·  rosbridge shell"));
   session_label->setStyleSheet(QStringLiteral(
-      "font-family:Consolas,'Microsoft YaHei UI'; font-size:13px; color:#E2E8F0;"));
+      "font-family:Consolas,'Microsoft YaHei UI'; font-size:14px; color:#E2E8F0;"));
   title_row->addWidget(session_label);
 
   status_label_ = new QLabel(tr("就绪"));
@@ -103,11 +148,11 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
           &TerminalWidget::TerminateCommand);
   title_row->addWidget(terminate_button_);
 
-  auto* clear_button = new QPushButton(tr("清屏"));
-  clear_button->setToolTip(tr("清空终端（Ctrl+L）"));
-  connect(clear_button, &QPushButton::clicked, this,
+  clear_button_ = new QPushButton(tr("清屏"));
+  clear_button_->setToolTip(tr("清空终端（Ctrl+L）"));
+  connect(clear_button_, &QPushButton::clicked, this,
           &TerminalWidget::ClearOutput);
-  title_row->addWidget(clear_button);
+  title_row->addWidget(clear_button_);
   root->addWidget(toolbar);
 
   output_edit_ = new QPlainTextEdit();
@@ -120,12 +165,21 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   output_edit_->setStyleSheet(QStringLiteral(
       "QPlainTextEdit { background:#111827; color:#D7E2EE; border:0;"
       " padding:9px 12px; font-family:Consolas,'Cascadia Mono','Microsoft YaHei UI';"
-      " font-size:14px; selection-background-color:#264F78;"
+      " font-size:16px; selection-background-color:#264F78;"
       " selection-color:#FFFFFF; }"));
+  new TerminalHighlighter(output_edit_->document());
   root->addWidget(output_edit_, 1);
   output_edit_->installEventFilter(this);
   AddPrompt();
-  UpdateStatus(false, tr("就绪"));
+  command_watchdog_ = new QTimer(this);
+  command_watchdog_->setSingleShot(true);
+  command_watchdog_->setInterval(35000);
+  connect(command_watchdog_, &QTimer::timeout, this, [this]() {
+    if (!command_running_) return;
+    AppendStatus(tr("命令响应超时，终端已恢复"));
+    SetCommandRunning(false);
+  });
+  SetConnected(false);
 }
 
 void TerminalWidget::AppendOutput(const QString& text) {
@@ -151,11 +205,12 @@ void TerminalWidget::AppendStatus(const QString& text) {
 void TerminalWidget::SetCommandRunning(bool running) {
   const bool was_running = command_running_;
   command_running_ = running;
-  terminate_button_->setEnabled(running);
-  output_edit_->setTextInteractionFlags(
-      running ? Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse
-              : Qt::TextEditorInteraction);
-  quick_command_combo_->setEnabled(!running);
+  if (running) {
+    command_watchdog_->start();
+  } else {
+    command_watchdog_->stop();
+  }
+  RefreshControls();
   UpdateStatus(running, running ? tr("命令执行中") : tr("就绪"));
   if (was_running && !running) {
     AddPrompt();
@@ -164,10 +219,23 @@ void TerminalWidget::SetCommandRunning(bool running) {
   }
 }
 
+void TerminalWidget::SetConnected(bool connected) {
+  const bool needs_prompt = connected && !prompt_active_;
+  connected_ = connected;
+  if (!connected_) {
+    command_running_ = false;
+    command_watchdog_->stop();
+  }
+  RefreshControls();
+  UpdateStatus(false, connected_ ? tr("已连接，可执行命令")
+                                 : tr("未连接，终端不可用"));
+  if (needs_prompt) AddPrompt();
+}
+
 bool TerminalWidget::eventFilter(QObject* watched, QEvent* event) {
   if (watched == output_edit_ && event->type() == QEvent::KeyPress) {
     auto* key_event = static_cast<QKeyEvent*>(event);
-    if (key_event->modifiers().testFlag(Qt::ControlModifier) &&
+    if (!command_running_ && key_event->modifiers().testFlag(Qt::ControlModifier) &&
         key_event->key() == Qt::Key_L) {
       ClearOutput();
       return true;
@@ -224,7 +292,8 @@ bool TerminalWidget::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void TerminalWidget::ExecuteCommand() {
-  if (command_running_) {
+  if (command_running_ || !connected_) {
+    if (!connected_) UpdateStatus(false, tr("请先连接小车"));
     return;
   }
   const QString command = CurrentCommand().trimmed();
@@ -257,6 +326,7 @@ void TerminalWidget::TerminateCommand() {
 }
 
 void TerminalWidget::ClearOutput() {
+  if (command_running_) return;
   output_edit_->clear();
   prompt_active_ = false;
   if (!command_running_) {
@@ -330,8 +400,20 @@ QString TerminalWidget::CurrentCommand() const {
 void TerminalWidget::UpdateStatus(bool running, const QString& text) {
   status_label_->setText(text);
   status_dot_->setStyleSheet(
-      running ? QStringLiteral("color:#FBBF24; font-size:11px;")
-              : QStringLiteral("color:#34D399; font-size:11px;"));
+      running ? QStringLiteral("color:#FBBF24; font-size:12px;")
+              : (connected_ ? QStringLiteral("color:#34D399; font-size:12px;")
+                            : QStringLiteral("color:#64748B; font-size:12px;")));
+}
+
+void TerminalWidget::RefreshControls() {
+  const bool can_enter_command = connected_ && !command_running_;
+  output_edit_->setEnabled(connected_);
+  output_edit_->setTextInteractionFlags(
+      can_enter_command ? Qt::TextEditorInteraction
+                        : Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
+  quick_command_combo_->setEnabled(can_enter_command);
+  terminate_button_->setEnabled(connected_ && command_running_);
+  clear_button_->setEnabled(can_enter_command);
 }
 
 

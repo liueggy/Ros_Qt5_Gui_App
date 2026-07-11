@@ -1233,6 +1233,10 @@ void MainWindow::setupUi() {
           this, &MainWindow::closeChannel);
   connect(display_config_widget_, &DisplayConfigWidget::ConnectionStateChanged,
           this, [this](bool connected, bool connecting, const QString& message) {
+            channel_connected_ = connected;
+            if (terminal_widget_) {
+              terminal_widget_->SetConnected(connected);
+            }
             if (!top_connection_status_) {
               return;
             }
@@ -1457,6 +1461,7 @@ void MainWindow::setupUi() {
 
   //////////////////////////////////////////////////////板端终端
   terminal_widget_ = new TerminalWidget();
+  terminal_widget_->SetConnected(channel_connected_);
   terminal_dock_ = new ads::CDockWidget("板端终端");
   terminal_dock_->setWidget(terminal_widget_);
   ConfigureDockWidget(terminal_dock_, QSize(720, 220), QSize(1100, 320));

@@ -118,6 +118,7 @@ class MainWindow : public QMainWindow {
   std::map<std::string, qint64> last_frame_times_;
   int connection_attempt_id_ = {0};
   bool channel_subscriptions_registered_ = {false};
+  bool channel_connected_ = {false};
   bool relocation_pending_ = {false};
   bool localization_confirmed_ = {false};
   RobotPose relocation_target_;
