@@ -12,6 +12,7 @@
 #include <chrono>
 #include <charconv>
 #include <cmath>
+#include <limits>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <thread>
@@ -80,6 +81,7 @@ RosbridgeComm::RosbridgeComm() {
   // 设置默认话题名称
   SET_DEFAULT_TOPIC_NAME(DISPLAY_GOAL, "/goal_pose")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_RELOC_POSE, "/initialpose")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE, "/amcl_pose")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_MAP, "/map")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP, "/local_costmap/costmap")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP, "/global_costmap/costmap")
@@ -108,9 +110,6 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_OUTPUT, "/eggy/shell/output")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_STATUS, "/eggy/shell/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_CANCEL, "/eggy/shell/cancel")
-  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_REQUEST, "/eggy/relocalization/request")
-  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_STATUS, "/eggy/relocalization/status")
-  SET_DEFAULT_TOPIC_NAME(MSG_ID_RELOCALIZATION_CANCEL, "/eggy/relocalization/cancel")
 
   // 设置默认键值配置
   SET_DEFAULT_KEY_VALUE("BaseFrameId", "base_link")
@@ -308,6 +307,15 @@ void RosbridgeComm::ConnectAsync() {
       [this](const ROSBridgePublishMsg& msg) { OdomCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_ROBOT)] = std::move(odom_topic);
 
+  auto localization_pose_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE),
+      "geometry_msgs/PoseWithCovarianceStamped", 5);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE)] =
+      localization_pose_topic->Subscribe(
+          [this](const ROSBridgePublishMsg& msg) { LocalizationPoseCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE)] =
+      std::move(localization_pose_topic);
+
   // 机器人足迹话题订阅
   auto robot_footprint_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT), "geometry_msgs/PolygonStamped", 20);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT)] = robot_footprint_topic->Subscribe(
@@ -340,7 +348,7 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
 
   for (const MsgId id : {MsgId::kNetworkStatus, MsgId::kShellOutput,
-                         MsgId::kShellStatus, MsgId::kRelocalizationStatus}) {
+                         MsgId::kShellStatus}) {
     const std::string topic_name = GET_TOPIC_NAME(ToString(id));
     auto topic = std::make_unique<ROSTopic>(*ros_bridge_, topic_name, "std_msgs/String", 10);
     callback_handles_[topic_name] = topic->Subscribe(
@@ -446,9 +454,7 @@ void RosbridgeComm::ConnectAsync() {
   command_request_publisher->Advertise();
   publishers_[GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST)] = std::move(command_request_publisher);
 
-  for (const MsgId id : {MsgId::kShellRequest, MsgId::kShellCancel,
-                         MsgId::kRelocalizationRequest,
-                         MsgId::kRelocalizationCancel}) {
+  for (const MsgId id : {MsgId::kShellRequest, MsgId::kShellCancel}) {
     const std::string topic_name = GET_TOPIC_NAME(ToString(id));
     auto topic = std::make_unique<ROSTopic>(*ros_bridge_, topic_name, "std_msgs/String", 10);
     topic->Advertise();
@@ -495,12 +501,6 @@ void RosbridgeComm::ConnectAsync() {
   });
   SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SHELL_CANCEL, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kShellCancel, json_request);
-  });
-  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_RELOCALIZATION_REQUEST, [this](const std::string& json_request) {
-    PubStringRequest(MsgId::kRelocalizationRequest, json_request);
-  });
-  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_RELOCALIZATION_CANCEL, [this](const std::string& json_request) {
-    PubStringRequest(MsgId::kRelocalizationCancel, json_request);
   });
 
   SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_INSPECTION_REQUEST, [this](const std::string& json_request) {
@@ -1283,6 +1283,55 @@ void RosbridgeComm::OdomCallback(const ROSBridgePublishMsg& msg) {
   PUBLISH(MSG_ID_ODOM_POSE, state);
 }
 
+void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
+  if (msg.msg_json_.IsNull() || !msg.msg_json_.HasMember("pose")) return;
+  const auto& pose_with_covariance = msg.msg_json_["pose"];
+  if (!pose_with_covariance.IsObject() ||
+      !pose_with_covariance.HasMember("pose")) return;
+  const auto& pose = pose_with_covariance["pose"];
+  if (!pose.IsObject() || !pose.HasMember("position") ||
+      !pose.HasMember("orientation")) return;
+  const auto& position = pose["position"];
+  const auto& orientation = pose["orientation"];
+  if (!position.IsObject() || !orientation.IsObject() ||
+      !position.HasMember("x") || !position["x"].IsNumber() ||
+      !position.HasMember("y") || !position["y"].IsNumber()) return;
+
+  const auto number_or = [](const rapidjson::Value& object, const char* key,
+                            double fallback) {
+    return object.HasMember(key) && object[key].IsNumber()
+               ? object[key].GetDouble()
+               : fallback;
+  };
+
+  LocalizationEstimate estimate;
+  estimate.pose.x = position["x"].GetDouble();
+  estimate.pose.y = position["y"].GetDouble();
+  const double qx = number_or(orientation, "x", 0.0);
+  const double qy = number_or(orientation, "y", 0.0);
+  const double qz = number_or(orientation, "z", 0.0);
+  const double qw = number_or(orientation, "w", 1.0);
+  estimate.pose.theta = std::atan2(2.0 * (qw * qz + qx * qy),
+                                   1.0 - 2.0 * (qy * qy + qz * qz));
+  if (pose_with_covariance.HasMember("covariance") &&
+      pose_with_covariance["covariance"].IsArray()) {
+    const auto& covariance = pose_with_covariance["covariance"];
+    if (covariance.Size() >= 36 && covariance[0].IsNumber() &&
+        covariance[7].IsNumber() && covariance[35].IsNumber()) {
+      estimate.xy_variance = std::max(covariance[0].GetDouble(),
+                                      covariance[7].GetDouble());
+      estimate.yaw_variance = covariance[35].GetDouble();
+    } else {
+      estimate.xy_variance = std::numeric_limits<double>::infinity();
+      estimate.yaw_variance = std::numeric_limits<double>::infinity();
+    }
+  } else {
+    estimate.xy_variance = std::numeric_limits<double>::infinity();
+    estimate.yaw_variance = std::numeric_limits<double>::infinity();
+  }
+  PUBLISH(MSG_ID_LOCALIZATION_POSE, estimate);
+}
+
 /**
  * @brief 机器人足迹回调函数
  * @param msg ROSBridge消息
@@ -1556,6 +1605,9 @@ void RosbridgeComm::PubRelocPose(const basic::RobotPose& pose) {
   for (int i = 0; i < 36; i++) {
     covariance.PushBack(0.0, allocator);
   }
+  covariance[0].SetDouble(0.25);
+  covariance[7].SetDouble(0.25);
+  covariance[35].SetDouble(0.06853891945200942);  // (15 deg)^2
 
   rapidjson::Value pose_with_covariance(rapidjson::kObjectType);
   pose_with_covariance.AddMember("pose", pose_value, allocator);

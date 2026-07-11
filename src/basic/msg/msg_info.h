@@ -4,7 +4,7 @@
 #define SOME_ENUM(OneValue)                                                                                 \
   OneValue(kOccupancyMap, ) OneValue(kLocalCostMap, )                                                       \
       OneValue(kGlobalCostMap, ) OneValue(kRobotPose, ) OneValue(kLaserScan, )                              \
-          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, )                              \
+          OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, ) OneValue(kLocalizationPose, ) \
               OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )                                         \
                   OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, )                   \
                       OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, )              \
@@ -16,10 +16,7 @@
                                               OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
                                                   OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )      \
                                                       OneValue(kShellRequest, ) OneValue(kShellOutput, )    \
-                                                          OneValue(kShellStatus, ) OneValue(kShellCancel, ) \
-                                                              OneValue(kRelocalizationRequest, )            \
-                                                                  OneValue(kRelocalizationStatus, )         \
-                                                                      OneValue(kRelocalizationCancel, )
+                                                          OneValue(kShellStatus, ) OneValue(kShellCancel, )
 
 DECLARE_ENUM(MsgId, SOME_ENUM)
 DEFINE_ENUM(MsgId, SOME_ENUM)
@@ -32,6 +29,7 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_LOCAL_PATH ToString(MsgId::kLocalPath)
 #define MSG_ID_GLOBAL_PATH ToString(MsgId::kGlobalPath)
 #define MSG_ID_ODOM_POSE ToString(MsgId::kOdomPose)
+#define MSG_ID_LOCALIZATION_POSE ToString(MsgId::kLocalizationPose)
 #define MSG_ID_SET_NAV_GOAL_POSE ToString(MsgId::kSetNavGoalPose)
 #define MSG_ID_SET_RELOC_POSE ToString(MsgId::kSetRelocPose)
 #define MSG_ID_SET_ROBOT_SPEED ToString(MsgId::kSetRobotSpeed)
@@ -57,9 +55,6 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_SHELL_OUTPUT ToString(MsgId::kShellOutput)
 #define MSG_ID_SHELL_STATUS ToString(MsgId::kShellStatus)
 #define MSG_ID_SHELL_CANCEL ToString(MsgId::kShellCancel)
-#define MSG_ID_RELOCALIZATION_REQUEST ToString(MsgId::kRelocalizationRequest)
-#define MSG_ID_RELOCALIZATION_STATUS ToString(MsgId::kRelocalizationStatus)
-#define MSG_ID_RELOCALIZATION_CANCEL ToString(MsgId::kRelocalizationCancel)
 
 #define DISPLAY_ROBOT ToString(MsgId::kRobotPose)
 #define DISPLAY_MAP ToString(MsgId::kOccupancyMap)

@@ -23,7 +23,6 @@ class CommandCenterWidget : public QWidget {
 
   void SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot);
   void SetNetworkStatus(const std::string& json);
-  void SetRelocalizationStatus(const std::string& json);
   void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
 
  public slots:

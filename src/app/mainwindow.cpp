@@ -638,7 +638,6 @@ void MainWindow::registerChannel() {
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_ROBOT_POSE, [this](const RobotPose& robot_pose) {
     nav_goal_table_view_->UpdateRobotPose(robot_pose);
-    CheckRelocationProgress(robot_pose);
     Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
     if (view_manager) {
       view_manager->UpdateRobotPos("机器人: (" + QString::number(robot_pose.x, 'f', 2) + ", " +
@@ -669,12 +668,9 @@ void MainWindow::registerChannel() {
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE_QOBJECT(this, MSG_ID_RELOCALIZATION_STATUS, [this](const std::string& json_str) {
-    QMetaObject::invokeMethod(this, [this, json_str]() {
-      if (command_center_widget_) {
-        command_center_widget_->SetRelocalizationStatus(json_str);
-      }
-      UpdateAutoRelocalizationStatus(json_str); }, Qt::QueuedConnection);
+  SUBSCRIBE_QOBJECT(this, MSG_ID_LOCALIZATION_POSE,
+                    [this](const LocalizationEstimate& estimate) {
+    CheckRelocationProgress(estimate);
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
@@ -919,8 +915,8 @@ void MainWindow::setupUi() {
   reloc_btn->setIcon(icon4);
   reloc_btn->setText("重定位");
   reloc_btn->setIconSize(QSize(24, 24));
-  reloc_btn->setPopupMode(QToolButton::InstantPopup);
-  reloc_btn->setMenu(CreateRelocationMenu(reloc_btn));
+  reloc_btn->setToolTip(tr("在地图上手动设置机器人位置和朝向"));
+  connect(reloc_btn, &QToolButton::clicked, this, &MainWindow::StartManualRelocation);
   horizontalLayout_tools->addWidget(reloc_btn);
 
   QIcon icon5;
@@ -1366,7 +1362,7 @@ void MainWindow::setupUi() {
   nav_goal_list_dock_widget->toggleView(false);
   connect(nav_goal_table_view_, &NavGoalTableView::signalSendNavGoal,
           [this](const RobotPose& pose) {
-            PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
+            PublishNavGoalSafely(pose);
           });
   connect(btn_load_task_chain, &QPushButton::clicked, [this]() {
     QString fileName = QFileDialog::getOpenFileName(nullptr, "打开JSON文件",
@@ -1407,6 +1403,12 @@ void MainWindow::setupUi() {
   connect(btn_start_task_chain, &QPushButton::clicked,
           [this, btn_start_task_chain, loop_task_checkbox]() {
             if (btn_start_task_chain->text() == "开始任务链") {
+              if (!localization_confirmed_) {
+                QMessageBox::warning(
+                    this, tr("定位尚未确认"),
+                    tr("任务链会驱动小车移动。请先完成手动重定位并等待 AMCL 定位确认。"));
+                return;
+              }
               if (nav_goal_table_view_->RowCount() == 0) {
                 QMessageBox::information(this, QStringLiteral("任务链为空"),
                                          QStringLiteral("请先添加至少一个点位。"),
@@ -1493,7 +1495,7 @@ void MainWindow::setupUi() {
           });
   connect(display_manager_, &Display::DisplayManager::signalPub2DGoal,
           [this](const RobotPose& pose) {
-            PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
+            PublishNavGoalSafely(pose);
           });
   // ui相关
   connect(re_save_map_btn, &QToolButton::clicked,
@@ -1880,133 +1882,26 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
 }
 
 
-QMenu* MainWindow::CreateRelocationMenu(QToolButton* reloc_button) {
-  auto* menu = new QMenu(reloc_button);
-  auto* action = new QWidgetAction(menu);
-  auto* panel = new QFrame(menu);
-  panel->setMinimumWidth(330);
-  panel->setStyleSheet(QStringLiteral(
-      "QFrame { background:%1; border:1px solid %2; border-radius:14px; }"
-      "QLabel { background:transparent; border:none; color:%3; }")
-      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Border,
-           UiStyle::Palette::TextSecondary));
-  auto* layout = new QVBoxLayout(panel);
-  layout->setContentsMargins(14, 12, 14, 14);
-  layout->setSpacing(10);
-  auto* title = new QLabel(tr("重定位"), panel);
-  title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
-  auto* hint = new QLabel(tr("手动：在地图点选位置和朝向。自动：用当前激光轮廓匹配静态地图，5秒超时。"), panel);
-  hint->setWordWrap(true);
-  hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
-  auto* manual_btn = new QPushButton(tr("手动重定位"), panel);
-  auto_relocalization_start_button_ = new QPushButton(tr("自动定位（激光匹配）"), panel);
-  auto_relocalization_cancel_button_ = new QPushButton(tr("取消自动定位"), panel);
-  auto_relocalization_status_label_ = new QLabel(tr("自动定位：待命"), panel);
-  auto_relocalization_status_label_->setWordWrap(true);
-  auto_relocalization_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
-  manual_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  auto_relocalization_start_button_->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  auto_relocalization_cancel_button_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-  auto_relocalization_cancel_button_->setEnabled(false);
-  layout->addWidget(title);
-  layout->addWidget(hint);
-  layout->addWidget(manual_btn);
-  layout->addWidget(auto_relocalization_start_button_);
-  layout->addWidget(auto_relocalization_cancel_button_);
-  layout->addWidget(auto_relocalization_status_label_);
-  action->setDefaultWidget(panel);
-  menu->addAction(action);
-  connect(manual_btn, &QPushButton::clicked, this, [this, menu]() {
-    auto map = display_manager_->GetOccupancyMap();
-    if (map.Rows() <= 0 || map.Cols() <= 0) {
-      QMessageBox::warning(this, tr("无法重定位"),
-                           tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
-      return;
-    }
-    statusBar()->showMessage(
-        tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
-    display_manager_->StartReloc();
-    menu->hide();
-  });
-  connect(auto_relocalization_start_button_, &QPushButton::clicked,
-          this, &MainWindow::StartAutoRelocalization);
-  connect(auto_relocalization_cancel_button_, &QPushButton::clicked,
-          this, &MainWindow::CancelAutoRelocalization);
-  return menu;
-}
-
-void MainWindow::StartAutoRelocalization() {
+void MainWindow::StartManualRelocation() {
   auto map = display_manager_->GetOccupancyMap();
   if (map.Rows() <= 0 || map.Cols() <= 0) {
-    QMessageBox::warning(this, tr("无法自动定位"),
+    QMessageBox::warning(this, tr("无法重定位"),
                          tr("当前尚未收到有效地图，请先加载静态地图并启动 AMCL。"));
     return;
   }
-  nlohmann::json request;
-  request["command"] = "start";
-  request["method"] = "scan_match";
-  request["timeout"] = 5.0;
-  PUBLISH(MSG_ID_RELOCALIZATION_REQUEST, request.dump());
-  if (auto_relocalization_start_button_) {
-    auto_relocalization_start_button_->setEnabled(false);
-  }
-  if (auto_relocalization_cancel_button_) {
-    auto_relocalization_cancel_button_->setEnabled(true);
-  }
-  if (auto_relocalization_status_label_) {
-    auto_relocalization_status_label_->setText(tr("自动定位：正在匹配当前雷达轮廓…"));
-  }
-  statusBar()->showMessage(tr("自动定位已开始：5秒内尝试让激光点与地图边缘重合。"), 5000);
+  localization_confirmed_ = false;
+  statusBar()->showMessage(tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
+  display_manager_->StartReloc();
 }
 
-void MainWindow::CancelAutoRelocalization() {
-  nlohmann::json request;
-  request["command"] = "cancel";
-  PUBLISH(MSG_ID_RELOCALIZATION_CANCEL, request.dump());
-  if (auto_relocalization_cancel_button_) {
-    auto_relocalization_cancel_button_->setEnabled(false);
+void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
+  if (!localization_confirmed_) {
+    QMessageBox::warning(
+        this, tr("定位尚未确认"),
+        tr("为避免小车在错误位姿下导航，请先点击“重定位”，在地图上手动设置小车位置和朝向，并等待 AMCL 定位确认。"));
+    return;
   }
-  if (auto_relocalization_status_label_) {
-    auto_relocalization_status_label_->setText(tr("自动定位：正在取消…"));
-  }
-}
-
-void MainWindow::UpdateAutoRelocalizationStatus(const std::string& json) {
-  try {
-    const auto data = nlohmann::json::parse(json);
-    const std::string state_std = data.value("state", std::string());
-    const QString state = QString::fromStdString(state_std);
-    QString message = QString::fromStdString(data.value("message", state_std));
-    if (data.contains("score") && data["score"].is_number()) {
-      message += tr(" · 匹配度 %1").arg(data["score"].get<double>(), 0, 'f', 2);
-    }
-    const bool running = state == QStringLiteral("preflight_ok") ||
-                         state == QStringLiteral("matching") ||
-                         state == QStringLiteral("applying") ||
-                         state == QStringLiteral("rotating") ||
-                         state == QStringLiteral("converging") ||
-                         state == QStringLiteral("busy") ||
-                         state == QStringLiteral("cancelling");
-    if (auto_relocalization_status_label_) {
-      auto_relocalization_status_label_->setText(tr("自动定位：%1").arg(message));
-    }
-    if (auto_relocalization_start_button_) {
-      auto_relocalization_start_button_->setEnabled(!running);
-    }
-    if (auto_relocalization_cancel_button_) {
-      auto_relocalization_cancel_button_->setEnabled(running && state != QStringLiteral("cancelling"));
-    }
-    if (state == QStringLiteral("success")) {
-      statusBar()->showMessage(tr("自动定位成功：激光点已按匹配结果刷新到地图位置。"), 6000);
-    } else if (state == QStringLiteral("failed") || state == QStringLiteral("timeout") ||
-               state == QStringLiteral("rejected")) {
-      statusBar()->showMessage(tr("自动定位失败：可改用手动重定位微调。"), 7000);
-    }
-  } catch (const std::exception&) {
-    if (auto_relocalization_status_label_) {
-      auto_relocalization_status_label_->setText(tr("自动定位：状态数据无效"));
-    }
-  }
+  PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
 }
 
 void MainWindow::AppendInspectionLogLine(const QString& line) {
@@ -2037,6 +1932,7 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
     return;
   }
 
+  localization_confirmed_ = false;
   const int attempt_id = ++relocation_attempt_id_;
   relocation_pending_ = true;
   relocation_target_ = pose;
@@ -2072,15 +1968,19 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   });
 }
 
-void MainWindow::CheckRelocationProgress(const RobotPose& pose) {
+void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
   if (!relocation_pending_) return;
+  const RobotPose& pose = estimate.pose;
   const double dx = pose.x - relocation_target_.x;
   const double dy = pose.y - relocation_target_.y;
   const double distance = std::hypot(dx, dy);
   const double angle_error = std::abs(std::atan2(
       std::sin(pose.theta - relocation_target_.theta),
       std::cos(pose.theta - relocation_target_.theta)));
-  if (distance <= 0.20 && angle_error <= deg2rad(10.0)) {
+  const bool localization_quality_ok =
+      estimate.xy_variance <= 0.20 && estimate.yaw_variance <= 0.12;
+  if (distance <= 0.20 && angle_error <= deg2rad(10.0) &&
+      localization_quality_ok) {
     ++relocation_stable_samples_;
   } else {
     relocation_stable_samples_ = 0;
@@ -2088,6 +1988,7 @@ void MainWindow::CheckRelocationProgress(const RobotPose& pose) {
   if (relocation_stable_samples_ < 3) return;
 
   relocation_pending_ = false;
+  localization_confirmed_ = true;
   statusBar()->showMessage(
       tr("重定位成功：位置误差 %1 m，角度误差 %2°，耗时 %3 s")
           .arg(distance, 0, 'f', 2)

@@ -613,26 +613,6 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                   online_count == core_nodes.size() ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::WarningBorder);
 }
 
-void CommandCenterWidget::SetRelocalizationStatus(const std::string& json) {
-  QJsonParseError error;
-  const QJsonDocument document =
-      QJsonDocument::fromJson(QByteArray::fromStdString(json), &error);
-  if (error.error != QJsonParseError::NoError || !document.isObject()) {
-    AppendLog(tr("重定位"), tr("状态数据无效"));
-    return;
-  }
-  const QJsonObject object = document.object();
-  const QString state = object.value(QStringLiteral("state")).toString();
-  QString message = object.value(QStringLiteral("message")).toString(state);
-  if (object.contains(QStringLiteral("progress"))) {
-    message += tr("（%1%）").arg(object.value(QStringLiteral("progress")).toInt());
-  }
-  if (object.contains(QStringLiteral("score"))) {
-    message += tr(" · 匹配度 %1").arg(object.value(QStringLiteral("score")).toDouble(), 0, 'f', 2);
-  }
-  AppendLog(tr("重定位"), message);
-}
-
 void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
                                              const QString& reading,
                                              const QString& status) {

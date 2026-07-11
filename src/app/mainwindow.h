@@ -109,9 +109,6 @@ class MainWindow : public QMainWindow {
   QPushButton* inspection_start_button_{nullptr};
   QFrame* inspection_status_card_{nullptr};
   QLabel* inspection_kimi_banner_{nullptr};
-  QLabel* auto_relocalization_status_label_{nullptr};
-  QPushButton* auto_relocalization_start_button_{nullptr};
-  QPushButton* auto_relocalization_cancel_button_{nullptr};
   QString last_inspection_log_line_;
   QLabel* label_dht11_temp_{nullptr};
   QLabel* label_dht11_humi_{nullptr};
@@ -122,6 +119,7 @@ class MainWindow : public QMainWindow {
   int connection_attempt_id_ = {0};
   bool channel_subscriptions_registered_ = {false};
   bool relocation_pending_ = {false};
+  bool localization_confirmed_ = {false};
   RobotPose relocation_target_;
   int relocation_stable_samples_ = {0};
   int relocation_attempt_id_ = {0};
@@ -144,13 +142,11 @@ class MainWindow : public QMainWindow {
   void ConfigureFloatingOnOpen(ads::CDockWidget* dock, const QSize& preferred_size);
   void CenterFloatingDock(ads::CDockWidget* dock, const QSize& preferred_size);
   void UpdateMaximizeButton();
-  QMenu* CreateRelocationMenu(QToolButton* reloc_button);
-  void StartAutoRelocalization();
-  void CancelAutoRelocalization();
-  void UpdateAutoRelocalizationStatus(const std::string& json);
+  void StartManualRelocation();
+  void PublishNavGoalSafely(const RobotPose& pose);
   void AppendInspectionLogLine(const QString& line);
   void BeginRelocation(const RobotPose& pose);
-  void CheckRelocationProgress(const RobotPose& pose);
+  void CheckRelocationProgress(const LocalizationEstimate& estimate);
   bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);
 };
 #endif  // MAINWINDOW_H

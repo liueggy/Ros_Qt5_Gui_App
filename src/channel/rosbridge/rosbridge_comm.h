@@ -60,6 +60,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void LocalPathCallback(const ROSBridgePublishMsg& msg);
   void BatteryCallback(const ROSBridgePublishMsg& msg);
   void OdomCallback(const ROSBridgePublishMsg& msg);
+  void LocalizationPoseCallback(const ROSBridgePublishMsg& msg);
   void RobotFootprintCallback(const ROSBridgePublishMsg& msg);
   void TopologyMapCallback(const ROSBridgePublishMsg& msg);
   void DiagnosticCallback(const ROSBridgePublishMsg& msg);

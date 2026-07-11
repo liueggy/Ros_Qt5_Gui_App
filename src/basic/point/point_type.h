@@ -14,6 +14,11 @@
 #include "point.h"
 namespace basic {
 typedef OrientedPoint RobotPose;
+struct LocalizationEstimate {
+  RobotPose pose;
+  double xy_variance = {0};
+  double yaw_variance = {0};
+};
 typedef std::vector<Point> RobotPath;
 typedef Eigen::Vector3d Color;
 struct RobotSpeed {
