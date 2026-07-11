@@ -80,8 +80,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   overview_layout->addWidget(task_overview_label_, 1, 0);
   overview_layout->addWidget(diagnostic_overview_label_, 1, 1);
   root->addWidget(overview_group);
-  SetConnectionOverview(false, tr("等待状态"));
-  SetOverviewPill(nav_overview_label_, tr("导航"), tr("等待刷新"),
+  SetConnectionOverview(false, tr("未连接"));
+  SetOverviewPill(nav_overview_label_, tr("导航"), tr("未连接"),
                   UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
   SetOverviewPill(task_overview_label_, tr("任务"), tr("空闲"),
                   UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
@@ -97,7 +97,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_title->setStyleSheet(QStringLiteral(
                                   "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
-  camera_state_label_ = new QLabel(tr("等待刷新"), camera_group);
+  camera_state_label_ = new QLabel(tr("未连接"), camera_group);
   camera_state_label_->setAlignment(Qt::AlignCenter);
   camera_state_label_->setStyleSheet(QStringLiteral(
                                          "QLabel { color:%1; background:%2; border:1px solid %3; "
@@ -171,7 +171,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_title->setStyleSheet(QStringLiteral(
                                "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
                                .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
-  nav_mode_label_ = new QLabel(tr("等待刷新"), nav_group);
+  nav_mode_label_ = new QLabel(tr("未连接"), nav_group);
   nav_mode_label_->setAlignment(Qt::AlignCenter);
   nav_mode_label_->setStyleSheet(QStringLiteral(
                                      "QLabel { color:%1; background:%2; border:1px solid %3; "
@@ -192,8 +192,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 
   auto* nav_row = new QHBoxLayout();
   nav_row->setSpacing(10);
-  mapping_btn_ = new QPushButton(tr("切回建图"), nav_group);
-  amcl_btn_ = new QPushButton(tr("开启AMCL"), nav_group);
+  mapping_btn_ = new QPushButton(tr("建图模式"), nav_group);
+  amcl_btn_ = new QPushButton(tr("AMCL导航"), nav_group);
   auto* refresh_maps_btn = new QPushButton(tr("刷新地图"), nav_group);
   mapping_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   amcl_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
@@ -220,16 +220,16 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_title->setStyleSheet(QStringLiteral(
                                   "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
-  auto* refresh_status_btn = new QPushButton(tr("刷新状态"), status_group);
-  auto* clear_btn = new QPushButton(tr("清空日志"), status_group);
+  auto* refresh_status_btn = new QPushButton(tr("刷新"), status_group);
+  auto* clear_btn = new QPushButton(tr("清空"), status_group);
   status_header->addWidget(status_title);
   status_header->addStretch();
   status_header->addWidget(refresh_status_btn);
   status_header->addWidget(clear_btn);
   status_layout->addLayout(status_header);
-  status_summary_label_ = new QLabel(tr("暂无状态"), status_group);
+  status_summary_label_ = new QLabel(tr("连接小车后显示运行状态"), status_group);
   status_summary_label_->setWordWrap(true);
-  status_summary_label_->setMinimumHeight(48);
+  status_summary_label_->setMinimumHeight(40);
   status_summary_label_->setStyleSheet(QStringLiteral(
                                            "QLabel { color:%1; background:%2; border:1px solid %3; "
                                            "border-radius:12px; padding:10px 12px; font-size:%4px; }")
@@ -237,8 +237,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
-  log_edit_->setPlaceholderText(tr("暂无运行记录。"));
-  log_edit_->setMaximumHeight(96);
+  log_edit_->setMaximumHeight(120);
+  log_edit_->setVisible(false);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);
 
@@ -394,10 +394,18 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
                                      .arg(UiStyle::FontSmallPx()));
 
   if (mapping_btn_) {
-    mapping_btn_->setEnabled(normalized != QStringLiteral("mapping_slam"));
+    const bool active = normalized == QStringLiteral("mapping_slam");
+    mapping_btn_->setText(active ? tr("建图中") : tr("建图模式"));
+    mapping_btn_->setEnabled(!active);
+    mapping_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
+                                       : UiStyle::SecondaryButtonStyleSheet());
   }
   if (amcl_btn_) {
-    amcl_btn_->setEnabled(normalized != QStringLiteral("static_nav"));
+    const bool active = normalized == QStringLiteral("static_nav");
+    amcl_btn_->setText(active ? tr("AMCL运行中") : tr("AMCL导航"));
+    amcl_btn_->setEnabled(!active);
+    amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
+                                    : UiStyle::SecondaryButtonStyleSheet());
   }
   SetOverviewPill(nav_overview_label_, tr("导航"), text, color, bg, border);
 }
@@ -461,6 +469,7 @@ void CommandCenterWidget::AppendLog(const QString& prefix, const QString& text) 
     return;
   }
   const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
+  log_edit_->setVisible(true);
   QString compact = text.simplified();
   if (compact.size() > 96) {
     compact = compact.left(93) + QStringLiteral("...");
@@ -773,5 +782,6 @@ void CommandCenterWidget::StopCamera() {
 void CommandCenterWidget::ClearLog() {
   if (log_edit_) {
     log_edit_->clear();
+    log_edit_->setVisible(false);
   }
 }
