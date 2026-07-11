@@ -1,6 +1,17 @@
 #include "config/config_manager.h"
 #include <gtest/gtest.h>
 
+TEST(TopologyMapTest, MissingPointHasSafeDefaultPose) {
+  TopologyMap map;
+
+  const auto missing = map.GetPoint("missing");
+
+  EXPECT_TRUE(missing.name.empty());
+  EXPECT_DOUBLE_EQ(missing.x, 0.0);
+  EXPECT_DOUBLE_EQ(missing.y, 0.0);
+  EXPECT_DOUBLE_EQ(missing.theta, 0.0);
+}
+
 TEST(TopologyMapTest, ReadAndWriteMap) {
   TopologyMap map;
   map.map_name = "test";

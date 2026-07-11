@@ -33,12 +33,12 @@ struct TopologyMap {
   };
   
   struct PointInfo {
-    double x;
-    double y;
-    double theta;
+    double x = 0.0;
+    double y = 0.0;
+    double theta = 0.0;
     std::string name;
     PointType type = {PointType::NavGoal};
-    PointInfo() {}
+    PointInfo() = default;
     PointInfo(double _x, double _y, double _theta, std::string _name)
         : x(_x), y(_y), theta(_theta), name(_name) {}
     PointInfo(basic::RobotPose pose, std::string _name)

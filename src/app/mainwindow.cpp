@@ -501,7 +501,7 @@ MainWindow::MainWindow(QWidget* parent)
   setupUi();
   ApplyCenteredWindowGeometry();
   QTimer::singleShot(30, this, [this]() { openChannel(); });
-  QTimer::singleShot(50, [=]() {
+  QTimer::singleShot(50, this, [this]() {
     RestoreState();
     std::string map_path = Config::ConfigManager::Instance()->GetRootConfig().map_config.path;
     if (!map_path.empty()) {
@@ -595,6 +595,7 @@ bool MainWindow::openChannel() {
     // 启动周期性连接监控，检测小车失联/自动重连
     if (connection_monitor_timer_) {
       connection_monitor_timer_->stop();
+      connection_monitor_timer_->deleteLater();
     }
     connection_monitor_timer_ = new QTimer(this);
     connection_monitor_timer_->setObjectName(QStringLiteral("connectionMonitor"));

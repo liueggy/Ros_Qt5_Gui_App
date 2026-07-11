@@ -17,7 +17,7 @@ LaserPoints::LaserPoints(const std::string &display_type, const int &z_value,
 void LaserPoints::paint(QPainter *painter,
                         const QStyleOptionGraphicsItem *option,
                         QWidget *widget) {
-  for (auto [id, data] : laser_data_scene_) {
+  for (const auto& [id, data] : laser_data_scene_) {
     drawLaser(painter, id, data);
   }
 }
@@ -27,7 +27,7 @@ LaserPoints::~LaserPoints() {}
 void LaserPoints::computeBoundRect(
     const std::map<int, std::vector<Point>> &laser_scan) {
   float xmax, xmin, ymax, ymin;
-  for (auto [id, points] : laser_scan) {
+  for (const auto& [id, points] : laser_scan) {
     if (points.empty())
       continue;
     xmax = xmin = points[0].x;
@@ -55,7 +55,7 @@ void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
   update();
 }
 void LaserPoints::drawLaser(QPainter *painter, int id,
-                            std::vector<Point> data) {
+                            const std::vector<Point>& data) {
   QColor color;
   if (!location_to_color_.count(id)) {
     int r, g, b;
@@ -68,7 +68,7 @@ void LaserPoints::drawLaser(QPainter *painter, int id,
   painter->setPen(QPen(color, 1.0));
   QPolygonF poly;
   poly.reserve(static_cast<int>(data.size()));
-  for (auto one_point : data) {
+  for (const auto& one_point : data) {
     poly << QPointF(one_point.x, one_point.y);
   }
   painter->drawPoints(poly);

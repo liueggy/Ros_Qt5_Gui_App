@@ -38,7 +38,7 @@
 
 
 RatioLayoutedFrame::RatioLayoutedFrame(QWidget* parent, Qt::WindowFlags flags)
-    : QFrame(), outer_layout_(NULL), aspect_ratio_(4, 3), smoothImage_(false) {
+    : QFrame(parent, flags), outer_layout_(NULL), aspect_ratio_(4, 3), smoothImage_(false) {
   connect(this, SIGNAL(delayed_update()), this, SLOT(update()), Qt::QueuedConnection);
 }
 
