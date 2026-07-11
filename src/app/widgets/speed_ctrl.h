@@ -180,11 +180,13 @@ class SpeedCtrlWidget : public QWidget {
  private slots:
   void slotSpeedControl() {
     QPushButton* btn = qobject_cast<QPushButton*>(sender());
-    if (!btn || btn->text().isEmpty()) {
+    if (!btn) {
       return;
     }
+    const QByteArray move_key = btn->property("moveKey").toByteArray();
+    if (move_key.isEmpty()) return;
     MoveBinding binding = {};
-    if (!LookupMoveBinding(ResolveMoveKey(btn->text().toStdString()[0]), &binding)) {
+    if (!LookupMoveBinding(ResolveMoveKey(move_key.at(0)), &binding)) {
       return;
     }
     joystick_active_ = false;
@@ -296,8 +298,8 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_2->setAlignment(Qt::AlignCenter);
     move_btn_u_ = new QPushButton();
     move_btn_u_->setObjectName(QString::fromUtf8("pushButton_u"));
-    move_btn_u_->setText("u");
-    move_btn_u_->setShortcut(QApplication::translate("Widget", "u", nullptr));
+    move_btn_u_->setProperty("moveKey", "u");
+    move_btn_u_->setToolTip(QStringLiteral("左前"));
     move_btn_u_->setMinimumSize(moveButtonSize);
     move_btn_u_->setMaximumSize(moveButtonSize);
     move_btn_u_->setStyleSheet(QString::fromUtf8(
@@ -312,8 +314,8 @@ class SpeedCtrlWidget : public QWidget {
 
     move_btn_i_ = new QPushButton();
     move_btn_i_->setObjectName(QString::fromUtf8("pushButton_i"));
-    move_btn_i_->setText("i");
-    move_btn_i_->setShortcut(QApplication::translate("Widget", "i", nullptr));
+    move_btn_i_->setProperty("moveKey", "i");
+    move_btn_i_->setToolTip(QStringLiteral("前进"));
     move_btn_i_->setMinimumSize(moveButtonSize);
     move_btn_i_->setMaximumSize(moveButtonSize);
     move_btn_i_->setStyleSheet(QString::fromUtf8(
@@ -328,8 +330,8 @@ class SpeedCtrlWidget : public QWidget {
 
     move_btn_o_ = new QPushButton();
     move_btn_o_->setObjectName(QString::fromUtf8("pushButton_o"));
-    move_btn_o_->setText("o");
-    move_btn_o_->setShortcut(QApplication::translate("Widget", "o", nullptr));
+    move_btn_o_->setProperty("moveKey", "o");
+    move_btn_o_->setToolTip(QStringLiteral("右前"));
     move_btn_o_->setMinimumSize(moveButtonSize);
     move_btn_o_->setMaximumSize(moveButtonSize);
     move_btn_o_->setStyleSheet(QString::fromUtf8(
@@ -350,8 +352,8 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_18->setSpacing(42);
     horizontalLayout_18->setAlignment(Qt::AlignCenter);
     move_btn_j_ = new QPushButton();
-    move_btn_j_->setText("j");
-    move_btn_j_->setShortcut(QApplication::translate("Widget", "j", nullptr));
+    move_btn_j_->setProperty("moveKey", "j");
+    move_btn_j_->setToolTip(QStringLiteral("左移或左转"));
     move_btn_j_->setObjectName(QString::fromUtf8("pushButton_j"));
     move_btn_j_->setMinimumSize(moveButtonSize);
     move_btn_j_->setMaximumSize(moveButtonSize);
@@ -377,8 +379,8 @@ class SpeedCtrlWidget : public QWidget {
 
     move_btn_l_ = new QPushButton();
     move_btn_l_->setObjectName(QString::fromUtf8("pushButton_l"));
-    move_btn_l_->setText("l");
-    move_btn_l_->setShortcut(QApplication::translate("Widget", "l", nullptr));
+    move_btn_l_->setProperty("moveKey", "l");
+    move_btn_l_->setToolTip(QStringLiteral("右移或右转"));
     move_btn_l_->setMinimumSize(moveButtonSize);
     move_btn_l_->setMaximumSize(moveButtonSize);
     move_btn_l_->setStyleSheet(QString::fromUtf8(
@@ -400,8 +402,8 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_19->setAlignment(Qt::AlignCenter);
     move_btn_m_ = new QPushButton();
     move_btn_m_->setObjectName(QString::fromUtf8("pushButton_m"));
-    move_btn_m_->setText("m");
-    move_btn_m_->setShortcut(QApplication::translate("Widget", "m", nullptr));
+    move_btn_m_->setProperty("moveKey", "m");
+    move_btn_m_->setToolTip(QStringLiteral("左后"));
     move_btn_m_->setMinimumSize(moveButtonSize);
     move_btn_m_->setMaximumSize(moveButtonSize);
     move_btn_m_->setStyleSheet(QString::fromUtf8(
@@ -416,9 +418,8 @@ class SpeedCtrlWidget : public QWidget {
 
     move_btn_back_ = new QPushButton();
     move_btn_back_->setObjectName(QString::fromUtf8("pushButton_,"));
-    move_btn_back_->setText(",");
-    move_btn_back_->setShortcut(
-        QApplication::translate("Widget", ",", nullptr));
+    move_btn_back_->setProperty("moveKey", ",");
+    move_btn_back_->setToolTip(QStringLiteral("后退"));
     move_btn_back_->setMinimumSize(moveButtonSize);
     move_btn_back_->setMaximumSize(moveButtonSize);
     move_btn_back_->setStyleSheet(QString::fromUtf8(
@@ -433,9 +434,8 @@ class SpeedCtrlWidget : public QWidget {
 
     move_btn_backr_ = new QPushButton();
     move_btn_backr_->setObjectName(QString::fromUtf8("pushButton_."));
-    move_btn_backr_->setText(".");
-    move_btn_backr_->setShortcut(
-        QApplication::translate("Widget", ".", nullptr));
+    move_btn_backr_->setProperty("moveKey", ".");
+    move_btn_backr_->setToolTip(QStringLiteral("右后"));
     move_btn_backr_->setMinimumSize(moveButtonSize);
     move_btn_backr_->setMaximumSize(moveButtonSize);
     move_btn_backr_->setStyleSheet(QString::fromUtf8(
@@ -604,9 +604,14 @@ class SpeedCtrlWidget : public QWidget {
   // === 键盘控制 (QWEASDZXC) ===
   static char KeyboardKeyToButtonLabel(char key) {
     switch (key) {
-      case 'q': return 'u'; case 'w': return 'i'; case 'e': return 'o';
-      case 'a': return 'j'; case 'd': return 'l';
-      case 'z': return 'm'; case 'x': return ','; case 'c': return '.';
+      case 'q': case 'u': return 'u';
+      case 'w': case 'i': return 'i';
+      case 'e': case 'o': return 'o';
+      case 'a': case 'j': return 'j';
+      case 'd': case 'l': return 'l';
+      case 'z': case 'm': return 'm';
+      case 'x': case ',': return ',';
+      case 'c': case '.': return '.';
       default: return '\0';
     }
   }
@@ -639,9 +644,8 @@ class SpeedCtrlWidget : public QWidget {
   }
 
   void keyPressEvent(QKeyEvent* event) override {
-    char key = static_cast<char>(event->key());
-    // S 键停车
-    if (key == 's' || key == 'S') {
+    const char key = QChar(event->key()).toLower().toLatin1();
+    if (event->key() == Qt::Key_Space || key == 's') {
       ClearMoveHighlight();
       slotStopControl();
       return;
@@ -661,7 +665,7 @@ class SpeedCtrlWidget : public QWidget {
   }
 
   void keyReleaseEvent(QKeyEvent* event) override {
-    char key = static_cast<char>(event->key());
+    const char key = QChar(event->key()).toLower().toLatin1();
     if (key == active_keyboard_key_) {
       ClearMoveHighlight();
       slotStopControl();

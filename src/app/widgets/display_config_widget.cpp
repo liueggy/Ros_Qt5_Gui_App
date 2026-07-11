@@ -1,6 +1,7 @@
 #include "display_config_widget.h"
 #include <QAbstractItemView>
 #include <QFileDialog>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QHeaderView>
 #include <QIcon>
@@ -98,7 +99,8 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setFixedWidth(132);
+  const QFontMetrics nav_metrics(font());
+  int nav_text_width = 0;
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
@@ -112,8 +114,12 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(120, 50));
+    nav_text_width = (std::max)(nav_text_width,
+                                nav_metrics.horizontalAdvance(item.first));
+    nav_item->setSizeHint(QSize(150, 54));
   }
+  const int nav_width = (std::min)(190, (std::max)(154, nav_text_width + 66));
+  nav_list_->setFixedWidth(nav_width);
   nav_list_->setMinimumHeight(navItems.size() * 62 + 18);
 
   page_stack_ = new QStackedWidget(this);

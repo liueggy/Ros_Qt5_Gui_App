@@ -66,11 +66,11 @@ namespace Palette {
 // ── Typography Scale ─────────────────────────
 
 namespace Font {
-  inline constexpr int  Mini    = 12;
-  inline constexpr int  Small   = 14;
-  inline constexpr int  Base    = 16;
-  inline constexpr int  Title   = 22;
-  inline constexpr int  Hero    = 28;
+  inline constexpr int  Mini    = 14;
+  inline constexpr int  Small   = 16;
+  inline constexpr int  Base    = 18;
+  inline constexpr int  Title   = 24;
+  inline constexpr int  Hero    = 30;
   inline constexpr auto Family  = "";  // system default
   inline constexpr auto Mono    = "Consolas, Menlo, monospace";
   // semantic shorthands
