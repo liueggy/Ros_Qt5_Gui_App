@@ -15,6 +15,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QKeyEvent>
+#include <QKeySequence>
 #include <QRadioButton>
 #include <QSettings>
 #include <QTableWidget>
@@ -558,14 +559,17 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_stop_button = new QHBoxLayout();
     QPushButton* btn_stop = new QPushButton();
     btn_stop->setObjectName(QString::fromUtf8("btn_stop"));
-    btn_stop->setText("停止(s)");
+    btn_stop->setText("立即停止   Space");
     btn_stop->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-    btn_stop->setShortcut(QApplication::translate("Widget", "s", nullptr));
+    btn_stop->setShortcut(QKeySequence(Qt::Key_Space));
+    btn_stop->setAccessibleName(QStringLiteral("立即停止机器人"));
+    btn_stop->setAccessibleDescription(
+        QStringLiteral("停止当前运动，快捷键为空格键"));
+    btn_stop->setMinimumHeight(52);
+    btn_stop->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     connect(btn_stop, &QPushButton::clicked, this,
             &SpeedCtrlWidget::slotStopControl);
-    horizontalLayout_stop_button->addStretch();
-    horizontalLayout_stop_button->addWidget(btn_stop);
-    horizontalLayout_stop_button->addStretch();
+    horizontalLayout_stop_button->addWidget(btn_stop, 1);
     control_layout->addLayout(horizontalLayout_stop_button);
     verticalLayout_speed_ctrl->addWidget(control_card, 0, Qt::AlignTop);
 

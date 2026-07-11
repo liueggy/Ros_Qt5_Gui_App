@@ -98,7 +98,7 @@ void DisplayConfigWidget::InitUI() {
 
   nav_list_ = new QListWidget(this);
   nav_list_->setObjectName(QStringLiteral("settingsNav"));
-  nav_list_->setFixedWidth(180);
+  nav_list_->setFixedWidth(132);
   nav_list_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
   nav_list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   nav_list_->setFocusPolicy(Qt::StrongFocus);
@@ -112,7 +112,7 @@ void DisplayConfigWidget::InitUI() {
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
-    nav_item->setSizeHint(QSize(162, 54));
+    nav_item->setSizeHint(QSize(120, 50));
   }
   nav_list_->setMinimumHeight(navItems.size() * 62 + 18);
 
@@ -152,11 +152,11 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   auto* card_title = new QLabel(tr("ROSBridge 连接"), card);
   card_title->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
-  card_layout->addWidget(card_title);
+  card_title->setVisible(false);
 
   QHBoxLayout* type_layout = new QHBoxLayout();
   channel_type_label_ = new QLabel(tr("方式"));
-  channel_type_label_->setFixedWidth(58);
+  channel_type_label_->setFixedWidth(56);
   channel_type_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   channel_type_combo_ = new QComboBox(card);
   channel_type_combo_->setMinimumHeight(36);
@@ -181,11 +181,11 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   rosbridge_section_label_ = new QLabel(tr("目标地址"));
   rosbridge_section_label_->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
-  card_layout->addWidget(rosbridge_section_label_);
+  rosbridge_section_label_->setVisible(false);
 
   QHBoxLayout* ip_layout = new QHBoxLayout();
   rosbridge_ip_label_ = new QLabel(tr("地址"));
-  rosbridge_ip_label_->setFixedWidth(76);
+  rosbridge_ip_label_->setFixedWidth(56);
   rosbridge_ip_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   rosbridge_ip_edit_ = new QLineEdit(card);
   rosbridge_ip_edit_->setPlaceholderText(QStringLiteral("192.168.31.50"));
@@ -207,7 +207,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
   QHBoxLayout* port_layout = new QHBoxLayout();
   rosbridge_port_label_ = new QLabel(tr("端口"));
-  rosbridge_port_label_->setFixedWidth(76);
+  rosbridge_port_label_->setFixedWidth(56);
   rosbridge_port_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
   rosbridge_port_edit_ = new QLineEdit(card);
   rosbridge_port_edit_->setPlaceholderText(QStringLiteral("9090"));
@@ -301,6 +301,7 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
       QStringLiteral("QFrame#connectionStatusCard { background:%1; border:1px solid %2; "
                      "border-radius:10px; }")
           .arg(background, border));
+  emit ConnectionStateChanged(connected, connecting, message);
 }
 
 QWidget* DisplayConfigWidget::CreateLayersPage() {

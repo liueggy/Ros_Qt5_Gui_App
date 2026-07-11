@@ -36,9 +36,11 @@ class DisplayConfigWidget : public QWidget {
   void SaveConfig();
   void SetConnectionState(bool connected, bool connecting, const QString &message);
 
- signals:
+signals:
   void ConnectRequested();
   void DisconnectRequested();
+  void ConnectionStateChanged(bool connected, bool connecting,
+                              const QString &message);
 
  private slots:
   void OnToggleDisplay(const std::string &display_name, bool visible);

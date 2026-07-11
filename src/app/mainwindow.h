@@ -86,6 +86,7 @@ class MainWindow : public QMainWindow {
   SpeedCtrlWidget* speed_ctrl_widget_;
   NavGoalTableView* nav_goal_table_view_;
   QProgressBar* battery_bar_;
+  QLabel* top_connection_status_{nullptr};
   ads::CDockAreaWidget* center_docker_area_;
   ads::CDockAreaWidget* settings_dock_area_{nullptr};
   ads::CDockAreaWidget* command_center_dock_area_{nullptr};

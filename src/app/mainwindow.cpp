@@ -60,7 +60,7 @@
 using namespace ads;
 namespace {
 
-constexpr int kUiLayoutVersion = 10;
+constexpr int kUiLayoutVersion = 11;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -971,6 +971,15 @@ void MainWindow::setupUi() {
   horizontalLayout_tools->addItem(
       new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
 
+  top_connection_status_ = new QLabel(tr("离线"), tools_strip);
+  top_connection_status_->setAlignment(Qt::AlignCenter);
+  top_connection_status_->setAccessibleName(tr("机器人连接状态"));
+  top_connection_status_->setStyleSheet(
+      UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::Danger));
+  horizontalLayout_tools->addWidget(CreateTopStatusPill(
+      QStringLiteral(":/icons/tabler/plug-connected.svg"),
+      top_connection_status_, tr("机器人连接状态"), 118, tools_strip));
+
   // Compact, consistent sensor status pills.
   battery_bar_ = new QProgressBar();
   battery_bar_->setObjectName(QString::fromUtf8("battery_bar_"));
@@ -1225,9 +1234,24 @@ void MainWindow::setupUi() {
           });
   connect(display_config_widget_, &DisplayConfigWidget::DisconnectRequested,
           this, &MainWindow::closeChannel);
+  connect(display_config_widget_, &DisplayConfigWidget::ConnectionStateChanged,
+          this, [this](bool connected, bool connecting, const QString& message) {
+            if (!top_connection_status_) {
+              return;
+            }
+            const QString color = connecting ? UiStyle::Palette::Warning
+                                             : (connected ? UiStyle::Palette::Success
+                                                          : UiStyle::Palette::Danger);
+            top_connection_status_->setText(connecting ? tr("连接中")
+                                                       : (connected ? tr("已连接")
+                                                                    : tr("离线")));
+            top_connection_status_->setToolTip(message);
+            top_connection_status_->setStyleSheet(
+                UiStyle::TopStatusLabelStyleSheet(color));
+          });
   settings_dock_ = new ads::CDockWidget(tr("设置"));
   settings_dock_->setWidget(display_config_widget_, ads::CDockWidget::ForceNoScrollArea);
-  ConfigureDockWidget(settings_dock_, QSize(400, 420), QSize(500, 620));
+  ConfigureDockWidget(settings_dock_, QSize(320, 420), QSize(350, 620));
   settings_dock_->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
   settings_dock_area_ =
       dock_manager_->addDockWidget(ads::DockWidgetArea::LeftDockWidgetArea,
@@ -1243,7 +1267,7 @@ void MainWindow::setupUi() {
           });
   ads::CDockWidget* SpeedCtrlDockWidget = new ads::CDockWidget("速度控制");
   SpeedCtrlDockWidget->setWidget(speed_ctrl_widget_);
-  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(400, 360), QSize(500, 420));
+  ConfigureDockWidget(SpeedCtrlDockWidget, QSize(320, 360), QSize(350, 420));
   auto speed_ctrl_area =
       dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                    SpeedCtrlDockWidget, settings_dock_area_);
@@ -1421,7 +1445,7 @@ void MainWindow::setupUi() {
   command_center_widget_ = new CommandCenterWidget();
   command_center_dock_ = new ads::CDockWidget("运维面板");
   command_center_dock_->setWidget(command_center_widget_);
-  ConfigureDockWidget(command_center_dock_, QSize(420, 560), QSize(500, 720));
+  ConfigureDockWidget(command_center_dock_, QSize(350, 560), QSize(390, 720));
   command_center_dock_area_ =
       dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
                                    command_center_dock_, center_docker_area_);
@@ -1693,8 +1717,8 @@ void MainWindow::ApplyDefaultDockSizes() {
     splitter->setSizes(sizes);
   };
 
-  resize_area(settings_dock_area_, 800);
-  resize_area(command_center_dock_area_, 600);
+  resize_area(settings_dock_area_, 350);
+  resize_area(command_center_dock_area_, 390);
 }
 
 void MainWindow::ConfigureFloatingOnOpen(ads::CDockWidget* dock,

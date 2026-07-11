@@ -85,7 +85,14 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
       "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::Palette::Text, UiStyle::FontTitlePx()));
   empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
-  map_empty_state_->setMaximumWidth(260);
+  auto* empty_hint = new QLabel(
+      tr("连接机器人后将自动加载实时地图\n也可以使用顶部“打开地图”载入本地文件"),
+      map_empty_state_);
+  empty_hint->setAlignment(Qt::AlignCenter);
+  empty_hint->setWordWrap(true);
+  empty_hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
+  empty_layout->addWidget(empty_hint);
+  map_empty_state_->setMaximumWidth(340);
   map_empty_state_->setStyleSheet(QStringLiteral(
       "QWidget { background:rgba(250,252,255,242); border:1px solid %2; border-radius:20px; } "
       "QLabel { background:transparent; border:none; }"));
