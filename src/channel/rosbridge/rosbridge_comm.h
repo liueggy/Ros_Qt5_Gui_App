@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include "algorithm.h"
 #include "config/config_manager.h"
 #include "core/framework/framework.h"
@@ -78,6 +79,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void GetRobotPose();
 
  private:
+  std::vector<Framework::ScopedSubscription> message_bus_subscriptions_;
   std::unique_ptr<SocketWebSocketConnection> websocket_connection_;
   std::unique_ptr<ROSBridge> ros_bridge_;
 

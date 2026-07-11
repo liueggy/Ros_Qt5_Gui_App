@@ -463,45 +463,47 @@ void RosbridgeComm::ConnectAsync() {
 
   // ========== 订阅内部消息总线 ==========
 
-  SUBSCRIBE(MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
+  message_bus_subscriptions_.clear();
+
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
     LOG_INFO("recv nav goal pose:" << pose);
     PubNavGoal(pose);
   });
 
-  SUBSCRIBE(MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
     LOG_INFO("recv reloc pose:" << pose);
     PubRelocPose(pose);
   });
 
-  SUBSCRIBE(MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
     LOG_INFO("recv robot speed:" << speed);
     PubRobotSpeed(speed);
   });
 
-  SUBSCRIBE(MSG_ID_TOPOLOGY_MAP_UPDATE, [this](const TopologyMap& topology_map) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_TOPOLOGY_MAP_UPDATE, [this](const TopologyMap& topology_map) {
     LOG_INFO("recv topology map update:" << topology_map.map_name);
     PubTopologyMapUpdate(topology_map);
   });
 
-  SUBSCRIBE(MSG_ID_COMMAND_REQUEST, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_COMMAND_REQUEST, [this](const std::string& json_request) {
     LOG_INFO("recv eggy command request:" << json_request);
     PubCommandRequest(json_request);
   });
 
-  SUBSCRIBE(MSG_ID_SHELL_REQUEST, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SHELL_REQUEST, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kShellRequest, json_request);
   });
-  SUBSCRIBE(MSG_ID_SHELL_CANCEL, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SHELL_CANCEL, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kShellCancel, json_request);
   });
-  SUBSCRIBE(MSG_ID_RELOCALIZATION_REQUEST, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_RELOCALIZATION_REQUEST, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kRelocalizationRequest, json_request);
   });
-  SUBSCRIBE(MSG_ID_RELOCALIZATION_CANCEL, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_RELOCALIZATION_CANCEL, [this](const std::string& json_request) {
     PubStringRequest(MsgId::kRelocalizationCancel, json_request);
   });
 
-  SUBSCRIBE(MSG_ID_INSPECTION_REQUEST, [this](const std::string& json_request) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_INSPECTION_REQUEST, [this](const std::string& json_request) {
     LOG_INFO("recv inspection route request:" << json_request);
     PubInspectionRequest(json_request);
   });
@@ -530,6 +532,8 @@ bool RosbridgeComm::Stop() {
   if (connection_thread_.joinable()) {
     connection_thread_.join();
   }
+
+  message_bus_subscriptions_.clear();
 
   {
     std::lock_guard<std::mutex> transport_lock(transport_mutex_);

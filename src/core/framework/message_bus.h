@@ -18,6 +18,39 @@
 #endif
 
 namespace Framework {
+
+class ScopedSubscription {
+ public:
+  ScopedSubscription() = default;
+  explicit ScopedSubscription(std::function<void()> unsubscribe)
+      : unsubscribe_(std::move(unsubscribe)) {}
+  ~ScopedSubscription() { Reset(); }
+
+  ScopedSubscription(const ScopedSubscription&) = delete;
+  ScopedSubscription& operator=(const ScopedSubscription&) = delete;
+  ScopedSubscription(ScopedSubscription&& other) noexcept
+      : unsubscribe_(std::move(other.unsubscribe_)) {
+    other.unsubscribe_ = {};
+  }
+  ScopedSubscription& operator=(ScopedSubscription&& other) noexcept {
+    if (this != &other) {
+      Reset();
+      unsubscribe_ = std::move(other.unsubscribe_);
+      other.unsubscribe_ = {};
+    }
+    return *this;
+  }
+
+  void Reset() {
+    if (unsubscribe_) {
+      auto unsubscribe = std::move(unsubscribe_);
+      unsubscribe();
+    }
+  }
+
+ private:
+  std::function<void()> unsubscribe_;
+};
 class MessageBus;
 }
 
@@ -158,6 +191,22 @@ class MessageBus {
               << ", type: " << typeid(T).name() 
               << ", callback_id: " << id);
     return id;
+  }
+
+  template<typename T>
+  ScopedSubscription SubscribeScoped(const std::string& topic,
+                                     std::function<void(const T&)> callback) {
+    const auto active = std::make_shared<std::atomic_bool>(true);
+    const CallbackId id = Subscribe<T>(
+        topic, [active, callback = std::move(callback)](const T& data) {
+          if (active->load(std::memory_order_acquire)) {
+            callback(data);
+          }
+        });
+    return ScopedSubscription([this, topic, id, active]() {
+      active->store(false, std::memory_order_release);
+      Unsubscribe(topic, id);
+    });
   }
 
 #ifdef QT_CORE_LIB

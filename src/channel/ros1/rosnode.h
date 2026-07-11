@@ -47,6 +47,7 @@ class RosNode : public VirtualChannelNode {
   basic::RobotPose getTransform(std::string from, std::string to);
 
  private:
+  std::vector<Framework::ScopedSubscription> message_bus_subscriptions_;
   ros::Publisher nav_goal_publisher_;
   ros::Publisher speed_publisher_;
   ros::Publisher reloc_pose_publisher_;

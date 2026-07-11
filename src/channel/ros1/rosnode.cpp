@@ -62,6 +62,7 @@ void RosNode::Process() {
   }
 }
 bool RosNode::Start() {
+  message_bus_subscriptions_.clear();
   int argc = 0;
   ros::init(argc, nullptr, "ros_qt5_gui_app", ros::init_options::AnonymousName);
   while (!ros::master::check()) {
@@ -71,15 +72,15 @@ bool RosNode::Start() {
   ros::start();
   init();
   
-  SUBSCRIBE(MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
     std::cout << "recv nav goal pose:" << pose << std::endl;
     PubNavGoal(pose);
   });
-  SUBSCRIBE(MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
     std::cout << "recv reloc pose:" << pose << std::endl;
     PubRelocPose(pose);
   });
-  SUBSCRIBE(MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
     std::cout << "recv robot speed:" << speed << std::endl;
     PubRobotSpeed(speed);
   });
@@ -188,6 +189,7 @@ void RosNode::init() {
 }
 
 bool RosNode::Stop() {
+  message_bus_subscriptions_.clear();
   ros::shutdown();
   return true;
 }

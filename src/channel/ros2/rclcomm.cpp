@@ -41,6 +41,7 @@ rclcomm::rclcomm() {
   Config::ConfigManager::Instance()->StoreConfig();
 }
 bool rclcomm::Start() {
+  message_bus_subscriptions_.clear();
   rclcpp::init(0, nullptr);
   m_executor = new rclcpp::executors::MultiThreadedExecutor;
 
@@ -186,19 +187,19 @@ bool rclcomm::Start() {
   transform_listener_ =
       std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
   
-  SUBSCRIBE(MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_NAV_GOAL_POSE, [this](const basic::RobotPose& pose) {
     std::cout << "recv nav goal pose:" << pose << std::endl;
     PubNavGoal(pose);
   });
-  SUBSCRIBE(MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_RELOC_POSE, [this](const basic::RobotPose& pose) {
     std::cout << "recv reloc pose:" << pose << std::endl;
     PubRelocPose(pose);
   });
-  SUBSCRIBE(MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
     std::cout << "recv robot speed:" << speed << std::endl;
     PubRobotSpeed(speed);
   });
-  SUBSCRIBE(MSG_ID_TOPOLOGY_MAP_UPDATE, [this](const TopologyMap& topology_map) {
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_TOPOLOGY_MAP_UPDATE, [this](const TopologyMap& topology_map) {
     std::cout << "recv topology map update:" << topology_map.map_name << std::endl;
     topology_msgs::msg::TopologyMap ros_msg = ConvertToRosMsg(topology_map);
     topology_map_update_publisher_->publish(ros_msg);
@@ -209,6 +210,7 @@ bool rclcomm::Start() {
 }
 
 bool rclcomm::Stop() {
+  message_bus_subscriptions_.clear();
   rclcpp::shutdown();
   return true;
 }

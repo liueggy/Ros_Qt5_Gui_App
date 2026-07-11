@@ -69,6 +69,7 @@ class rclcomm : public VirtualChannelNode {
   topology_msgs::msg::TopologyMap ConvertToRosMsg(const TopologyMap& topology_map);
 
  private:
+  std::vector<Framework::ScopedSubscription> message_bus_subscriptions_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr speed_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
       reloc_pose_publisher_;

@@ -43,6 +43,17 @@ namespace Framework {
     return GetMessageBusInstance()->Subscribe<ArgType>(topic, std::function<void(const ArgType&)>(std::forward<decltype(cb)>(cb))); \
   }()
 
+#define SUBSCRIBE_SCOPED(topic, callback) \
+  [&]() { \
+    auto&& cb = callback; \
+    using CallbackType = std::decay_t<decltype(cb)>; \
+    using ArgType = typename Framework::detail::lambda_traits<CallbackType>::arg_type; \
+    return GetMessageBusInstance()->SubscribeScoped<ArgType>(topic, std::function<void(const ArgType&)>(std::forward<decltype(cb)>(cb))); \
+  }()
+
+#define SUBSCRIBE_SCOPED_TO(owner, topic, callback) \
+  owner.emplace_back(SUBSCRIBE_SCOPED(topic, callback))
+
 #ifdef QT_CORE_LIB
 #define SUBSCRIBE_QOBJECT(context, topic, callback) \
   [&]() { \

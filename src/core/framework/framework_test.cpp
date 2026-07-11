@@ -205,6 +205,32 @@ TEST_F(MessageBusTest, QObjectSubscriptionStopsAtContextDestruction) {
 }
 #endif
 
+TEST_F(MessageBusTest, ScopedSubscriptionStopsAtTokenDestruction) {
+  std::atomic<int> received_count(0);
+  {
+    auto subscription = SUBSCRIBE_SCOPED(
+        "test_scoped_lifetime", [&received_count](const int&) { ++received_count; });
+    PUBLISH("test_scoped_lifetime", 1);
+    EXPECT_EQ(received_count.load(), 1);
+  }
+
+  PUBLISH("test_scoped_lifetime", 2);
+  EXPECT_EQ(received_count.load(), 1);
+}
+
+TEST_F(MessageBusTest, ScopedSubscriptionTransfersOwnershipOnMove) {
+  std::atomic<int> received_count(0);
+  auto first = SUBSCRIBE_SCOPED(
+      "test_scoped_move", [&received_count](const int&) { ++received_count; });
+  Framework::ScopedSubscription second = std::move(first);
+
+  PUBLISH("test_scoped_move", 1);
+  EXPECT_EQ(received_count.load(), 1);
+  second.Reset();
+  PUBLISH("test_scoped_move", 2);
+  EXPECT_EQ(received_count.load(), 1);
+}
+
 TEST_F(MessageBusTest, DifferentTopics) {
   std::atomic<int> topic1_value(0);
   std::atomic<int> topic2_value(0);
