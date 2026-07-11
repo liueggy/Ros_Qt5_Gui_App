@@ -60,22 +60,22 @@ DisplayManager::DisplayManager() {
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_MAP);
   graphics_view_ptr_->SetDisplayManagerPtr(this);
   InitUi();
-  SUBSCRIBE(MSG_ID_TOPOLOGY_MAP, [this](const TopologyMap& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_TOPOLOGY_MAP, [this](const TopologyMap& data) {
     scene_manager_ptr_->UpdateTopologyMap(data);
   });
   
-  SUBSCRIBE(MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
   });
 
-  SUBSCRIBE(MSG_ID_ROBOT_POSE, [this](const RobotPose& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_ROBOT_POSE, [this](const RobotPose& data) {
     // LOG_INFO("robot pose update:" << data.x << " " << data.y << " " << data.theta);
     if (!is_reloc_mode_) {
       UpdateRobotPose(data);
     }
   });
 
-  SUBSCRIBE(MSG_ID_LASER_SCAN, [this](const LaserScan& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_LASER_SCAN, [this](const LaserScan& data) {
     auto* laser_display = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
     if (laser_display) {
       std::vector<Point> transformed_points = transLaserPoint(data.data);

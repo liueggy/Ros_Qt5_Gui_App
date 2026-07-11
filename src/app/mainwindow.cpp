@@ -632,11 +632,11 @@ bool MainWindow::openChannel(const std::string& channel_name) {
   return false;
 }
 void MainWindow::registerChannel() {
-  SUBSCRIBE(MSG_ID_ODOM_POSE, [this](const RobotState& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_ODOM_POSE, [this](const RobotState& data) {
     updateOdomInfo(data);
   });
 
-  SUBSCRIBE(MSG_ID_ROBOT_POSE, [this](const RobotPose& robot_pose) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_ROBOT_POSE, [this](const RobotPose& robot_pose) {
     nav_goal_table_view_->UpdateRobotPose(robot_pose);
     CheckRelocationProgress(robot_pose);
     Display::ViewManager* view_manager = dynamic_cast<Display::ViewManager*>(display_manager_->GetViewPtr());
@@ -647,29 +647,29 @@ void MainWindow::registerChannel() {
     }
   });
 
-  SUBSCRIBE(MSG_ID_BATTERY_STATE, [this](const std::map<std::string, std::string>& map) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_BATTERY_STATE, [this](const std::map<std::string, std::string>& map) {
     this->SlotSetBatteryStatus(std::stod(map.at("percent")),
                                std::stod(map.at("voltage")));
   });
 
-  SUBSCRIBE(MSG_ID_IMAGE, [this](const std::pair<std::string, std::shared_ptr<cv::Mat>>& location_to_mat) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_IMAGE, [this](const std::pair<std::string, std::shared_ptr<cv::Mat>>& location_to_mat) {
     this->SlotRecvImage(location_to_mat.first, location_to_mat.second);
   });
 
-  SUBSCRIBE(MSG_ID_DIAGNOSTIC, [this](const basic::DiagnosticSnapshot& snap) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_DIAGNOSTIC, [this](const basic::DiagnosticSnapshot& snap) {
     if (command_center_widget_) {
       command_center_widget_->SetDiagnosticSnapshot(snap);
     }
   });
 
-  SUBSCRIBE(MSG_ID_NETWORK_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_NETWORK_STATUS, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (command_center_widget_) {
         command_center_widget_->SetNetworkStatus(json_str);
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_RELOCALIZATION_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_RELOCALIZATION_STATUS, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (command_center_widget_) {
         command_center_widget_->SetRelocalizationStatus(json_str);
@@ -677,7 +677,7 @@ void MainWindow::registerChannel() {
       UpdateAutoRelocalizationStatus(json_str); }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (!terminal_widget_) {
         return;
@@ -691,7 +691,7 @@ void MainWindow::registerChannel() {
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_SHELL_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_SHELL_STATUS, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (!terminal_widget_) {
         return;
@@ -721,7 +721,7 @@ void MainWindow::registerChannel() {
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_INSPECTION_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_INSPECTION_STATUS, [this](const std::string& json_str) {
     if (!inspection_status_label_) {
       return;
     }
@@ -743,7 +743,7 @@ void MainWindow::registerChannel() {
     }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
       if (inspection_result_view_) {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
@@ -796,23 +796,23 @@ void MainWindow::registerChannel() {
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE(MSG_ID_AUTO_EXPLORE_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_AUTO_EXPLORE_STATUS, [this](const std::string& json_str) {
     LOG_INFO("auto explore status: " << json_str);
   });
 
-  SUBSCRIBE(MSG_ID_DHT11_TEMP, [this](const double& temp) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_DHT11_TEMP, [this](const double& temp) {
     if (label_dht11_temp_) {
       label_dht11_temp_->setText(QString::number(temp, 'f', 1) + " °C");
     }
   });
 
-  SUBSCRIBE(MSG_ID_DHT11_HUMI, [this](const double& humi) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_DHT11_HUMI, [this](const double& humi) {
     if (label_dht11_humi_) {
       label_dht11_humi_->setText(QString::number(humi, 'f', 1) + " %");
     }
   });
 
-  SUBSCRIBE(MSG_ID_VOICE_COMMAND, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_VOICE_COMMAND, [this](const std::string& json_str) {
     if (label_voice_cmd_) {
       // 解析 {"func":"00","cmd":"04"} 显示为友好文本
       QString display = QString::fromStdString(json_str);

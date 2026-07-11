@@ -43,6 +43,16 @@ namespace Framework {
     return GetMessageBusInstance()->Subscribe<ArgType>(topic, std::function<void(const ArgType&)>(std::forward<decltype(cb)>(cb))); \
   }()
 
+#ifdef QT_CORE_LIB
+#define SUBSCRIBE_QOBJECT(context, topic, callback) \
+  [&]() { \
+    auto&& cb = callback; \
+    using CallbackType = std::decay_t<decltype(cb)>; \
+    using ArgType = typename Framework::detail::lambda_traits<CallbackType>::arg_type; \
+    return GetMessageBusInstance()->Subscribe<ArgType>(context, topic, std::function<void(const ArgType&)>(std::forward<decltype(cb)>(cb))); \
+  }()
+#endif
+
 /**
  * @brief 取消订阅宏
  * @param topic 主题名称（字符串）

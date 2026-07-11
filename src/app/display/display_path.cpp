@@ -15,7 +15,7 @@ DisplayPath::DisplayPath(const std::string &display_type, const int &z_value,
     : VirtualDisplay(display_type, z_value, parent_name) {
   setZValue(9);
   
-  SUBSCRIBE(MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
     if (!path_points_.empty()) {
       update();
@@ -23,11 +23,11 @@ DisplayPath::DisplayPath(const std::string &display_type, const int &z_value,
   });
   
   if (display_type == DISPLAY_GLOBAL_PATH) {
-    SUBSCRIBE(MSG_ID_GLOBAL_PATH, [this](const RobotPath& data) {
+    SUBSCRIBE_QOBJECT(this, MSG_ID_GLOBAL_PATH, [this](const RobotPath& data) {
       updatePathPoints(data);
     });
   } else if (display_type == DISPLAY_LOCAL_PATH) {
-    SUBSCRIBE(MSG_ID_LOCAL_PATH, [this](const RobotPath& data) {
+    SUBSCRIBE_QOBJECT(this, MSG_ID_LOCAL_PATH, [this](const RobotPath& data) {
       updatePathPoints(data);
     });
   }

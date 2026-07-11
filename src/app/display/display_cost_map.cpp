@@ -17,14 +17,14 @@ DisplayCostMap::DisplayCostMap(const std::string &display_type,
                                const int &z_value, std::string parent_name)
     : VirtualDisplay(display_type, z_value, parent_name) {
   if (display_type == DISPLAY_GLOBAL_COST_MAP) {
-    SUBSCRIBE(MSG_ID_GLOBAL_COST_MAP, [this](const OccupancyMap& data) {
+    SUBSCRIBE_QOBJECT(this, MSG_ID_GLOBAL_COST_MAP, [this](const OccupancyMap& data) {
       cost_map_data_ = data;
       ParseCostMap();
       SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
       update();
     });
   } else if (display_type == DISPLAY_LOCAL_COST_MAP) {
-    SUBSCRIBE(MSG_ID_LOCAL_COST_MAP, [this](const OccupancyMap& data) {
+    SUBSCRIBE_QOBJECT(this, MSG_ID_LOCAL_COST_MAP, [this](const OccupancyMap& data) {
       cost_map_data_ = data;
   ParseCostMap();
   SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));

@@ -257,10 +257,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addWidget(diagnostic_group_);
   root->addStretch(1);
 
-  SUBSCRIBE(MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { AppendResponse(json); }, Qt::QueuedConnection);
   });
-  SUBSCRIBE(MSG_ID_COMMAND_STATUS, [this](const std::string& json) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_STATUS, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { UpdateStatus(json); }, Qt::QueuedConnection);
   });
 }

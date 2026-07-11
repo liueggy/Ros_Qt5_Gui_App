@@ -188,6 +188,23 @@ TEST_F(MessageBusTest, Unsubscribe) {
   EXPECT_EQ(received_count.load(), 10);
 }
 
+#ifdef QT_CORE_LIB
+TEST_F(MessageBusTest, QObjectSubscriptionStopsAtContextDestruction) {
+  std::atomic<int> received_count(0);
+  auto* context = new QObject;
+  SUBSCRIBE_QOBJECT(context, "test_qobject_lifetime", [&received_count](const int&) {
+    ++received_count;
+  });
+
+  PUBLISH("test_qobject_lifetime", 1);
+  EXPECT_EQ(received_count.load(), 1);
+
+  delete context;
+  PUBLISH("test_qobject_lifetime", 2);
+  EXPECT_EQ(received_count.load(), 1);
+}
+#endif
+
 TEST_F(MessageBusTest, DifferentTopics) {
   std::atomic<int> topic1_value(0);
   std::atomic<int> topic2_value(0);

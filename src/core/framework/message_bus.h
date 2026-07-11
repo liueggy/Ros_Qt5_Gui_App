@@ -12,6 +12,11 @@
 
 #include "callback_executor.h"
 
+#ifdef QT_CORE_LIB
+#include <QObject>
+#include <QPointer>
+#endif
+
 namespace Framework {
 class MessageBus;
 }
@@ -154,6 +159,27 @@ class MessageBus {
               << ", callback_id: " << id);
     return id;
   }
+
+#ifdef QT_CORE_LIB
+  template<typename T>
+  CallbackId Subscribe(QObject* context, const std::string& topic,
+                       std::function<void(const T&)> callback) {
+    if (!context) {
+      return 0;
+    }
+
+    const QPointer<QObject> guard(context);
+    const CallbackId id = Subscribe<T>(topic, [guard, callback = std::move(callback)](const T& data) {
+      if (guard) {
+        callback(data);
+      }
+    });
+    QObject::connect(context, &QObject::destroyed, [this, topic, id]() {
+      Unsubscribe(topic, id);
+    });
+    return id;
+  }
+#endif
   
   void Unsubscribe(const std::string& topic, CallbackId id) {
     std::lock_guard<std::mutex> lock(mutex_);

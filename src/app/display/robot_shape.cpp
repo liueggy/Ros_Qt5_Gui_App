@@ -23,7 +23,7 @@ RobotShape::RobotShape(const std::string &display_type, const int &z_value,
   SetBoundingRect(QRectF(0, 0, 0, 0));
   setZValue(10);
   
-  SUBSCRIBE(MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
     if (!robot_footprint_.empty()) {
       updateFootprintPath();
@@ -31,7 +31,7 @@ RobotShape::RobotShape(const std::string &display_type, const int &z_value,
     }
   });
   
-  SUBSCRIBE(MSG_ID_ROBOT_FOOTPRINT, [this](const RobotPath& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_ROBOT_FOOTPRINT, [this](const RobotPath& data) {
     robot_footprint_ = data;
     updateFootprintPath();
     rotate_value_ = 0;

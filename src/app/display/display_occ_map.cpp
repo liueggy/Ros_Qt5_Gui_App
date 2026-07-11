@@ -18,7 +18,7 @@ DisplayOccMap::DisplayOccMap(const std::string &display_type,
                              const int &z_value, std::string parent_name)
     : VirtualDisplay(display_type, z_value, parent_name) {
   SetMoveEnable(true);
-  SUBSCRIBE(MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
     ParseOccupyMap();
     LOG_INFO("map update calling:" << map_image_.width() << " "
