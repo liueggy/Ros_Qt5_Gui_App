@@ -13,6 +13,7 @@
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
 #include "display/manager/display_factory.h"
+#include "widgets/ui_style.h"
 namespace Display {
 DisplayOccMap::DisplayOccMap(const std::string &display_type,
                              const int &z_value, std::string parent_name)
@@ -73,11 +74,14 @@ void DisplayOccMap::ParseOccupyMap() {
         double map_value = map_copy(j, i);
         if (map_value > 0) {
           int alpha = static_cast<int>(std::clamp(map_value * 2.55, 0.0, 255.0));
-          row[j * bpl] = qRgba(0, 0, 0, alpha);
+          const QColor obstacle(UiStyle::Palette::MapObstacle);
+          row[j * bpl] = qRgba(obstacle.red(), obstacle.green(), obstacle.blue(), alpha);
         } else if (map_value == 0) {
-          row[j * bpl] = qRgba(255, 255, 255, 255);
+          const QColor free_space(UiStyle::Palette::MapFree);
+          row[j * bpl] = qRgba(free_space.red(), free_space.green(), free_space.blue(), 255);
         } else {
-          row[j * bpl] = qRgba(128, 128, 128, 255);
+          const QColor unknown(UiStyle::Palette::MapUnknown);
+          row[j * bpl] = qRgba(unknown.red(), unknown.green(), unknown.blue(), 255);
         }
       }
     }
@@ -119,7 +123,8 @@ void DisplayOccMap::EraseMapRange(const QPointF &pose, double range) {
   for (int i = left; i <= right; ++i) {
     QRgb* erase_row = erase_bits + i;
     for (int j = top; j <= bottom; ++j) {
-      erase_row[j * erase_bpl] = qRgba(255, 255, 255, 255);
+      const QColor free_space(UiStyle::Palette::MapFree);
+      erase_row[j * erase_bpl] = qRgba(free_space.red(), free_space.green(), free_space.blue(), 255);
     }
   }
   update();

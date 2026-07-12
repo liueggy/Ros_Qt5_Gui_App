@@ -300,32 +300,12 @@ class OccupancyMap {
         // 计算像素值
         Eigen::Vector4i color_rgba;
         int data = map_data(x, y);
-        if (data >= 100) {
-          color_rgba = Eigen::Vector4i(0xff, 0x00, 0xff, 50);
-
-        } else if (data >= 90 && data < 100) {
-          color_rgba = Eigen::Vector4i(0x66, 0xff, 0xff, 50);
-
-        } else if (data >= 70 && data <= 90) {
-          color_rgba = Eigen::Vector4i(0xff, 0x00, 0x33, 50);
-
-        } else if (data >= 60 && data <= 70) {
-          color_rgba = Eigen::Vector4i(0xbe, 0x28, 0x1a, 50);
-
-        } else if (data >= 50 && data < 60) {
-          color_rgba = Eigen::Vector4i(0xBE, 0x1F, 0x58, 50);
-
-        } else if (data >= 40 && data < 50) {
-          color_rgba = Eigen::Vector4i(0xBE, 0x25, 0x76, 50);
-
-        } else if (data >= 30 && data < 40) {
-          color_rgba = Eigen::Vector4i(0xBE, 0x2A, 0x99, 50);
-
-        } else if (data >= 20 && data < 30) {
-          color_rgba = Eigen::Vector4i(0xBE, 0x35, 0xB3, 50);
-
-        } else if (data >= 10 && data < 20) {
-          color_rgba = Eigen::Vector4i(0xB0, 0x3C, 0xbE, 50);
+        if (data >= 90) {
+          color_rgba = Eigen::Vector4i(0xe7, 0x6f, 0x51, 150);
+        } else if (data >= 40) {
+          color_rgba = Eigen::Vector4i(0xe9, 0xc4, 0x6a, 125);
+        } else if (data >= 1) {
+          color_rgba = Eigen::Vector4i(0xe9, 0xc4, 0x6a, 85);
 
         } else {
           // 其他 透明

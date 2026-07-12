@@ -61,6 +61,16 @@ namespace Palette {
   inline QString TerminalBorder    = QStringLiteral("#35413e");
   inline QString TerminalText      = QStringLiteral("#e2e9e6");
   inline QString TerminalSelection = QStringLiteral("#315f58");
+  // Map rendering tokens (keep obstacle edges near-black for maximum contrast)
+  inline QString MapUnknown      = QStringLiteral("#8a8f98");
+  inline QString MapFree         = QStringLiteral("#f4f5f7");
+  inline QString MapObstacle     = QStringLiteral("#111111");
+  inline QString MapCostHigh     = QStringLiteral("#e76f51");
+  inline QString MapCostLow      = QStringLiteral("#e9c46a");
+  inline QString MapRobot         = QStringLiteral("#2a9d8f");
+  inline QString MapGlobalPath    = QStringLiteral("#2878d4");
+  inline QString MapLocalPath     = QStringLiteral("#7b61ff");
+  inline QString MapLaser         = QStringLiteral("#00b8d9");
 }  // namespace Palette
 
 // ── Typography Scale ─────────────────────────

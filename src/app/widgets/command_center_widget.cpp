@@ -52,8 +52,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   scroll->setWidgetResizable(true);
   auto* body = new QWidget(scroll);
   auto* root = new QVBoxLayout(body);
-  root->setContentsMargins(18, 18, 18, 18);
-  root->setSpacing(14);
+  root->setContentsMargins(20, 18, 20, 22);
+  root->setSpacing(16);
   scroll->setWidget(body);
   outer->addWidget(scroll);
 
@@ -68,9 +68,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* overview_group = new QFrame(this);
   overview_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* overview_layout = new QGridLayout(overview_group);
-  overview_layout->setContentsMargins(14, 12, 14, 12);
-  overview_layout->setHorizontalSpacing(10);
-  overview_layout->setVerticalSpacing(10);
+  overview_layout->setContentsMargins(14, 14, 14, 14);
+  overview_layout->setHorizontalSpacing(12);
+  overview_layout->setVerticalSpacing(12);
   connection_overview_label_ = new QLabel(overview_group);
   nav_overview_label_ = new QLabel(overview_group);
   task_overview_label_ = new QLabel(overview_group);

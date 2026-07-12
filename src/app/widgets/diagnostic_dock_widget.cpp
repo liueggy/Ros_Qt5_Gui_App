@@ -7,6 +7,7 @@
 #include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
+#include <QSizePolicy>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QVBoxLayout>
@@ -50,14 +51,14 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   summary_row->addWidget(overall_status_, 1);
   refresh_btn_ = new QPushButton(tr("刷新"));
   refresh_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  refresh_btn_->setFixedHeight(34);
+  refresh_btn_->setFixedSize(76, 38);
   connect(refresh_btn_, &QPushButton::clicked, this, [this]() {
     SaveExpandedState();
     RebuildUi();
   });
   toggle_modules_btn_ = new QPushButton(tr("全部"));
   toggle_modules_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  toggle_modules_btn_->setFixedHeight(34);
+  toggle_modules_btn_->setFixedSize(92, 38);
   connect(toggle_modules_btn_, &QPushButton::clicked, this, [this]() {
     SaveExpandedState();
     show_all_modules_ = !show_all_modules_;
@@ -73,6 +74,10 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   tree_->setHeaderLabels({tr("模块"), tr("状态"), tr("消息")});
   tree_->setAlternatingRowColors(true);
   tree_->setUniformRowHeights(true);
+  tree_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  tree_->setMinimumHeight(150);
+  tree_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+  tree_->setIndentation(22);
   tree_->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(2, QHeaderView::Stretch);
