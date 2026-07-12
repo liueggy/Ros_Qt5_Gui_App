@@ -34,6 +34,7 @@ class CommandCenterWidget : public QWidget {
   void RefreshMaps();
   void StartAmclNavigation();
   void SwitchToMapping();
+  void StartInspection();
   void StartCamera();
   void ClearLog();
 
@@ -68,6 +69,7 @@ class CommandCenterWidget : public QWidget {
   QComboBox* map_combo_{nullptr};
   QPushButton* amcl_btn_{nullptr};
   QPushButton* mapping_btn_{nullptr};
+  QPushButton* inspection_btn_{nullptr};
   QLabel* status_summary_label_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};

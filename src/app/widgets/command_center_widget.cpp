@@ -212,18 +212,23 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_row->setSpacing(10);
   mapping_btn_ = new QPushButton(tr("建图模式"), nav_group);
   amcl_btn_ = new QPushButton(tr("AMCL导航"), nav_group);
+  inspection_btn_ = new QPushButton(tr("巡检模式"), nav_group);
   mapping_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   amcl_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   mapping_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   amcl_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  inspection_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  inspection_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   nav_row->addWidget(mapping_btn_, 1);
   nav_row->addWidget(amcl_btn_, 1);
+  nav_row->addWidget(inspection_btn_, 1);
   nav_layout->addLayout(nav_row);
 
   root->addWidget(nav_group);
 
   connect(mapping_btn_, &QPushButton::clicked, this, &CommandCenterWidget::SwitchToMapping);
   connect(amcl_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartAmclNavigation);
+  connect(inspection_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartInspection);
   connect(refresh_maps_btn, &QPushButton::clicked, this, &CommandCenterWidget::RefreshMaps);
 
   auto* status_group = new QFrame(this);
@@ -437,12 +442,18 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
                                        : UiStyle::SecondaryButtonStyleSheet());
   }
   if (amcl_btn_) {
-    const bool active = normalized == QStringLiteral("static_nav") ||
-                        normalized == QStringLiteral("inspection");
+    const bool active = normalized == QStringLiteral("static_nav");
     amcl_btn_->setText(active ? tr("AMCL运行中") : tr("AMCL导航"));
     amcl_btn_->setEnabled(!active);
     amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
-                                    : UiStyle::SecondaryButtonStyleSheet());
+                                     : UiStyle::SecondaryButtonStyleSheet());
+  }
+  if (inspection_btn_) {
+    const bool active = normalized == QStringLiteral("inspection");
+    inspection_btn_->setText(active ? tr("巡检运行中") : tr("巡检模式"));
+    inspection_btn_->setEnabled(!active);
+    inspection_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
+                                           : UiStyle::SecondaryButtonStyleSheet());
   }
   SetOverviewPill(nav_overview_label_, tr("导航"), text, color, bg, border);
 }
@@ -534,9 +545,12 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
     if (success && command == QStringLiteral("list_maps")) {
       UpdateMapChoices(details.value(QStringLiteral("maps")).toArray());
     }
-    if (success && command == QStringLiteral("switch_nav_mode")) {
+    if (success && (command == QStringLiteral("switch_nav_mode") ||
+                    command == QStringLiteral("switch_profile"))) {
       const QJsonObject status = details.value(QStringLiteral("status")).toObject();
-      SetNavigationModeText(status.value(QStringLiteral("mode")).toString());
+      if (!status.isEmpty()) {
+        SetNavigationModeText(status.value(QStringLiteral("mode")).toString());
+      }
     }
 
     QString text = QString("%1\n命令: %2  目标: %3")
@@ -575,7 +589,8 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
-    if (success && command == QStringLiteral("switch_nav_mode")) {
+    if (success && (command == QStringLiteral("switch_nav_mode") ||
+                    command == QStringLiteral("switch_profile"))) {
       QTimer::singleShot(500, this, &CommandCenterWidget::SendStatusRequest);
     }
     return;
@@ -774,17 +789,31 @@ void CommandCenterWidget::StartAmclNavigation() {
     return;
   }
   QJsonObject params;
-  params[QStringLiteral("mode")] = QStringLiteral("navigation");
+  params[QStringLiteral("profile")] = QStringLiteral("navigation");
   params[QStringLiteral("map_file")] = map_file;
-  PublishJson(MakeRequestJson("switch_nav_mode", "navigation",
+  PublishJson(MakeRequestJson("switch_profile", "navigation",
                               QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
   SetNavigationModeText(tr("切换中"));
 }
 
 void CommandCenterWidget::SwitchToMapping() {
   QJsonObject params;
-  params[QStringLiteral("mode")] = QStringLiteral("mapping");
-  PublishJson(MakeRequestJson("switch_nav_mode", "navigation",
+  params[QStringLiteral("profile")] = QStringLiteral("mapping");
+  PublishJson(MakeRequestJson("switch_profile", "mapping",
+                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+  SetNavigationModeText(tr("切换中"));
+}
+
+void CommandCenterWidget::StartInspection() {
+  const QString map_file = SelectedMapFile();
+  if (map_file.isEmpty()) {
+    AppendLog(tr("失败"), tr("请先选择或输入巡检使用的板端地图 YAML 路径。"));
+    return;
+  }
+  QJsonObject params;
+  params[QStringLiteral("profile")] = QStringLiteral("inspection");
+  params[QStringLiteral("map_file")] = map_file;
+  PublishJson(MakeRequestJson("switch_profile", "inspection",
                               QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
   SetNavigationModeText(tr("切换中"));
 }
