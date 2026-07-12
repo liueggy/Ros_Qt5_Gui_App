@@ -47,7 +47,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   auto* summary_row = new QHBoxLayout();
   summary_row->setSpacing(6);
   overall_status_ = new QLabel();
-  overall_status_->setMinimumHeight(34);
+  overall_status_->setFixedHeight(38);
   overall_status_->setAlignment(Qt::AlignCenter);
   summary_row->addWidget(overall_status_, 1);
   refresh_btn_ = new QPushButton(tr("刷新"));
@@ -59,7 +59,7 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   });
   toggle_modules_btn_ = new QPushButton(tr("全部"));
   toggle_modules_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  toggle_modules_btn_->setFixedSize(92, 38);
+  toggle_modules_btn_->setFixedSize(122, 38);
   connect(toggle_modules_btn_, &QPushButton::clicked, this, [this]() {
     SaveExpandedState();
     show_all_modules_ = !show_all_modules_;
