@@ -114,7 +114,7 @@ void AddPointCommand::Redo(SceneManager* manager) {
   manager->topology_map_.AddPoint(point_info_);
   auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
                                    point_name_, 8, DISPLAY_MAP);
-  goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
+  goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
   auto map_pose = manager->display_manager_->wordPose2Map(point_info_.ToRobotPose());
   goal_point->UpdateData(map_pose);
   manager->addItem(goal_point);
@@ -128,7 +128,7 @@ void RemovePointCommand::Undo(SceneManager* manager) {
   manager->topology_map_.AddPoint(point_info_);
   auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
                                    point_name_, 8, DISPLAY_MAP);
-  goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
+  goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
   auto map_pose = manager->display_manager_->wordPose2Map(point_info_.ToRobotPose());
   goal_point->UpdateData(map_pose);
   manager->addItem(goal_point);

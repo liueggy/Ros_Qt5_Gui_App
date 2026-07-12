@@ -34,7 +34,8 @@ PointShape::PointShape(const ePointType &type, const std::string &display_type,
                        std::string parent_name)
     : VirtualDisplay(display_type, z_value, parent_name, display_name),
       type_(type) {
-  SetRotateEnable(true);
+  // 机器人可旋转；导航点固定为图钉朝上，避免被姿态或拖拽旋转。
+  SetRotateEnable(type_ != kNavGoal);
   SetScaleEnable(false);
   moveBy(0, 0);
   switch (type_) {
@@ -145,39 +146,6 @@ void PointShape::drawNavGoal(QPainter *painter) {
   
   painter->restore();
   
-  // 在正右侧添加小箭头，只让箭头绕中心旋转
-  painter->save();
-  
-  // 计算总旋转角度
-  double total_rotation = (-rad2deg(robot_pose_.theta) - rad2deg(rotate_value_) + deg_offset_);
-  
-  // 基于targetRect计算箭头距离
-  double arrow_distance = targetRect.width() / 2.8 ;
-  
-  // 根据旋转角度计算箭头的位置
-  double arrow_x = arrow_distance * cos(deg2rad(total_rotation));
-  double arrow_y = arrow_distance * sin(deg2rad(total_rotation));
-  
-  // 移动到箭头位置并旋转箭头
-  painter->translate(arrow_x, arrow_y);
-  painter->rotate(total_rotation);
-  
-  // 计算箭头尺寸：底边为图片宽度的2/3
-  double arrow_base_width = targetRect.width() / 3.0;
-  double arrow_height = arrow_base_width / 3.0;  // 高度为底边的一半，保持美观比例
-  
-  // 绘制箭头（三角形），与导航点 SVG 保持统一蓝色。
-  painter->setPen(QPen(QColor(58, 114, 237, 220), 2));
-  painter->setBrush(QBrush(QColor(58, 114, 237, 180)));
-  
-  QPolygonF arrow;
-  arrow << QPointF(arrow_height, 0)                    // 箭头尖端
-        << QPointF(-arrow_height/2, -arrow_base_width/2)  // 上方点
-        << QPointF(-arrow_height/2, arrow_base_width/2);  // 下方点
-  
-  painter->drawPolygon(arrow);
-  
-  painter->restore();
 }
 // void PointShape::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 //   QMenu menu;

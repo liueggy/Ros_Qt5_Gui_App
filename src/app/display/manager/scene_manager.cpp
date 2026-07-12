@@ -94,7 +94,7 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
     auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
                                    point.name, 8, DISPLAY_MAP);
     
-    goal_point->SetRotateEnable(true)->SetMoveEnable(false)->setVisible(true);
+    goal_point->SetRotateEnable(false)->SetMoveEnable(false)->setVisible(true);
     
     // 使用统一的坐标转换：世界坐标 -> 地图坐标
     auto robot_pose = point.ToRobotPose();
@@ -222,7 +222,7 @@ void SceneManager::AddPointAtRobotPosition() {
   // 创建点位显示对象
   auto goal_point = new PointShape(PointShape::ePointType::kNavGoal,
                                   DISPLAY_GOAL, name, 8, DISPLAY_MAP);
-  goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
+    goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
   
   // 世界坐标 -> 地图坐标
   auto map_pose = display_manager_->wordPose2Map(robot_pose);
@@ -297,7 +297,7 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
       
       auto goal_point = new PointShape(PointShape::ePointType::kNavGoal,
                                       DISPLAY_GOAL, name, 8, DISPLAY_MAP);
-      goal_point->SetRotateEnable(true)->SetMoveEnable(true)->setVisible(true);
+      goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
       goal_point->UpdateData(map_pose);
       topology_map_.AddPoint(point_info);
       emit signalTopologyMapUpdate(topology_map_);
