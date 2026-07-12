@@ -47,7 +47,8 @@ PointShape::PointShape(const ePointType &type, const std::string &display_type,
     case kParticle: {
     } break;
     case kNavGoal: {
-      setZValue(9);
+      // 导航点需要位于机器人图标之上，避免透明 SVG 中透出绿色机器人。
+      setZValue(11);
       robot_svg_renderer_.load(QString("://images/target.svg"));
       deg_offset_ = 0;
       SetBoundingRect(RobotIconRect());
@@ -135,6 +136,11 @@ void PointShape::drawNavGoal(QPainter *painter) {
   
   // 绘制不旋转的目标SVG图标
   const QRectF targetRect = RobotIconRect();
+  // 导航点可能与机器人当前位置重叠，先绘制浅色隔离底，避免两个图标视觉粘连。
+  painter->setPen(Qt::NoPen);
+  painter->setBrush(QColor(244, 245, 247, 230));
+  painter->drawEllipse(QPointF(0, 0), targetRect.width() * 0.9,
+                       targetRect.height() * 0.9);
   robot_svg_renderer_.render(painter, targetRect);
   
   painter->restore();
@@ -160,9 +166,9 @@ void PointShape::drawNavGoal(QPainter *painter) {
   double arrow_base_width = targetRect.width() / 3.0;
   double arrow_height = arrow_base_width / 3.0;  // 高度为底边的一半，保持美观比例
   
-  // 绘制箭头（三角形）- 使用与绿色图标搭配的半透明深绿色
-  painter->setPen(QPen(QColor(34, 139, 34, 200), 2));   // 森林绿边框，透明度200/255
-  painter->setBrush(QBrush(QColor(50, 205, 50, 180)));  // 酸橙绿填充，透明度180/255
+  // 绘制箭头（三角形），与导航点 SVG 保持统一蓝色。
+  painter->setPen(QPen(QColor(58, 114, 237, 220), 2));
+  painter->setBrush(QBrush(QColor(58, 114, 237, 180)));
   
   QPolygonF arrow;
   arrow << QPointF(arrow_height, 0)                    // 箭头尖端
