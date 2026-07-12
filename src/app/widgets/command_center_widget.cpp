@@ -34,9 +34,11 @@ namespace {
 
 QLabel* AddCardTitle(QVBoxLayout* layout, const QString& text, QWidget* parent) {
   auto* title = new QLabel(text, parent);
+  title->setObjectName(QStringLiteral("sectionTitle"));
   title->setStyleSheet(QStringLiteral(
-                           "QLabel { color:%1; font-size:%2px; font-weight:800; "
-                           "padding:0 0 2px 0; background:transparent; border:none; }")
+                           "QLabel#sectionTitle { color:%1; font-size:%2px; font-weight:800; "
+                           "padding:0 0 2px 0; margin:0; background:transparent; "
+                           "border:0px; border-style:none; border-radius:0px; }")
                            .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   layout->addWidget(title);
   return title;
@@ -94,10 +96,16 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* camera_header = new QHBoxLayout();
   camera_header->setSpacing(8);
   auto* camera_title = new QLabel(tr("摄像头"), camera_group);
+  camera_title->setObjectName(QStringLiteral("sectionTitle"));
   camera_title->setStyleSheet(QStringLiteral(
-                                  "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                                  "QLabel#sectionTitle { color:%1; font-size:%2px; font-weight:700; "
+                                  "margin:0; padding:0; background:transparent; border:0px; border-style:none; border-radius:0px; }")
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   camera_state_label_ = new QLabel(tr("未连接"), camera_group);
+  camera_start_btn_ = new QPushButton(tr("打开画面"), camera_group);
+  camera_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  camera_start_btn_->setAccessibleDescription(tr("打开机器人前置摄像头实时画面"));
+  camera_start_btn_->setFixedWidth(118);
   camera_state_label_->setAlignment(Qt::AlignCenter);
   camera_state_label_->setStyleSheet(QStringLiteral(
                                          "QLabel { color:%1; background:%2; border:1px solid %3; "
@@ -106,6 +114,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->addWidget(camera_title);
   camera_header->addStretch();
   camera_header->addWidget(camera_state_label_);
+  camera_header->addWidget(camera_start_btn_);
   camera_layout->addLayout(camera_header);
   camera_inspection_label_ = new QLabel(camera_group);
   camera_inspection_label_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -115,14 +124,6 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
       .arg(UiStyle::Palette::TextSecondary).arg(UiStyle::Palette::SurfaceAlt).arg(UiStyle::Palette::Border).arg(UiStyle::FontMiniPx()));
   camera_inspection_label_->setVisible(false);
   camera_layout->addWidget(camera_inspection_label_);
-  auto* camera_row = new QHBoxLayout();
-  camera_row->setSpacing(10);
-  camera_start_btn_ = new QPushButton(tr("打开摄像头画面"), camera_group);
-  camera_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  camera_start_btn_->setAccessibleDescription(tr("打开机器人前置摄像头实时画面"));
-  camera_row->addWidget(camera_start_btn_);
-  camera_row->addStretch();
-  camera_layout->addLayout(camera_row);
   root->addWidget(camera_group);
 
   connect(camera_start_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
@@ -162,8 +163,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* nav_header = new QHBoxLayout();
   nav_header->setSpacing(8);
   auto* nav_title = new QLabel(tr("导航模式"), nav_group);
+  nav_title->setObjectName(QStringLiteral("sectionTitle"));
   nav_title->setStyleSheet(QStringLiteral(
-                               "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                               "QLabel#sectionTitle { color:%1; font-size:%2px; font-weight:700; "
+                               "margin:0; padding:0; background:transparent; border:0px; border-style:none; border-radius:0px; }")
                                .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   nav_mode_label_ = new QLabel(tr("未连接"), nav_group);
   nav_mode_label_->setAlignment(Qt::AlignCenter);
@@ -182,22 +185,25 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   map_combo_->lineEdit()->setPlaceholderText(tr("点击刷新地图，或输入板端 .yaml 路径"));
   map_combo_->addItem(QStringLiteral("/root/catkin_ws/maps/navigation/latest.yaml"));
   map_combo_->setToolTip(tr("板端地图 YAML 路径，用于 map_server + AMCL。"));
-  nav_layout->addWidget(map_combo_);
+  auto* map_row = new QHBoxLayout();
+  map_row->setSpacing(8);
+  auto* refresh_maps_btn = new QPushButton(tr("刷新"), nav_group);
+  refresh_maps_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  refresh_maps_btn->setFixedWidth(76);
+  map_row->addWidget(map_combo_, 1);
+  map_row->addWidget(refresh_maps_btn);
+  nav_layout->addLayout(map_row);
 
   auto* nav_row = new QHBoxLayout();
   nav_row->setSpacing(10);
   mapping_btn_ = new QPushButton(tr("建图模式"), nav_group);
   amcl_btn_ = new QPushButton(tr("AMCL导航"), nav_group);
-  auto* refresh_maps_btn = new QPushButton(tr("刷新地图"), nav_group);
   mapping_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   amcl_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  refresh_maps_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   mapping_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   amcl_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  refresh_maps_btn->setFixedWidth(108);
   nav_row->addWidget(mapping_btn_, 1);
   nav_row->addWidget(amcl_btn_, 1);
-  nav_row->addWidget(refresh_maps_btn, 0);
   nav_layout->addLayout(nav_row);
 
   root->addWidget(nav_group);
@@ -214,8 +220,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* status_header = new QHBoxLayout();
   status_header->setSpacing(8);
   auto* status_title = new QLabel(tr("运行状态"), status_group);
+  status_title->setObjectName(QStringLiteral("sectionTitle"));
   status_title->setStyleSheet(QStringLiteral(
-                                  "QLabel { color:%1; font-size:%2px; font-weight:700; background:transparent; border:none; }")
+                                  "QLabel#sectionTitle { color:%1; font-size:%2px; font-weight:700; "
+                                  "margin:0; padding:0; background:transparent; border:0px; border-style:none; border-radius:0px; }")
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新"), status_group);
   auto* clear_btn = new QPushButton(tr("清空"), status_group);
@@ -652,7 +660,7 @@ void CommandCenterWidget::SetCameraStateText(const QString& text) {
   const bool pending = text.contains(tr("正在"));
   if (camera_start_btn_) {
     camera_start_btn_->setEnabled(!pending);
-    camera_start_btn_->setText(tr("打开摄像头画面"));
+    camera_start_btn_->setText(tr("打开画面"));
   }
 }
 
