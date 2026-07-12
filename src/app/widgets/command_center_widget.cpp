@@ -413,6 +413,11 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     color = UiStyle::Palette::Info;
     bg = UiStyle::Palette::InfoBg;
     border = UiStyle::Palette::InfoBorder;
+  } else if (normalized == QStringLiteral("inspection")) {
+    text = tr("巡检模式");
+    color = UiStyle::Palette::Success;
+    bg = UiStyle::Palette::SuccessBg;
+    border = UiStyle::Palette::SuccessBorder;
   } else if (!normalized.isEmpty()) {
     text = normalized;
   }
@@ -432,7 +437,8 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
                                        : UiStyle::SecondaryButtonStyleSheet());
   }
   if (amcl_btn_) {
-    const bool active = normalized == QStringLiteral("static_nav");
+    const bool active = normalized == QStringLiteral("static_nav") ||
+                        normalized == QStringLiteral("inspection");
     amcl_btn_->setText(active ? tr("AMCL运行中") : tr("AMCL导航"));
     amcl_btn_->setEnabled(!active);
     amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
@@ -608,6 +614,7 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
 
   const QString mode = obj.value("mode").toString(tr("未知"));
   SetNavigationModeText(mode);
+  const QJsonObject capabilities = obj.value("capabilities").toObject();
   QString load_text = tr("-");
   const QJsonArray load = obj.value("loadavg").toArray();
   if (load.size() >= 3) {
@@ -637,6 +644,13 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                 .arg(is_online("/rosbridge_websocket") ? tr("在线") : tr("离线"),
                      is_online("/ros_qt5_gui_adapter") ? tr("在线") : tr("离线"),
                      is_online("/eggy_external_imu_odom_fuser") ? tr("在线") : tr("离线"));
+  if (!capabilities.isEmpty()) {
+    detail += tr("\n能力: 建图%1 · 导航%2 · 巡检%3 · 重定位%4")
+                  .arg(capabilities.value("mapping").toBool(false) ? tr("可用") : tr("不可用"),
+                       capabilities.value("navigation").toBool(false) ? tr("可用") : tr("不可用"),
+                       capabilities.value("inspection").toBool(false) ? tr("可用") : tr("不可用"),
+                       capabilities.value("initialpose").toBool(false) ? tr("可用") : tr("不可用"));
+  }
   SetStatusSummary(summary, detail);
   SetOverviewPill(task_overview_label_, tr("任务"), online_count == core_nodes.size() ? tr("可执行") : tr("待检查"),
                   online_count == core_nodes.size() ? UiStyle::Palette::Success : UiStyle::Palette::Warning,
