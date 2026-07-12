@@ -38,6 +38,9 @@ class CommandCenterWidget : public QWidget {
   void StopCamera();
   void ClearLog();
 
+ signals:
+  void CameraViewRequested(bool visible);
+
  private:
   QString MakeRequestJson(const QString& command, const QString& target,
                           const QString& paramsJson = "{}") const;

@@ -1492,6 +1492,13 @@ void MainWindow::setupUi() {
                                    command_center_dock_, center_docker_area_);
   command_center_dock_->toggleView(true);
   ui->menuView->addAction(command_center_dock_->toggleViewAction());
+  connect(command_center_widget_, &CommandCenterWidget::CameraViewRequested, this,
+          [this](bool visible) {
+            const auto it = image_dock_map_.find("front");
+            if (it == image_dock_map_.end()) return;
+            it->second->toggleView(visible);
+            if (visible) it->second->raise();
+          });
 
   //////////////////////////////////////////////////////板端终端
   terminal_widget_ = new TerminalWidget();
@@ -1521,8 +1528,8 @@ void MainWindow::setupUi() {
     ConfigureDockWidget(dock_widget, QSize(420, 320), QSize(520, 390));
     dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea, dock_widget, center_docker_area_);
     dock_widget->toggleView(false);
+    image_dock_map_[one_image.location] = dock_widget;
     ConfigureFloatingOnOpen(dock_widget, QSize(760, 560));
-    ui->menuView->addAction(dock_widget->toggleViewAction());
   }
 
   //////////////////////////////////////////////////////槽链接

@@ -117,12 +117,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_layout->addWidget(camera_inspection_label_);
   auto* camera_row = new QHBoxLayout();
   camera_row->setSpacing(10);
-  camera_start_btn_ = new QPushButton(tr("启动摄像头"), camera_group);
-  camera_stop_btn_ = new QPushButton(tr("停止摄像头"), camera_group);
+  camera_start_btn_ = new QPushButton(tr("打开摄像头画面"), camera_group);
+  camera_stop_btn_ = new QPushButton(tr("关闭摄像头画面"), camera_group);
   camera_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   camera_stop_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  camera_start_btn_->setAccessibleDescription(tr("启动机器人前置摄像头"));
-  camera_stop_btn_->setAccessibleDescription(tr("停止机器人前置摄像头"));
+  camera_start_btn_->setAccessibleDescription(tr("打开机器人前置摄像头实时画面"));
+  camera_stop_btn_->setAccessibleDescription(tr("关闭机器人前置摄像头实时画面"));
   camera_stop_btn_->setVisible(false);
   camera_row->addWidget(camera_start_btn_);
   camera_row->addWidget(camera_stop_btn_);
@@ -751,11 +751,13 @@ void CommandCenterWidget::SwitchToMapping() {
 
 void CommandCenterWidget::StartCamera() {
   SetCameraStateText(tr("正在启动..."));
+  emit CameraViewRequested(true);
   PublishJson(MakeRequestJson("camera_start", "camera"));
 }
 
 void CommandCenterWidget::StopCamera() {
   SetCameraStateText(tr("正在停止..."));
+  emit CameraViewRequested(false);
   PublishJson(MakeRequestJson("camera_stop", "camera"));
 }
 
