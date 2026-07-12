@@ -137,6 +137,12 @@ void PointShape::drawNavGoal(QPainter *painter) {
   
   // 绘制不旋转的目标SVG图标
   const QRectF targetRect = RobotIconRect();
+  // 地图视图可能整体旋转（默认约 90°），对导航图标做反向补偿，
+  // 使图钉始终保持屏幕朝上，而点位坐标仍跟随地图移动。
+  const QTransform view_transform = painter->worldTransform();
+  const double view_rotation =
+      rad2deg(std::atan2(view_transform.m12(), view_transform.m11()));
+  painter->rotate(-view_rotation);
   // 导航点可能与机器人当前位置重叠，先绘制浅色隔离底，避免两个图标视觉粘连。
   painter->setPen(Qt::NoPen);
   painter->setBrush(QColor(244, 245, 247, 230));
