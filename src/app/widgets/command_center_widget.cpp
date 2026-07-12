@@ -645,13 +645,9 @@ void CommandCenterWidget::SetCameraStateText(const QString& text) {
     camera_state_label_->setText(text);
   }
   const bool pending = text.contains(tr("正在"));
-  const bool running = text.contains(tr("在线")) || text.contains(tr("运行"));
   if (camera_start_btn_) {
-    camera_start_btn_->setVisible(!running);
     camera_start_btn_->setEnabled(!pending);
-  }
-  if (camera_start_btn_) {
-    camera_start_btn_->setText(running ? tr("打开摄像头画面") : tr("打开摄像头画面"));
+    camera_start_btn_->setText(tr("打开摄像头画面"));
   }
 }
 
