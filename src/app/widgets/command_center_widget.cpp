@@ -192,9 +192,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   mapping_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   amcl_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
   refresh_maps_btn->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  nav_row->addWidget(mapping_btn_);
-  nav_row->addWidget(amcl_btn_);
-  nav_row->addWidget(refresh_maps_btn);
+  mapping_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  amcl_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  refresh_maps_btn->setFixedWidth(108);
+  nav_row->addWidget(mapping_btn_, 1);
+  nav_row->addWidget(amcl_btn_, 1);
+  nav_row->addWidget(refresh_maps_btn, 0);
   nav_layout->addLayout(nav_row);
 
   root->addWidget(nav_group);
@@ -216,6 +219,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新"), status_group);
   auto* clear_btn = new QPushButton(tr("清空"), status_group);
+  refresh_status_btn->setFixedWidth(76);
+  clear_btn->setFixedWidth(76);
   status_header->addWidget(status_title);
   status_header->addStretch();
   status_header->addWidget(refresh_status_btn);
@@ -739,9 +744,7 @@ void CommandCenterWidget::SwitchToMapping() {
 }
 
 void CommandCenterWidget::StartCamera() {
-  SetCameraStateText(tr("正在启动..."));
   emit CameraViewRequested(true);
-  PublishJson(MakeRequestJson("camera_start", "camera"));
 }
 
 void CommandCenterWidget::ClearLog() {
