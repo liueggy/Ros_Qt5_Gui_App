@@ -74,6 +74,7 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
 QFrame* DisplayConfigWidget::CreateSettingsCard(QWidget* parent) {
   QFrame* card = new QFrame(parent);
   card->setObjectName(QStringLiteral("settingsCard"));
+  card->setProperty("uiCard", true);
   card->setStyleSheet(UiStyle::CardStyleSheet());
   return card;
 }

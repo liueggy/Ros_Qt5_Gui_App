@@ -200,8 +200,8 @@ QString PanelStyleSheet() {
 QString CardStyleSheet() {
   using namespace Palette;
   return QStringLiteral(
-    "QFrame { background:%1; border:1px solid %2; border-radius:%3px; }"
-    "QFrame:hover { border-color:%4; background:%5; }"
+    "QFrame[uiCard=\"true\"] { background:%1; border:1px solid %2; border-radius:%3px; }"
+    "QFrame[uiCard=\"true\"]:hover { border-color:%4; background:%5; }"
   ).arg(Surface, Border, QString::number(Radius::XL), BorderHover, SurfaceHover);
 }
 

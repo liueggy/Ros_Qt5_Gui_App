@@ -285,6 +285,7 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("verticalLayout_speed_ctrl"));
     QFrame* control_card = new QFrame(this);
     control_card->setObjectName(QStringLiteral("speedControlCard"));
+    control_card->setProperty("uiCard", true);
     control_card->setStyleSheet(UiStyle::CardStyleSheet());
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
     control_layout->setContentsMargins(12, 10, 12, 12);

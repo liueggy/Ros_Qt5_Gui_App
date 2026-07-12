@@ -68,6 +68,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addWidget(title);
 
   auto* overview_group = new QFrame(this);
+  overview_group->setProperty("uiCard", true);
   overview_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* overview_layout = new QGridLayout(overview_group);
   overview_layout->setContentsMargins(14, 14, 14, 14);
@@ -89,6 +90,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
                   UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
   SetDiagnosticOverview(0, 0, 0);
   auto* camera_group = new QFrame(this);
+  camera_group->setProperty("uiCard", true);
   camera_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* camera_layout = new QVBoxLayout(camera_group);
   camera_layout->setContentsMargins(16, 14, 16, 16);
@@ -129,6 +131,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(camera_start_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
 
   auto* network_group = new QFrame(this);
+  network_group->setProperty("uiCard", true);
   network_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* network_layout = new QVBoxLayout(network_group);
   network_layout->setContentsMargins(16, 12, 16, 14);
@@ -156,6 +159,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addWidget(network_group);
 
   auto* nav_group = new QFrame(this);
+  nav_group->setProperty("uiCard", true);
   nav_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* nav_layout = new QVBoxLayout(nav_group);
   nav_layout->setContentsMargins(16, 14, 16, 16);
@@ -213,6 +217,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(refresh_maps_btn, &QPushButton::clicked, this, &CommandCenterWidget::RefreshMaps);
 
   auto* status_group = new QFrame(this);
+  status_group->setProperty("uiCard", true);
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
   auto* status_layout = new QVBoxLayout(status_group);
   status_layout->setContentsMargins(16, 14, 16, 16);
@@ -253,6 +258,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(clear_btn, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
 
   diagnostic_group_ = new QFrame(this);
+  diagnostic_group_->setProperty("uiCard", true);
   diagnostic_group_->setStyleSheet(UiStyle::CardStyleSheet());
   auto* diagnostic_layout = new QVBoxLayout(diagnostic_group_);
   diagnostic_layout->setContentsMargins(16, 14, 16, 16);
