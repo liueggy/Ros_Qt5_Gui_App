@@ -241,7 +241,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addLayout(status_header);
   status_summary_label_ = new QLabel(tr("连接小车后显示运行状态"), status_group);
   status_summary_label_->setWordWrap(true);
-  status_summary_label_->setMinimumHeight(40);
+  status_summary_label_->setMinimumHeight(46);
+  status_summary_label_->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
   status_summary_label_->setStyleSheet(QStringLiteral(
                                            "QLabel { color:%1; background:%2; border:1px solid %3; "
                                            "border-radius:12px; padding:10px 12px; font-size:%4px; }")
@@ -249,7 +250,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_layout->addWidget(status_summary_label_);
   log_edit_ = new QPlainTextEdit(status_group);
   log_edit_->setReadOnly(true);
-  log_edit_->setMaximumHeight(120);
+  log_edit_->setMinimumHeight(96);
+  log_edit_->setMaximumHeight(160);
+  log_edit_->setStyleSheet(QStringLiteral(
+      "QPlainTextEdit { color:%1; background:%2; border:1px solid %3; border-radius:8px; "
+      "padding:8px 10px; font-family:%4; font-size:%5px; }")
+      .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
+           UiStyle::Palette::Border, UiStyle::Font::Mono,
+           QString::number(UiStyle::FontMiniPx())));
   log_edit_->setVisible(false);
   status_layout->addWidget(log_edit_);
   root->addWidget(status_group);

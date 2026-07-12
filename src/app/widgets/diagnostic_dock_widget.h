@@ -23,6 +23,7 @@ class DiagnosticDockWidget : public QWidget {
   void UpdateOverallStatus();
   void SaveExpandedState();
   void RestoreExpandedState();
+  void UpdateTreeHeight();
   QString LevelDisplayName(int level) const;
   static QColor LevelColor(int level);
   int CountAbnormal() const;

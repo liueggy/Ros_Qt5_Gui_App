@@ -1,6 +1,7 @@
 #include "diagnostic_dock_widget.h"
 
 #include <algorithm>
+#include <functional>
 #include <vector>
 
 #include <QHBoxLayout>
@@ -74,14 +75,18 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
   tree_->setHeaderLabels({tr("模块"), tr("状态"), tr("消息")});
   tree_->setAlternatingRowColors(true);
   tree_->setUniformRowHeights(true);
-  tree_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-  tree_->setMinimumHeight(150);
+  tree_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  tree_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   tree_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   tree_->setIndentation(22);
   tree_->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
   tree_->header()->setSectionResizeMode(2, QHeaderView::Stretch);
-  root->addWidget(tree_, 1);
+  root->addWidget(tree_);
+  connect(tree_, &QTreeWidget::itemExpanded, this,
+          [this](QTreeWidgetItem*) { UpdateTreeHeight(); });
+  connect(tree_, &QTreeWidget::itemCollapsed, this,
+          [this](QTreeWidgetItem*) { UpdateTreeHeight(); });
 
   empty_label_ = new QLabel(tr("暂无诊断数据"));
   empty_label_->setAlignment(Qt::AlignCenter);
@@ -250,6 +255,33 @@ void DiagnosticDockWidget::RebuildUi() {
     }
   }
   RestoreExpandedState();
+  UpdateTreeHeight();
+}
+
+void DiagnosticDockWidget::UpdateTreeHeight() {
+  if (!tree_ || tree_->isHidden()) {
+    return;
+  }
+
+  int visible_rows = 0;
+  std::function<void(QTreeWidgetItem*)> count_visible =
+      [&](QTreeWidgetItem* item) {
+        ++visible_rows;
+        if (!item->isExpanded()) return;
+        for (int i = 0; i < item->childCount(); ++i) {
+          count_visible(item->child(i));
+        }
+      };
+  for (int i = 0; i < tree_->topLevelItemCount(); ++i) {
+    count_visible(tree_->topLevelItem(i));
+  }
+
+  const int row_height = (std::max)(24, tree_->sizeHintForRow(0));
+  const int header_height = tree_->header()->height();
+  const int frame = tree_->frameWidth() * 2 + 2;
+  tree_->setFixedHeight(header_height + visible_rows * row_height + frame);
+  tree_->updateGeometry();
+  updateGeometry();
 }
 
 int DiagnosticDockWidget::CountAbnormal() const {
