@@ -44,6 +44,7 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
                      "DisplayConfigWidget { background-color:%1; }"
                      "DisplayConfigWidget QWidget { font-size:%2px; color:%3; }"
+                     "DisplayConfigWidget QStackedWidget, DisplayConfigWidget QStackedWidget QWidget { background-color:%1; }"
                      "DisplayConfigWidget QLabel#pageTitle { font-size:%4px; font-weight:700; color:%3; padding-bottom:5px; }"
                      "DisplayConfigWidget QLabel#pageSubtitle { font-size:%5px; color:%6; padding-bottom:12px; }"
                      "DisplayConfigWidget QListWidget#settingsNav { background-color:%7; border:1px solid %8; border-radius:5px; padding:6px; outline:none; }"
@@ -89,6 +90,17 @@ void DisplayConfigWidget::InitUI() {
   main_layout_->setContentsMargins(16, 14, 16, 14);
   main_layout_->setSpacing(0);
   setAutoFillBackground(true);
+  setAttribute(Qt::WA_StyledBackground, true);
+  QPalette themed_palette = palette();
+  themed_palette.setColor(QPalette::Window,
+                          QColor(UiStyle::Palette::Background));
+  themed_palette.setColor(QPalette::WindowText,
+                          QColor(UiStyle::Palette::Text));
+  themed_palette.setColor(QPalette::Base,
+                          QColor(UiStyle::Palette::Surface));
+  themed_palette.setColor(QPalette::Text,
+                          QColor(UiStyle::Palette::Text));
+  setPalette(themed_palette);
 
   title_label_ = new QLabel(tr("设置"), this);
   title_label_->setStyleSheet(UiStyle::TitleLabelStyleSheet() + QStringLiteral("padding:4px 2px 14px 2px;"));
@@ -124,6 +136,10 @@ void DisplayConfigWidget::InitUI() {
   nav_list_->setMinimumHeight(navItems.size() * 62 + 18);
 
   page_stack_ = new QStackedWidget(this);
+  page_stack_->setObjectName(QStringLiteral("settingsPageStack"));
+  page_stack_->setAutoFillBackground(true);
+  page_stack_->setAttribute(Qt::WA_StyledBackground, true);
+  page_stack_->setPalette(themed_palette);
   page_stack_->setMinimumWidth(0);
   page_stack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 

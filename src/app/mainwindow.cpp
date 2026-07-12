@@ -869,6 +869,7 @@ void MainWindow::setupUi() {
   CDockManager::setConfigFlag(CDockManager::ShowTabTextOnlyForActiveTab, true);
   CDockManager::setAutoHideConfigFlags(CDockManager::DefaultAutoHideConfig);
   dock_manager_ = new CDockManager(this);
+  dock_manager_->setStyleSheet(UiStyle::DockStyleSheet());
   QVBoxLayout* center_layout = new QVBoxLayout();    // 垂直
   QHBoxLayout* center_h_layout = new QHBoxLayout();  // 水平
 

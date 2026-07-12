@@ -113,6 +113,11 @@ QString ApplicationStyleSheet() {
     "QMenu::item { padding:%8px 28px %8px %9px; border-radius:%6px; }"
     "QMenu::item:selected { color:%10; background:%11; }"
     "QMenu::separator { height:1px; background:%5; margin:5px %8px; }"
+    "QComboBox { color:%1; background:%4; border:1px solid %5; border-radius:%6px;"
+    " padding:5px 36px 5px %9px; min-height:24px; }"
+    "QComboBox:hover { border-color:%14; background:%4; }"
+    "QComboBox:focus { border-color:%10; }"
+    "QComboBox:disabled { color:%16; background:%17; border-color:%5; }"
     "QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:top right; "
     "width:34px; border:none; border-left:1px solid %5; }"
     "QComboBox::down-arrow { image:url(:/icons/tabler/arrow-down.svg); width:14px; height:14px; }"
@@ -128,11 +133,11 @@ QString ApplicationStyleSheet() {
     "QScrollBar::handle:horizontal:hover { background:%13; }"
     "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
     "QTabWidget::pane { border:1px solid %5; border-radius:5px; background:%4; top:-1px; }"
-    "QTabBar::tab { min-height:30px; padding:6px 16px; color:%2; background:transparent; border:none; }"
+    "QTabBar::tab { min-height:30px; padding:6px 16px; color:%18; background:transparent; border:none; }"
     "QTabBar::tab:hover { color:%10; background:%11; }"
     "QTabBar::tab:selected { color:%10; font-weight:600; border-bottom:2px solid %14; }"
     "ads--CDockAreaTitleBar, ads--CDockAreaWidget, ads--CDockContainerWidget { background:%3; }"
-    "ads--CDockWidgetTab { background:%15; color:%2; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
+    "ads--CDockWidgetTab { background:%15; color:%18; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
     "ads--CDockWidgetTab[activeTab=\"true\"] { background:%11; color:%10; border-bottom:2px solid %14; font-weight:700; }"
     "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
     "ads--CTitleBarButton { background:transparent; border:none; border-radius:5px; padding:2px; }"
@@ -143,7 +148,28 @@ QString ApplicationStyleSheet() {
         QString::number(Radius::SM), QString::number(Radius::LG),
         QString::number(Space::SM),
         QString::number(Space::MD), Primary, PrimaryLight,
-        Scrollbar, ScrollbarHvr, BorderHover, dock_tab);
+        Scrollbar, ScrollbarHvr, BorderHover, dock_tab, DisabledText,
+        DisabledBg, TextSecondary);
+}
+
+QString DockStyleSheet() {
+  using namespace Palette;
+  const QString dock_tab = IsDarkTheme() ? SurfaceAlt : QStringLiteral("#eef1ee");
+  return QStringLiteral(
+      "ads--CDockManager, ads--CDockContainerWidget, ads--CDockAreaWidget,"
+      " ads--CDockAreaTitleBar, ads--CDockAreaTabBar, ads--CDockWidget {"
+      " background:%1; color:%2; border-color:%3; }"
+      "ads--CDockAreaTitleBar { border-bottom:1px solid %3; }"
+      "ads--CDockWidgetTab { background:%4; color:%5; border:none;"
+      " border-bottom:1px solid %3; padding:4px 10px; }"
+      "ads--CDockWidgetTab[activeTab=\"true\"] { background:%6; color:%7;"
+      " border-bottom:2px solid %8; font-weight:700; }"
+      "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
+      "ads--CTitleBarButton { background:transparent; border:none;"
+      " border-radius:3px; padding:2px; color:%2; }"
+      "ads--CTitleBarButton:hover { background:%6; }")
+      .arg(Background, Text, Border, dock_tab, TextSecondary,
+           PrimaryLight, Primary, BorderHover);
 }
 
 // ── Panel ───────────────────────────────────
