@@ -70,6 +70,7 @@ jobs:
       # restore-keys selects the newest compatible build from this branch.
       - name: Restore incremental Ninja build
         uses: actions/cache/restore@v4
+        id: ninja-cache
         with:
           path: |
             build
@@ -84,7 +85,12 @@ jobs:
         env:
           VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
         run: |
-          if "${{ steps.vcpkg-cache.outputs.cache-hit }}"=="true" (
+          echo [INFO] vcpkg cache hit: ${{ steps.vcpkg-cache.outputs.cache-hit }}
+          echo [INFO] Ninja build cache hit: ${{ steps.ninja-cache.outputs.cache-hit }}
+          if exist "build\build.ninja" if exist "build\CMakeCache.txt" (
+            echo [INFO] Reusing restored Ninja build tree; configure skipped.
+            build.bat make
+          ) else if "${{ steps.vcpkg-cache.outputs.cache-hit }}"=="true" (
             build.bat ci
           ) else (
             build.bat
