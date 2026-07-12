@@ -35,7 +35,6 @@ class CommandCenterWidget : public QWidget {
   void StartAmclNavigation();
   void SwitchToMapping();
   void StartCamera();
-  void StopCamera();
   void ClearLog();
 
  signals:
@@ -63,7 +62,6 @@ class CommandCenterWidget : public QWidget {
   QLabel* camera_state_label_{nullptr};
   QLabel* camera_inspection_label_{nullptr};
   QPushButton* camera_start_btn_{nullptr};
-  QPushButton* camera_stop_btn_{nullptr};
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};
   QLabel* nav_mode_label_{nullptr};

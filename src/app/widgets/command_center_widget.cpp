@@ -118,20 +118,14 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* camera_row = new QHBoxLayout();
   camera_row->setSpacing(10);
   camera_start_btn_ = new QPushButton(tr("打开摄像头画面"), camera_group);
-  camera_stop_btn_ = new QPushButton(tr("关闭摄像头画面"), camera_group);
   camera_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
-  camera_stop_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   camera_start_btn_->setAccessibleDescription(tr("打开机器人前置摄像头实时画面"));
-  camera_stop_btn_->setAccessibleDescription(tr("关闭机器人前置摄像头实时画面"));
-  camera_stop_btn_->setVisible(false);
   camera_row->addWidget(camera_start_btn_);
-  camera_row->addWidget(camera_stop_btn_);
   camera_row->addStretch();
   camera_layout->addLayout(camera_row);
   root->addWidget(camera_group);
 
   connect(camera_start_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
-  connect(camera_stop_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StopCamera);
 
   auto* network_group = new QFrame(this);
   network_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -656,9 +650,8 @@ void CommandCenterWidget::SetCameraStateText(const QString& text) {
     camera_start_btn_->setVisible(!running);
     camera_start_btn_->setEnabled(!pending);
   }
-  if (camera_stop_btn_) {
-    camera_stop_btn_->setVisible(running);
-    camera_stop_btn_->setEnabled(!pending);
+  if (camera_start_btn_) {
+    camera_start_btn_->setText(running ? tr("打开摄像头画面") : tr("打开摄像头画面"));
   }
 }
 
@@ -753,12 +746,6 @@ void CommandCenterWidget::StartCamera() {
   SetCameraStateText(tr("正在启动..."));
   emit CameraViewRequested(true);
   PublishJson(MakeRequestJson("camera_start", "camera"));
-}
-
-void CommandCenterWidget::StopCamera() {
-  SetCameraStateText(tr("正在停止..."));
-  emit CameraViewRequested(false);
-  PublishJson(MakeRequestJson("camera_stop", "camera"));
 }
 
 void CommandCenterWidget::ClearLog() {
