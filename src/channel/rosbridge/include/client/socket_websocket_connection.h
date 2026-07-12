@@ -40,6 +40,7 @@ namespace rosbridge2cpp{
       void ReportError(TransportError err);
       void SetTransportMode(ITransportLayer::TransportMode mode);
       void Disconnect();
+      bool IsConnected() const { return is_connected_.load(); }
 
     private:
       typedef websocketpp::client<websocketpp::config::asio> client;

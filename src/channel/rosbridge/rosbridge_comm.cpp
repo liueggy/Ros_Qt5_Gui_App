@@ -148,6 +148,7 @@ bool RosbridgeComm::Start() {
       parse_result.ptr != port_text.data() + port_text.size() ||
       parsed_port < 1 || parsed_port > 65535) {
     connecting_ = false;
+    connected_ = false;
     connection_failed_ = true;
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
     connection_error_msg_ = "Invalid ROSBridge port: " + port_text +
@@ -158,6 +159,7 @@ bool RosbridgeComm::Start() {
   rosbridge_port_ = parsed_port;
 
   connection_failed_ = false;
+  connected_ = false;
   connecting_ = true;
   reconnect_enabled_ = true;
   {
@@ -180,6 +182,7 @@ void RosbridgeComm::ConnectAsync() {
           std::to_string(rosbridge_port_);
     }
     connection_failed_ = true;
+    connected_ = false;
     connecting_ = false;
     LOG_ERROR("ROSBridge TCP preflight failed; channel startup aborted.");
     return;
@@ -205,6 +208,7 @@ void RosbridgeComm::ConnectAsync() {
       LOG_ERROR("ROSBridge socket error");
     }
     connection_failed_ = true;
+    connected_ = false;
     connecting_ = false;
 
     if (reconnect_enabled_ && init_flag_ && !reconnecting_) {
@@ -239,6 +243,7 @@ void RosbridgeComm::ConnectAsync() {
     }
     LOG_ERROR("Failed to connect to ROSBridge server!");
     connection_failed_ = true;
+    connected_ = false;
     connecting_ = false;
     ros_bridge_.reset();
     if (websocket_connection_) {
@@ -508,7 +513,16 @@ void RosbridgeComm::ConnectAsync() {
     PubInspectionRequest(json_request);
   });
 
-  init_flag_ = true;
+  const bool ready = websocket_connection_ &&
+                     websocket_connection_->IsConnected() &&
+                     !connection_failed_.load();
+  init_flag_ = ready;
+  connected_ = ready;
+  if (!ready) {
+    connection_failed_ = true;
+    connecting_ = false;
+    LOG_ERROR("ROSBridge disconnected before channel initialization completed.");
+  }
 }
 
 /**
@@ -517,6 +531,7 @@ void RosbridgeComm::ConnectAsync() {
  */
 bool RosbridgeComm::Stop() {
   init_flag_ = false;
+  connected_ = false;
   connecting_ = false;
   reconnect_enabled_ = false;
 
@@ -543,6 +558,7 @@ bool RosbridgeComm::Stop() {
 }
 
 void RosbridgeComm::CleanupTransportLocked() {
+  connected_ = false;
   // Stop the socket receiver before destroying topics and ROSBridge objects
   // whose callbacks/references it may still use.
   if (websocket_connection_) {
@@ -594,6 +610,7 @@ void RosbridgeComm::ReconnectLoop() {
     }
 
     connecting_ = true;
+    connected_ = false;
     connection_failed_ = false;
     {
       std::lock_guard<std::mutex> lock(error_msg_mutex_);

@@ -44,6 +44,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void PubInspectionRequest(const std::string& json_request);
 
   bool IsConnecting() const override { return connecting_; }
+  bool IsConnected() const override { return connected_.load(); }
   bool IsConnectionFailed() const override { return connection_failed_; }
   std::string GetConnectionError() const override {
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
@@ -102,6 +103,7 @@ class RosbridgeComm : public VirtualChannelNode {
   basic::RobotPose m_currPose;
   std::atomic_bool init_flag_ = {false};
   std::atomic_bool connecting_ = {false};
+  std::atomic_bool connected_ = {false};
   std::atomic_bool connection_failed_ = {false};
   std::string connection_error_msg_;
   mutable std::mutex error_msg_mutex_;

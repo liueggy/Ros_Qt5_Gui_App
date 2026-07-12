@@ -52,6 +52,7 @@ class VirtualChannelNode {
   virtual std::string Name() = 0;
 
   virtual bool IsConnecting() const { return false; }
+  virtual bool IsConnected() const { return false; }
   virtual bool IsConnectionFailed() const { return false; }
   virtual std::string GetConnectionError() const { return ""; }
   virtual bool IsReconnecting() const { return false; }

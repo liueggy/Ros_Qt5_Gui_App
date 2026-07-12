@@ -541,17 +541,27 @@ bool MainWindow::openChannel() {
               false, false, tr("未建立连接，可在小车启动后重试。"));
           return;
         }
+        if (channel->IsConnected()) {
+          display_config_widget_->SetConnectionState(
+              true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+          return;
+        }
         if (channel->IsConnecting()) {
           QTimer::singleShot(2000, this, [this, attempt_id]() {
             if (attempt_id != connection_attempt_id_) return;
             auto* retry_ch = channel_manager_.GetChannel();
+            if (retry_ch && retry_ch->IsConnected()) {
+              display_config_widget_->SetConnectionState(
+                  true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+              return;
+            }
             if (!retry_ch || retry_ch->IsConnectionFailed()) {
               display_config_widget_->SetConnectionState(
                   false, false, tr("暂时无法连接 ROSBridge。请确认小车已启动且网络可达，然后重试。"));
               return;
             }
             display_config_widget_->SetConnectionState(
-                true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+                false, true, tr("仍在等待 ROSBridge 完成握手…"));
           });
           return;
         }
@@ -588,7 +598,7 @@ bool MainWindow::openChannel() {
           }
         } else {
           display_config_widget_->SetConnectionState(
-              true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+              false, true, tr("正在等待 ROSBridge 完成握手…"));
         }
       });
     }
@@ -607,12 +617,16 @@ bool MainWindow::openChannel() {
         display_config_widget_->SetConnectionState(false, false, tr("连接已断开，可在小车启动后重新连接。"));
         return;
       }
-      if (ch->IsConnectionFailed()) {
+      if (ch->IsConnected()) {
+        display_config_widget_->SetConnectionState(
+            true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+      } else if (ch->IsConnectionFailed()) {
         display_config_widget_->SetConnectionState(false, false, tr("小车已失联，正在尝试重连…"));
-      } else if (ch->IsReconnecting()) {
+      } else if (ch->IsReconnecting() || ch->IsConnecting()) {
         display_config_widget_->SetConnectionState(false, true, tr("正在重连小车…"));
-      } else if (!ch->IsConnecting()) {
-        display_config_widget_->SetConnectionState(true, false, tr("已连接到小车，ROSBridge 通信正常。"));
+      } else {
+        display_config_widget_->SetConnectionState(
+            false, true, tr("正在确认 ROSBridge 连接状态…"));
       }
     });
     connection_monitor_timer_->start(2000);

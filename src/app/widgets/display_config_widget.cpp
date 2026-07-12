@@ -44,7 +44,7 @@ void DisplayConfigWidget::ApplyGlobalStyle() {
   setStyleSheet(QStringLiteral(
                      "DisplayConfigWidget { background-color:%1; }"
                      "DisplayConfigWidget QWidget { font-size:%2px; color:%3; }"
-                     "DisplayConfigWidget QStackedWidget, DisplayConfigWidget QStackedWidget QWidget { background-color:%1; }"
+                     "DisplayConfigWidget QStackedWidget#settingsPageStack { background-color:%1; }"
                      "DisplayConfigWidget QLabel#pageTitle { font-size:%4px; font-weight:700; color:%3; padding-bottom:5px; }"
                      "DisplayConfigWidget QLabel#pageSubtitle { font-size:%5px; color:%6; padding-bottom:12px; }"
                      "DisplayConfigWidget QListWidget#settingsNav { background-color:%7; border:1px solid %8; border-radius:5px; padding:6px; outline:none; }"
@@ -149,6 +149,16 @@ void DisplayConfigWidget::InitUI() {
   page_stack_->addWidget(CreateRobotPage());
   page_stack_->addWidget(CreateMapPage());
   page_stack_->addWidget(CreateKeyValuePage());
+  for (int index = 0; index < page_stack_->count(); ++index) {
+    QWidget* page = page_stack_->widget(index);
+    page->setObjectName(QStringLiteral("settingsPage"));
+    page->setAutoFillBackground(true);
+    page->setAttribute(Qt::WA_StyledBackground, true);
+    page->setPalette(themed_palette);
+    page->setStyleSheet(QStringLiteral(
+        "QWidget#settingsPage { background-color:%1; }")
+        .arg(UiStyle::Palette::Background));
+  }
 
   connect(nav_list_, &QListWidget::currentRowChanged, page_stack_, &QStackedWidget::setCurrentIndex);
   nav_list_->setCurrentRow(0);
@@ -322,9 +332,15 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
                                                           : tr("启动后重试"));
   connection_status_label_->setText(compact_message);
   connection_status_label_->setStyleSheet(
-      QStringLiteral("QLabel { color:%1; font-size:%2px; font-weight:400; }")
+      QStringLiteral("QLabel { color:%1; background:transparent; border:none; "
+                     "font-size:%2px; font-weight:400; padding:0; }")
           .arg(color)
           .arg(UiStyle::FontSmallPx()));
+  connection_status_title_->setStyleSheet(
+      QStringLiteral("QLabel { color:%1; background:transparent; border:none; "
+                     "font-size:%2px; font-weight:700; padding:0; }")
+          .arg(color)
+          .arg(UiStyle::FontMiniPx()));
   connection_status_card_->setStyleSheet(
       QStringLiteral("QFrame#connectionStatusCard { background:%1; border:1px solid %2; "
                      "border-radius:10px; }")
