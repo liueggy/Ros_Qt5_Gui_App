@@ -46,8 +46,10 @@ DiagnosticDockWidget::DiagnosticDockWidget(QWidget* parent) : QWidget(parent) {
 
   auto* summary_row = new QHBoxLayout();
   summary_row->setSpacing(6);
+  summary_row->setAlignment(Qt::AlignVCenter);
   overall_status_ = new QLabel();
   overall_status_->setFixedHeight(38);
+  overall_status_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   overall_status_->setAlignment(Qt::AlignCenter);
   summary_row->addWidget(overall_status_, 1);
   refresh_btn_ = new QPushButton(tr("刷新"));
@@ -185,7 +187,7 @@ void DiagnosticDockWidget::UpdateOverallStatus() {
   overall_status_->setText(text);
   overall_status_->setStyleSheet(
       QStringLiteral("QLabel { color:%1; background:rgba(%2,%3,%4,0.10); "
-                     "border-radius:10px; padding:7px 10px; font-size:%5px; "
+                     "border-radius:10px; padding:0 10px; font-size:%5px; "
                      "font-weight:700; }")
           .arg(color.name())
           .arg(color.red())
