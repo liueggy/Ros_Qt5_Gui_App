@@ -1941,12 +1941,7 @@ void MainWindow::StartManualRelocation() {
 }
 
 void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
-  if (!localization_confirmed_) {
-    QMessageBox::warning(
-        this, tr("定位尚未确认"),
-        tr("为避免小车在错误位姿下导航，请先点击“重定位”，在地图上手动设置小车位置和朝向，并等待 AMCL 定位确认。"));
-    return;
-  }
+  // 单点导航在建图模式下也应可用；任务链入口仍单独要求 AMCL 定位确认。
   PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
 }
 
