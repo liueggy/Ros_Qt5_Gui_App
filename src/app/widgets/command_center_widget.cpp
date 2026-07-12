@@ -1,5 +1,6 @@
 #include "widgets/command_center_widget.h"
 
+#include <QAbstractItemView>
 #include <QByteArray>
 #include <QComboBox>
 #include <QDateTime>
@@ -189,6 +190,15 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   map_combo_->lineEdit()->setPlaceholderText(tr("点击刷新地图，或输入板端 .yaml 路径"));
   map_combo_->addItem(QStringLiteral("/root/catkin_ws/maps/navigation/latest.yaml"));
   map_combo_->setToolTip(tr("板端地图 YAML 路径，用于 map_server + AMCL。"));
+  map_combo_->view()->setStyleSheet(QStringLiteral(
+      "QAbstractItemView { background:%1; color:%2; border:1px solid %3; "
+      "selection-background-color:%4; selection-color:%5; outline:none; padding:4px; }"
+      "QAbstractItemView::item { min-height:30px; padding:5px 9px; }"
+      "QAbstractItemView::item:hover { background:%6; }"
+      "QAbstractItemView::item:selected { background:%4; color:%5; }")
+      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Text,
+           UiStyle::Palette::Border, UiStyle::Palette::PrimaryLight,
+           UiStyle::Palette::Primary, UiStyle::Palette::SurfaceHover));
   auto* map_row = new QHBoxLayout();
   map_row->setSpacing(8);
   auto* refresh_maps_btn = new QPushButton(tr("刷新"), nav_group);
