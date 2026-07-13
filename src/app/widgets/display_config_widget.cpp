@@ -101,10 +101,6 @@ void DisplayConfigWidget::InitUI() {
                           QColor(UiStyle::Palette::Text));
   setPalette(themed_palette);
 
-  title_label_ = new QLabel(tr("设置"), this);
-  title_label_->setStyleSheet(UiStyle::TitleLabelStyleSheet() + QStringLiteral("padding:4px 2px 14px 2px;"));
-  main_layout_->addWidget(title_label_);
-
   QHBoxLayout* body = new QHBoxLayout();
   body->setSpacing(16);
   body->setContentsMargins(0, 0, 0, 0);
@@ -270,15 +266,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
   QHBoxLayout* connection_action_layout = new QHBoxLayout(connection_status_card_);
   connection_action_layout->setContentsMargins(14, 10, 14, 10);
   connection_action_layout->setSpacing(12);
-  auto* connection_copy = new QVBoxLayout();
-  connection_copy->setSpacing(2);
   connection_status_title_ = new QLabel(tr("等待连接"), connection_status_card_);
   connection_status_title_->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
-  connection_status_label_ = new QLabel(tr("检测中"), connection_status_card_);
-  connection_status_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-  connection_status_label_->setWordWrap(true);
-  connection_copy->addWidget(connection_status_title_);
-  connection_copy->addWidget(connection_status_label_);
 
   reconnect_channel_btn_ = new QPushButton(tr("连接"), connection_status_card_);
   reconnect_channel_btn_->setCursor(Qt::PointingHandCursor);
@@ -292,7 +281,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
       emit ConnectRequested();
     }
   });
-  connection_action_layout->addLayout(connection_copy, 1);
+  connection_action_layout->addWidget(connection_status_title_, 1);
   connection_action_layout->addWidget(reconnect_channel_btn_, 0, Qt::AlignVCenter);
   root->addWidget(connection_status_card_);
   root->addStretch(1);
@@ -301,8 +290,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
 
 void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
                                              const QString& message) {
-  if (!reconnect_channel_btn_ || !connection_status_label_ ||
-      !connection_status_title_ || !connection_status_card_) {
+  if (!reconnect_channel_btn_ || !connection_status_title_ ||
+      !connection_status_card_) {
     return;
   }
   reconnect_channel_btn_->setProperty("connected", connected);
@@ -321,19 +310,9 @@ void DisplayConfigWidget::SetConnectionState(bool connected, bool connecting,
   const QString border = connecting ? UiStyle::Palette::WarningBorder
                                     : (connected ? UiStyle::Palette::SuccessBorder
                                                  : UiStyle::Palette::DangerBorder);
-  connection_status_title_->setText(connecting ? tr("正在连接")
-                                               : (connected ? tr("小车已连接")
-                                                            : tr("小车未连接")));
-  Q_UNUSED(message);
-  const QString compact_message = connecting ? tr("检测中")
-                                             : (connected ? tr("在线")
-                                                          : tr("启动后重试"));
-  connection_status_label_->setText(compact_message);
-  connection_status_label_->setStyleSheet(
-      QStringLiteral("QLabel { color:%1; background:transparent; border:none; "
-                     "font-size:%2px; font-weight:400; padding:0; }")
-          .arg(color)
-          .arg(UiStyle::FontSmallPx()));
+  connection_status_title_->setText(connecting ? tr("连接中")
+                                               : (connected ? tr("已连接")
+                                                            : tr("未连接")));
   connection_status_title_->setStyleSheet(
       QStringLiteral("QLabel { color:%1; background:transparent; border:none; "
                      "font-size:%2px; font-weight:700; padding:0; }")
@@ -531,11 +510,9 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   points_layout->setContentsMargins(14, 14, 14, 14);
   points_layout->setSpacing(10);
 
-  robot_points_hint_label_ = new QLabel(
-      tr("以机器人基座为原点的顶点坐标（米）。至少填写 3 个有效顶点后，地图立即显示自定义外形；否则显示小车实时轮廓。"));
-  robot_points_hint_label_->setWordWrap(true);
-  robot_points_hint_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-  points_layout->addWidget(robot_points_hint_label_);
+  auto* points_hint = new QLabel(tr("基座坐标（m），至少 3 个顶点。"));
+  points_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  points_layout->addWidget(points_hint);
 
   robot_points_table_ = new QTableWidget(0, 2, points_card);
   robot_points_table_->setHorizontalHeaderLabels(QStringList() << tr("X") << tr("Y"));
@@ -659,12 +636,6 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
   title_row->addStretch(1);
   title_row->addWidget(reset_button);
   root->addLayout(title_row);
-  auto* page_subtitle = new QLabel(
-      tr("仅调整 Qt 地图画布的视觉效果；图层开关和 ROS 话题请在“显示与话题”中设置。"), page);
-  page_subtitle->setObjectName(QStringLiteral("pageSubtitle"));
-  page_subtitle->setWordWrap(true);
-  root->addWidget(page_subtitle);
-
   auto* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);

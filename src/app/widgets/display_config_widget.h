@@ -116,9 +116,7 @@ signals:
   QPushButton *reconnect_channel_btn_{nullptr};
   QFrame *connection_status_card_{nullptr};
   QLabel *connection_status_title_{nullptr};
-  QLabel *connection_status_label_{nullptr};
 
-  QLabel *title_label_{nullptr};
   QLabel *connection_section_label_{nullptr};
   QLabel *channel_type_label_{nullptr};
   QLabel *rosbridge_section_label_{nullptr};
@@ -126,7 +124,6 @@ signals:
   QLabel *rosbridge_port_label_{nullptr};
   QPushButton *map_browse_btn_{nullptr};
   QPushButton *image_add_btn_{nullptr};
-  QLabel *robot_points_hint_label_{nullptr};
   QLabel *robot_polygon_section_label_{nullptr};
   QLabel *robot_style_section_label_{nullptr};
   QLabel *robot_color_caption_label_{nullptr};

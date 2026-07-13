@@ -134,22 +134,8 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   status_dot_->setFixedWidth(12);
   title_row->addWidget(status_dot_);
 
-  auto* session_label = new QLabel(tr("小车终端"));
-  session_label->setStyleSheet(
-      QStringLiteral("color:%1; font-weight:600; font-size:%2px;")
-          .arg(UiStyle::Palette::TerminalText)
-          .arg(UiStyle::FontSmallPx()));
-  title_row->addWidget(session_label);
-
-  connection_badge_ = new QLabel(tr("ROSBridge 安全通道"));
-  connection_badge_->setStyleSheet(
-      QStringLiteral("color:#9fb0aa; border:1px solid %1; border-radius:4px;"
-                     " padding:2px 7px; font-size:%2px;")
-          .arg(UiStyle::Palette::TerminalBorder)
-          .arg(UiStyle::FontMiniPx()));
-  title_row->addWidget(connection_badge_);
-
   status_label_ = new QLabel(tr("未连接"));
+  status_label_->setToolTip(tr("命令通过板端白名单安全执行"));
   status_label_->setStyleSheet(
       QStringLiteral("color:#9fb0aa; font-size:%1px;")
           .arg(UiStyle::FontMiniPx()));
@@ -195,8 +181,7 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   output_edit_->setMaximumBlockCount(5000);
   output_edit_->setLineWrapMode(QPlainTextEdit::NoWrap);
   output_edit_->setTabStopWidth(32);
-  output_edit_->setPlaceholderText(
-      tr("连接小车后，板端命令输出会实时显示在这里。"));
+  output_edit_->setPlaceholderText(tr("暂无输出"));
   output_edit_->setStyleSheet(
       QStringLiteral("QPlainTextEdit { background:%1; color:%2; border:0;"
                      " padding:12px 14px; font-family:%3; font-size:%4px;"
@@ -240,7 +225,8 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   command_row->addWidget(prompt_label);
 
   command_edit_ = new QLineEdit();
-  command_edit_->setPlaceholderText(tr("输入白名单命令，按 Enter 执行"));
+  command_edit_->setPlaceholderText(tr("输入命令"));
+  command_edit_->setToolTip(tr("仅支持板端白名单命令，按 Enter 执行"));
   command_edit_->setClearButtonEnabled(true);
   command_edit_->installEventFilter(this);
   connect(command_edit_, &QLineEdit::returnPressed, this,
@@ -287,7 +273,6 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
     AppendStatus(tr("命令响应超时，终端已恢复"));
   });
 
-  AppendStatus(tr("终端已就绪，命令将通过板端白名单安全执行"));
   SetConnected(false);
 }
 
@@ -456,8 +441,6 @@ void TerminalWidget::UpdateStatus(bool running, const QString& text) {
                                               : QStringLiteral("#71807b"));
   status_dot_->setStyleSheet(
       QStringLiteral("color:%1; font-size:12px;").arg(dot_color));
-  connection_badge_->setText(connected_ ? tr("ROSBridge 已连接")
-                                        : tr("ROSBridge 安全通道"));
 }
 
 void TerminalWidget::RefreshControls() {

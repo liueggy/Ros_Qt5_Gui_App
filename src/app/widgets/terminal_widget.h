@@ -50,7 +50,6 @@ class TerminalWidget : public QWidget {
   QPushButton* clear_button_{nullptr};
   QLabel* status_label_{nullptr};
   QLabel* status_dot_{nullptr};
-  QLabel* connection_badge_{nullptr};
   QComboBox* quick_command_combo_{nullptr};
   QShortcut* cancel_shortcut_{nullptr};
   QTimer* command_watchdog_{nullptr};

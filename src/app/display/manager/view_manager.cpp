@@ -88,7 +88,7 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
   auto* empty_hint = new QLabel(
-      tr("连接机器人后将自动加载实时地图\n也可以使用顶部“打开地图”载入本地文件"),
+      tr("连接小车，或从顶部打开地图"),
       map_empty_state_);
   empty_hint->setAlignment(Qt::AlignCenter);
   empty_hint->setWordWrap(true);

@@ -1358,23 +1358,14 @@ void MainWindow::setupUi() {
   inspection_header_layout->setContentsMargins(16, 14, 16, 14);
   inspection_header_layout->setSpacing(8);
   auto* inspection_header_row = new QHBoxLayout();
-  auto* inspection_title = new QLabel(QStringLiteral("巡检任务链"));
-  inspection_title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
-  inspection_route_summary_label_ = new QLabel(QStringLiteral("0 个点位"));
+  inspection_route_summary_label_ = new QLabel(QStringLiteral("路线 0 / 0"));
   inspection_route_summary_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
-  inspection_header_row->addWidget(inspection_title);
-  inspection_header_row->addStretch();
   inspection_header_row->addWidget(inspection_route_summary_label_);
-  auto* inspection_hint = new QLabel(
-      QStringLiteral("按执行顺序加入地图点位，并为每个点位选择需要识别的目标。"));
-  inspection_hint->setWordWrap(true);
-  inspection_hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
-  inspection_readiness_label_ = new QLabel(QStringLiteral("准备状态：等待添加巡检点位"));
-  inspection_readiness_label_->setWordWrap(true);
+  inspection_header_row->addStretch();
+  inspection_readiness_label_ = new QLabel(QStringLiteral("添加巡检点"));
   inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
+  inspection_header_row->addWidget(inspection_readiness_label_);
   inspection_header_layout->addLayout(inspection_header_row);
-  inspection_header_layout->addWidget(inspection_hint);
-  inspection_header_layout->addWidget(inspection_readiness_label_);
   horizontalLayout_13->addWidget(inspection_header_card);
   horizontalLayout_13->addWidget(nav_goal_table_view_, 1);
   task_list_widget->setLayout(horizontalLayout_13);
@@ -1402,7 +1393,7 @@ void MainWindow::setupUi() {
   QHBoxLayout* loop_task_layout = new QHBoxLayout();
   loop_task_layout->setContentsMargins(0, 0, 0, 0);
   loop_task_layout->addWidget(loop_task_checkbox);
-  auto* return_home_label = new QLabel(QStringLiteral("✓ 完成后返回起点"));
+  auto* return_home_label = new QLabel(QStringLiteral("✓ 自动返航"));
   return_home_label->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
   loop_task_layout->addWidget(return_home_label);
   loop_task_layout->addStretch();
@@ -1431,7 +1422,7 @@ void MainWindow::setupUi() {
   inspection_status_layout->setContentsMargins(14, 12, 14, 14);
   inspection_status_layout->setSpacing(8);
   auto* inspection_status_header = new QHBoxLayout();
-  auto* inspection_feedback_title = new QLabel(QStringLiteral("巡检实时反馈"));
+  auto* inspection_feedback_title = new QLabel(QStringLiteral("实时反馈"));
   inspection_feedback_title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
   inspection_progress_label_ = new QLabel(QStringLiteral("待命"));
   inspection_progress_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
@@ -1444,12 +1435,12 @@ void MainWindow::setupUi() {
   inspection_progress_bar_->setTextVisible(true);
   inspection_progress_bar_->setFormat(QStringLiteral("尚未开始"));
   inspection_progress_bar_->setMinimumHeight(24);
-  inspection_status_label_ = new QLabel(QStringLiteral("待命。配置路线并完成定位后即可开始巡检。"));
+  inspection_status_label_ = new QLabel(QStringLiteral("等待任务"));
   inspection_status_label_->setWordWrap(true);
   inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
   inspection_result_view_ = new QPlainTextEdit();
   inspection_result_view_->setReadOnly(true);
-  inspection_result_view_->setPlaceholderText(QStringLiteral("前往目标点 → 到达识别 → 旋转寻找 → AI视觉分析 → 返回状态"));
+  inspection_result_view_->setPlaceholderText(QStringLiteral("暂无记录"));
   inspection_result_view_->setMinimumHeight(110);
   inspection_result_view_->setMaximumHeight(160);
   inspection_status_layout->addLayout(inspection_status_header);
@@ -2133,8 +2124,8 @@ void MainWindow::UpdateInspectionRouteSummary() {
   if (inspection_route_summary_label_) {
     inspection_route_summary_label_->setText(
         point_count == 0
-            ? QStringLiteral("0 个点位")
-            : QStringLiteral("%1 / %2 已配置 · 自动返回")
+            ? QStringLiteral("路线 0 / 0")
+            : QStringLiteral("路线 %1 / %2")
                   .arg(valid_point_count)
                   .arg(point_count));
     inspection_route_summary_label_->setStyleSheet(
@@ -2144,22 +2135,19 @@ void MainWindow::UpdateInspectionRouteSummary() {
   }
   if (inspection_readiness_label_) {
     if (inspection_running_) {
-      inspection_readiness_label_->setText(QStringLiteral("准备状态：任务执行中，路线编辑已锁定"));
+      inspection_readiness_label_->setText(QStringLiteral("执行中"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
     } else if (point_count == 0) {
-      inspection_readiness_label_->setText(QStringLiteral("准备状态：请先添加至少一个巡检路线项"));
+      inspection_readiness_label_->setText(QStringLiteral("添加巡检点"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
     } else if (valid_point_count != point_count) {
-      inspection_readiness_label_->setText(
-          QStringLiteral("准备状态：请为每一行选择有效的地图点位"));
+      inspection_readiness_label_->setText(QStringLiteral("补全点位"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
     } else if (!localization_confirmed_) {
-      inspection_readiness_label_->setText(
-          QStringLiteral("准备状态：路线已就绪，等待 AMCL 重定位确认"));
+      inspection_readiness_label_->setText(QStringLiteral("等待定位"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
     } else {
-      inspection_readiness_label_->setText(
-          QStringLiteral("准备状态：定位与路线均已就绪，可以开始巡检"));
+      inspection_readiness_label_->setText(QStringLiteral("已就绪"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
     }
   }

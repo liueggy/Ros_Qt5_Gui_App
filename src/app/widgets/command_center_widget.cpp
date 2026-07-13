@@ -59,12 +59,6 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 
   setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  auto* title = new QLabel(tr("运行控制"), this);
-  title->setObjectName(QStringLiteral("pageTitle"));
-  title->setText(tr("运维面板"));
-  title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
-  root->addWidget(title);
-
   auto* overview_group = new QFrame(this);
   overview_group->setProperty("uiCard", true);
   overview_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -183,14 +177,6 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_header->addWidget(nav_mode_label_);
   nav_layout->addLayout(nav_header);
 
-  auto* map_hint = new QLabel(
-      tr("地图由顶部工具栏“打开地图”统一选择；加载成功后在此切换运行模式。"),
-      nav_group);
-  map_hint->setWordWrap(true);
-  map_hint->setStyleSheet(QStringLiteral("color:%1;")
-                              .arg(UiStyle::Palette::TextSecondary));
-  nav_layout->addWidget(map_hint);
-
   auto* nav_row = new QHBoxLayout();
   nav_row->setSpacing(10);
   mapping_btn_ = new QPushButton(tr("建图模式"), nav_group);
@@ -236,7 +222,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   status_header->addWidget(refresh_status_btn);
   status_header->addWidget(clear_btn);
   status_layout->addLayout(status_header);
-  status_summary_label_ = new QLabel(tr("连接小车后显示运行状态"), status_group);
+  status_summary_label_ = new QLabel(tr("暂无状态"), status_group);
   status_summary_label_->setWordWrap(true);
   status_summary_label_->setMinimumHeight(46);
   status_summary_label_->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
