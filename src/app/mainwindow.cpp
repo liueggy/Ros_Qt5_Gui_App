@@ -25,6 +25,7 @@
 #include <QMenu>
 #include <QMetaObject>
 #include <QScreen>
+#include <QStandardPaths>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QJsonDocument>
@@ -686,6 +687,10 @@ void MainWindow::registerChannel() {
   SUBSCRIBE_QOBJECT(this, MSG_ID_LOCALIZATION_POSE,
                     [this](const LocalizationEstimate& estimate) {
     CheckRelocationProgress(estimate);
+  });
+
+  SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
+    HandleMapCommandResponse(json);
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_SHELL_OUTPUT, [this](const std::string& json_str) {
@@ -1550,17 +1555,11 @@ void MainWindow::setupUi() {
           this, &MainWindow::SaveMapToLocalAndRobot);
 
   connect(open_map_btn, &QToolButton::clicked, [this]() {
-    QStringList filters;
-    filters
-        << "地图(*.yaml)"
-        << "拓扑地图(*.topology)";
-
-    QString fileName = QFileDialog::getOpenFileName(nullptr, "打开地图文件",
-                                                    "", filters.join(";;"),
-                                                    nullptr, QFileDialog::DontUseNativeDialog);
+    const QString fileName = QFileDialog::getOpenFileName(
+        this, tr("打开地图"), MapLibraryDirectory(), tr("ROS 地图 (*.yaml)"));
     if (!fileName.isEmpty()) {
       LOG_INFO("用户选择的打开地图路径：" << fileName.toStdString());
-      LoadMap(fileName.toStdString());
+      UploadLocalMap(fileName, true);
     } else {
       LOG_INFO("取消打开地图");
     }
@@ -1941,7 +1940,12 @@ void MainWindow::StartManualRelocation() {
 }
 
 void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
-  // 单点导航在建图模式下也应可用；任务链入口仍单独要求 AMCL 定位确认。
+  if (map_activation_requires_localization_ && !localization_confirmed_) {
+    QMessageBox::warning(
+        this, tr("尚未完成定位"),
+        tr("当前静态地图尚未完成重定位确认。请先在地图上标定小车的真实位置和朝向。"));
+    return;
+  }
   PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
 }
 
@@ -2030,18 +2034,29 @@ void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
 
   relocation_pending_ = false;
   localization_confirmed_ = true;
+  map_activation_requires_localization_ = false;
+  if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
+    robot->setVisible(true);
+  }
   statusBar()->showMessage(
       tr("重定位成功：位置误差 %1 m，角度误差 %2°，耗时 %3 s")
           .arg(distance, 0, 'f', 2)
           .arg(rad2deg(angle_error), 0, 'f', 2)
           .arg(relocation_elapsed_.elapsed() / 1000.0, 0, 'f', 2),
       8000);
+  nlohmann::json clear_request;
+  clear_request["request_id"] =
+      QString("qt-reloc-%1").arg(QDateTime::currentMSecsSinceEpoch()).toStdString();
+  clear_request["command"] = "clear_costmaps";
+  clear_request["target"] = "navigation";
+  clear_request["params"] = nlohmann::json::object();
+  PUBLISH(MSG_ID_COMMAND_REQUEST, clear_request.dump());
 }
 
 void MainWindow::SaveMapToLocalAndRobot() {
   bool accepted = false;
-  const QString default_name =
-      QString("map_%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
+  const QString default_name = QString("map_%1").arg(
+      QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
   const QString map_name =
       QInputDialog::getText(this, tr("保存地图"), tr("地图名称（字母、数字、下划线或短横线）："),
                             QLineEdit::Normal, default_name, &accepted)
@@ -2049,7 +2064,13 @@ void MainWindow::SaveMapToLocalAndRobot() {
   if (!accepted || map_name.isEmpty()) {
     return;
   }
-  for (const QChar ch : map_name) {
+  const QString normalized_name = map_name.toLower();
+  if (normalized_name.size() > 48 || !normalized_name.at(0).isLetterOrNumber()) {
+    QMessageBox::warning(this, tr("名称无效"),
+                         tr("地图名称必须以字母或数字开头，且不超过 48 个字符。"));
+    return;
+  }
+  for (const QChar ch : normalized_name) {
     const ushort code = ch.unicode();
     const bool ascii_alnum =
         (code >= '0' && code <= '9') || (code >= 'A' && code <= 'Z') ||
@@ -2061,18 +2082,21 @@ void MainWindow::SaveMapToLocalAndRobot() {
     }
   }
 
-  const QString initial_dir =
-      QFileInfo(QString::fromStdString(map_path_)).absolutePath();
-  const QString directory =
-      QFileDialog::getExistingDirectory(this, tr("选择 Windows 保存目录"),
-                                        initial_dir,
-                                        QFileDialog::ShowDirsOnly |
-                                            QFileDialog::DontResolveSymlinks);
-  if (directory.isEmpty()) {
+  const QString directory = MapLibraryDirectory();
+  if (!QDir().mkpath(directory)) {
+    QMessageBox::critical(this, tr("保存失败"),
+                          tr("无法创建地图目录：\n%1").arg(directory));
     return;
   }
 
-  const QString base_path = QDir(directory).filePath(map_name);
+  const QString base_path = QDir(directory).filePath(normalized_name);
+  if (QFileInfo::exists(base_path + ".yaml") ||
+      QFileInfo::exists(base_path + ".pgm")) {
+    QMessageBox::warning(this, tr("名称已存在"),
+                         tr("地图“%1”已经存在，请使用新名称。")
+                             .arg(normalized_name));
+    return;
+  }
   auto occ_map = display_manager_->GetOccupancyMap();
   occ_map.Save(base_path.toStdString());
   const QString yaml_path = base_path + ".yaml";
@@ -2090,33 +2114,120 @@ void MainWindow::SaveMapToLocalAndRobot() {
   PUBLISH(MSG_ID_TOPOLOGY_MAP_UPDATE, topology_map);
   map_path_ = base_path.toStdString();
 
+  UploadLocalMap(yaml_path, false);
+}
+
+QString MainWindow::MapLibraryDirectory() const {
+  QString root = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+  if (root.isEmpty()) {
+    root = QDir::homePath();
+  }
+  const QString directory = QDir(root).filePath(QStringLiteral("EggyRobot/maps"));
+  QDir().mkpath(directory);
+  return QDir::toNativeSeparators(directory);
+}
+
+bool MainWindow::UploadLocalMap(const QString& yaml_path, bool activate) {
+  OccupancyMap map;
+  if (!map.Load(yaml_path.toStdString())) {
+    QMessageBox::warning(this, tr("地图无效"),
+                         tr("无法读取地图 YAML：\n%1").arg(yaml_path));
+    return false;
+  }
+  const QString image_path = QString::fromStdString(map.map_config.image);
   QFile yaml_file(yaml_path);
-  QFile pgm_file(pgm_path);
-  if (!yaml_file.open(QIODevice::ReadOnly) || !pgm_file.open(QIODevice::ReadOnly)) {
-    QMessageBox::warning(this, tr("本地已保存"),
-                         tr("地图已保存到 Windows，但读取文件上传到小车时失败。"));
-    return;
+  QFile image_file(image_path);
+  if (!yaml_file.open(QIODevice::ReadOnly) ||
+      !image_file.open(QIODevice::ReadOnly)) {
+    QMessageBox::warning(this, tr("地图不完整"),
+                         tr("地图 YAML 或其图像文件无法读取。\nYAML：%1\n图像：%2")
+                             .arg(yaml_path, image_path));
+    return false;
   }
 
+  const QString request_id = QString("qt-map-%1-%2")
+                                 .arg(QDateTime::currentMSecsSinceEpoch())
+                                 .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
   nlohmann::json request;
-  request["request_id"] =
-      QString("qt-map-%1-%2")
-          .arg(QDateTime::currentMSecsSinceEpoch())
-          .arg(QUuid::createUuid().toString(QUuid::WithoutBraces))
-          .toStdString();
+  request["request_id"] = request_id.toStdString();
   request["command"] = "upload_map";
-  request["target"] = "navigation";
+  request["target"] = "map_library";
   request["params"] = {
-      {"map_name", map_name.toStdString()},
+      {"map_name", QFileInfo(yaml_path).completeBaseName().toStdString()},
       {"yaml_b64", yaml_file.readAll().toBase64().toStdString()},
-      {"pgm_b64", pgm_file.readAll().toBase64().toStdString()},
-      {"activate", false}};
-  PUBLISH(MSG_ID_COMMAND_REQUEST, request.dump());
+      {"pgm_b64", image_file.readAll().toBase64().toStdString()},
+      {"activate", activate}};
 
-  QMessageBox::information(
-      this, tr("地图已保存"),
-      tr("Windows 本地保存完成：\n%1\n\n已向小车发送同名地图；上传结果可在运维面板日志中查看。")
-          .arg(yaml_path));
+  pending_map_request_id_ = request_id;
+  pending_map_yaml_path_ = yaml_path;
+  pending_map_activation_ = activate;
+  statusBar()->showMessage(activate ? tr("正在将地图同步到小车并启动 AMCL…")
+                                    : tr("本地保存完成，正在同步到小车…"));
+  PUBLISH(MSG_ID_COMMAND_REQUEST, request.dump());
+  QTimer::singleShot(45000, this, [this, request_id]() {
+    if (pending_map_request_id_ != request_id) {
+      return;
+    }
+    pending_map_request_id_.clear();
+    pending_map_yaml_path_.clear();
+    pending_map_activation_ = false;
+    statusBar()->showMessage(tr("地图操作超时：小车端未在 45 秒内确认，请检查连接和命令中心。"),
+                             10000);
+    QMessageBox::warning(this, tr("地图操作超时"),
+                         tr("小车端未确认地图操作。当前显示未切换，可检查连接后重试。"));
+  });
+  return true;
+}
+
+void MainWindow::HandleMapCommandResponse(const std::string& json_text) {
+  try {
+    const auto response = nlohmann::json::parse(json_text);
+    if (QString::fromStdString(response.value("request_id", std::string())) !=
+        pending_map_request_id_) {
+      return;
+    }
+    const bool success = response.value("success", false);
+    const QString message =
+        QString::fromStdString(response.value("message", std::string()));
+    const bool activate = pending_map_activation_;
+    const QString yaml_path = pending_map_yaml_path_;
+    pending_map_request_id_.clear();
+    pending_map_yaml_path_.clear();
+    pending_map_activation_ = false;
+
+    if (!success) {
+      statusBar()->showMessage(tr("地图操作失败：%1").arg(message), 10000);
+      QMessageBox::warning(this, tr("地图操作失败"), message);
+      return;
+    }
+    if (!activate) {
+      statusBar()->showMessage(tr("地图已同时保存到本地和小车：%1")
+                                   .arg(QDir::toNativeSeparators(yaml_path)),
+                               8000);
+      QMessageBox::information(
+          this, tr("地图保存完成"),
+          tr("地图已保存并同步。\n\n本地目录：%1")
+              .arg(MapLibraryDirectory()));
+      return;
+    }
+
+    localization_confirmed_ = false;
+    map_activation_requires_localization_ = true;
+    if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
+      robot->setVisible(false);
+    }
+    if (!LoadMap(yaml_path.toStdString())) {
+      return;
+    }
+    statusBar()->showMessage(
+        tr("地图已在小车端加载。请标定小车的真实位置，确认后才可导航。"));
+    if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
+      robot->setVisible(true);  // relocation preview; hidden until this explicit step
+    }
+    StartManualRelocation();
+  } catch (const std::exception& exc) {
+    LOG_ERROR("parse map command response failed: " << exc.what());
+  }
 }
 
 bool MainWindow::LoadMap(const std::string& file_path) {

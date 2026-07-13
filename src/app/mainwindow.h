@@ -120,6 +120,10 @@ class MainWindow : public QMainWindow {
   int connection_attempt_id_ = {0};
   bool channel_subscriptions_registered_ = {false};
   bool channel_connected_ = {false};
+  QString pending_map_request_id_;
+  QString pending_map_yaml_path_;
+  bool pending_map_activation_ = {false};
+  bool map_activation_requires_localization_ = {false};
   bool relocation_pending_ = {false};
   bool localization_confirmed_ = {false};
   RobotPose relocation_target_;
@@ -139,6 +143,9 @@ class MainWindow : public QMainWindow {
   void SaveState();
   void SaveMapToLocalAndRobot();
   bool LoadMap(const std::string& file_path);
+  QString MapLibraryDirectory() const;
+  bool UploadLocalMap(const QString& yaml_path, bool activate);
+  void HandleMapCommandResponse(const std::string& json);
   void ApplyCenteredWindowGeometry();
   void ApplyDefaultDockSizes();
   void ConfigureFloatingOnOpen(ads::CDockWidget* dock, const QSize& preferred_size);

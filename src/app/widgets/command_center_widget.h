@@ -7,9 +7,7 @@
 #include "msg/diagnostic_snapshot.h"
 
 class DiagnosticDockWidget;
-class QComboBox;
 class QFrame;
-class QJsonArray;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
@@ -31,7 +29,6 @@ class CommandCenterWidget : public QWidget {
 
  private slots:
   void SendStatusRequest();
-  void RefreshMaps();
   void StartAmclNavigation();
   void SwitchToMapping();
   void StartInspection();
@@ -48,8 +45,6 @@ class CommandCenterWidget : public QWidget {
   void AppendLog(const QString& prefix, const QString& text);
   void SetCameraStateText(const QString& text);
   void SetNavigationModeText(const QString& mode);
-  void UpdateMapChoices(const QJsonArray& maps);
-  QString SelectedMapFile() const;
   void SetStatusSummary(const QString& text, const QString& detail = QString());
   void SetOverviewPill(QLabel* label, const QString& title, const QString& value,
                        const QString& color, const QString& bg, const QString& border);
@@ -66,7 +61,6 @@ class CommandCenterWidget : public QWidget {
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};
   QLabel* nav_mode_label_{nullptr};
-  QComboBox* map_combo_{nullptr};
   QPushButton* amcl_btn_{nullptr};
   QPushButton* mapping_btn_{nullptr};
   QPushButton* inspection_btn_{nullptr};
