@@ -1,6 +1,7 @@
 #include "display/manager/view_manager.h"
 #include <QDebug>
 #include <QTimer>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include "display/display_occ_map.h"
@@ -280,13 +281,20 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   painter->setRenderHint(QPainter::Antialiasing, false);
   painter->fillRect(rect, QColor(UiStyle::Palette::ToolbarBg));
 
-  const qreal minor_step = 32.0;
+  if (!grid_visible_) {
+    painter->restore();
+    return;
+  }
+
+  const qreal minor_step = grid_spacing_;
   const qreal major_step = minor_step * 4.0;
   const qreal left = std::floor(rect.left() / minor_step) * minor_step;
   const qreal top = std::floor(rect.top() / minor_step) * minor_step;
 
-  QPen minor_pen(UiStyle::IsDarkTheme() ? QColor(116, 146, 138, 34)
-                                        : QColor(96, 125, 117, 22));
+  QColor minor_color = UiStyle::IsDarkTheme() ? QColor(116, 146, 138, 34)
+                                               : QColor(96, 125, 117, 22);
+  minor_color.setAlpha(minor_color.alpha() * grid_opacity_ / 100);
+  QPen minor_pen(minor_color);
   minor_pen.setWidthF(0.0);
   painter->setPen(minor_pen);
   for (qreal x = left; x < rect.right(); x += minor_step) {
@@ -296,8 +304,10 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
   }
 
-  QPen major_pen(UiStyle::IsDarkTheme() ? QColor(116, 158, 147, 58)
-                                        : QColor(75, 115, 105, 38));
+  QColor major_color = UiStyle::IsDarkTheme() ? QColor(116, 158, 147, 58)
+                                               : QColor(75, 115, 105, 38);
+  major_color.setAlpha(major_color.alpha() * grid_opacity_ / 100);
+  QPen major_pen(major_color);
   major_pen.setWidthF(0.0);
   painter->setPen(major_pen);
   const qreal major_left = std::floor(rect.left() / major_step) * major_step;
@@ -310,6 +320,13 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   }
 
   painter->restore();
+}
+
+void ViewManager::SetGridStyle(bool visible, int spacing, int opacity) {
+  grid_visible_ = visible;
+  grid_spacing_ = std::clamp(spacing, 16, 96);
+  grid_opacity_ = std::clamp(opacity, 0, 100);
+  viewport()->update();
 }
 
 void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {

@@ -20,6 +20,7 @@ namespace Display {
 class DisplayPath : public VirtualDisplay {
  private:
   QColor color_;
+  int line_width_ = {1};
   QPolygonF path_points_;
   OccupancyMap map_data_;
 

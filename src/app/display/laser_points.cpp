@@ -7,6 +7,7 @@
  * @Description:
  */
 #include "display/laser_points.h"
+#include <algorithm>
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
 namespace Display {
@@ -54,6 +55,13 @@ void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
   computeBoundRect(laser_data_scene_);
   update();
 }
+
+void LaserPoints::SetVisualStyle(qreal point_size, int opacity) {
+  point_size_ = std::clamp(point_size, 1.0, 8.0);
+  opacity_ = std::clamp(opacity, 0, 100);
+  update();
+}
+
 void LaserPoints::drawLaser(QPainter *painter, int id,
                             const std::vector<Point>& data) {
   QColor color;
@@ -65,7 +73,8 @@ void LaserPoints::drawLaser(QPainter *painter, int id,
   } else {
     color = location_to_color_[id];
   }
-  painter->setPen(QPen(color, 1.0));
+  color.setAlpha(color.alpha() * opacity_ / 100);
+  painter->setPen(QPen(color, point_size_));
   QPolygonF poly;
   poly.reserve(static_cast<int>(data.size()));
   for (const auto& one_point : data) {

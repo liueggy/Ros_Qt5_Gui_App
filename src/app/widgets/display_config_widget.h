@@ -52,6 +52,8 @@ signals:
   void OnRobotShapeIsEllipseChanged(bool checked);
   void OnRobotShapeColorChanged();
   void OnRobotShapeOpacityChanged(int value);
+  void OnMapStyleChanged();
+  void OnResetMapStyle();
 
  private:
   void InitUI();
@@ -60,7 +62,9 @@ signals:
   QWidget *CreateLayersPage();
   QWidget *CreateImagePage();
   QWidget *CreateRobotPage();
+  QWidget *CreateMapStylePage();
   void ApplyRobotAppearance();
+  void ApplyMapStyle();
   void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
   void AutoSaveConfig();
@@ -83,6 +87,20 @@ signals:
   QSlider *robot_opacity_slider_{nullptr};
   QLabel *robot_opacity_label_{nullptr};
   QColor robot_color_;
+
+  QCheckBox *grid_visible_checkbox_{nullptr};
+  QSlider *grid_spacing_slider_{nullptr};
+  QSlider *grid_opacity_slider_{nullptr};
+  QSlider *laser_size_slider_{nullptr};
+  QSlider *laser_opacity_slider_{nullptr};
+  QSlider *path_width_slider_{nullptr};
+  QSlider *costmap_opacity_slider_{nullptr};
+  QLabel *grid_spacing_label_{nullptr};
+  QLabel *grid_opacity_label_{nullptr};
+  QLabel *laser_size_label_{nullptr};
+  QLabel *laser_opacity_label_{nullptr};
+  QLabel *path_width_label_{nullptr};
+  QLabel *costmap_opacity_label_{nullptr};
 
   QComboBox *channel_type_combo_{nullptr};
   QLineEdit *rosbridge_ip_edit_{nullptr};

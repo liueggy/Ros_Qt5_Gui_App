@@ -51,6 +51,20 @@ struct MapConfig {
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(MapConfig, path);
 
+// 本地画布样式，不影响 ROS 图层开关或话题订阅。
+struct MapStyleConfig {
+  bool grid_visible = true;
+  int grid_spacing = 32;
+  int grid_opacity = 100;
+  int laser_point_size = 1;
+  int laser_opacity = 100;
+  int path_line_width = 1;
+  int costmap_opacity = 100;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    MapStyleConfig, grid_visible, grid_spacing, grid_opacity,
+    laser_point_size, laser_opacity, path_line_width, costmap_opacity);
+
 struct ConfigRoot {
   std::vector<DisplayConfig> display_config;
   std::vector<ImageDisplayConfig> images;
@@ -58,8 +72,9 @@ struct ConfigRoot {
   std::map<std::string, std::string> key_value;
   ChannelConfig channel_config; 
   MapConfig map_config;
+  MapStyleConfig map_style_config;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ConfigRoot, display_config, images, robot_shape_config, key_value, channel_config, map_config);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ConfigRoot, display_config, images, robot_shape_config, key_value, channel_config, map_config, map_style_config);
 
 }  // namespace Config
 

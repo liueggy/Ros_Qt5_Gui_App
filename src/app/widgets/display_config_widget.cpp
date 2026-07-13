@@ -118,6 +118,7 @@ void DisplayConfigWidget::InitUI() {
   const QVector<std::pair<QString, QString>> navItems = {
       {tr("通道"), QStringLiteral(":/icons/tabler/plug-connected.svg")},
       {tr("显示与话题"), QStringLiteral(":/icons/tabler/messages.svg")},
+      {tr("地图样式"), QStringLiteral(":/icons/tabler/map-style.svg")},
       {tr("摄像头"), QStringLiteral(":/icons/tabler/camera.svg")},
       {tr("机器人外形"), QStringLiteral(":/icons/tabler/polygon.svg")},
   };
@@ -142,6 +143,7 @@ void DisplayConfigWidget::InitUI() {
 
   page_stack_->addWidget(CreateChannelPage());
   page_stack_->addWidget(CreateLayersPage());
+  page_stack_->addWidget(CreateMapStylePage());
   page_stack_->addWidget(CreateImagePage());
   page_stack_->addWidget(CreateRobotPage());
   for (int index = 0; index < page_stack_->count(); ++index) {
@@ -637,6 +639,79 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   return page;
 }
 
+QWidget* DisplayConfigWidget::CreateMapStylePage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
+  root->setContentsMargins(8, 4, 8, 8);
+  root->setSpacing(10);
+
+  auto* page_title = new QLabel(tr("地图样式"), page);
+  page_title->setObjectName(QStringLiteral("pageTitle"));
+  root->addWidget(page_title);
+  auto* page_subtitle = new QLabel(
+      tr("仅调整 Qt 地图画布的视觉效果；图层开关和 ROS 话题请在“显示与话题”中设置。"), page);
+  page_subtitle->setObjectName(QStringLiteral("pageSubtitle"));
+  page_subtitle->setWordWrap(true);
+  root->addWidget(page_subtitle);
+
+  QFrame* card = CreateSettingsCard(page);
+  auto* layout = new QVBoxLayout(card);
+  layout->setContentsMargins(16, 16, 16, 16);
+  layout->setSpacing(14);
+
+  auto add_slider = [this, layout, card](const QString& title, int minimum, int maximum,
+                                          QSlider*& slider, QLabel*& value_label,
+                                          const QString& suffix) {
+    auto* row = new QHBoxLayout;
+    auto* caption = new QLabel(title, card);
+    caption->setFixedWidth(84);
+    caption->setStyleSheet(UiStyle::FieldLabelStyleSheet());
+    slider = new QSlider(Qt::Horizontal, card);
+    slider->setRange(minimum, maximum);
+    slider->setStyleSheet(QStringLiteral(
+        "QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"
+        "QSlider::handle:horizontal { background:%2; width:16px; margin:-5px 0; border-radius:8px; }")
+        .arg(UiStyle::Palette::Scrollbar, UiStyle::Palette::Primary));
+    value_label = new QLabel(card);
+    value_label->setFixedWidth(52);
+    value_label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    value_label->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+    connect(slider, &QSlider::valueChanged, this, [this, value_label, suffix](int value) {
+      value_label->setText(QString::number(value) + suffix);
+      OnMapStyleChanged();
+    });
+    row->addWidget(caption);
+    row->addWidget(slider, 1);
+    row->addWidget(value_label);
+    layout->addLayout(row);
+  };
+
+  AddSectionHeader(layout, tr("栅格"));
+  grid_visible_checkbox_ = new QCheckBox(tr("显示地图栅格"), card);
+  grid_visible_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
+  connect(grid_visible_checkbox_, &QCheckBox::toggled, this,
+          [this](bool) { OnMapStyleChanged(); });
+  layout->addWidget(grid_visible_checkbox_);
+  add_slider(tr("栅格间距"), 16, 96, grid_spacing_slider_, grid_spacing_label_, tr(" px"));
+  add_slider(tr("栅格强度"), 0, 100, grid_opacity_slider_, grid_opacity_label_, tr("%"));
+
+  AddSectionHeader(layout, tr("激光与路径"));
+  add_slider(tr("激光点大小"), 1, 8, laser_size_slider_, laser_size_label_, tr(" px"));
+  add_slider(tr("激光不透明度"), 0, 100, laser_opacity_slider_, laser_opacity_label_, tr("%"));
+  add_slider(tr("路径线宽"), 1, 8, path_width_slider_, path_width_label_, tr(" px"));
+  add_slider(tr("代价地图透明度"), 0, 100, costmap_opacity_slider_, costmap_opacity_label_, tr("%"));
+
+  auto* reset_button = new QPushButton(tr("恢复推荐样式"), card);
+  reset_button->setCursor(Qt::PointingHandCursor);
+  reset_button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  connect(reset_button, &QPushButton::clicked, this, &DisplayConfigWidget::OnResetMapStyle);
+  layout->addWidget(reset_button, 0, Qt::AlignLeft);
+
+  root->addWidget(card, 0, Qt::AlignTop);
+  root->addStretch(1);
+  return page;
+}
+
 void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel_list) {
   channel_list_ = channel_list;
 
@@ -871,6 +946,53 @@ void DisplayConfigWidget::ApplyRobotAppearance() {
   }
 }
 
+void DisplayConfigWidget::OnMapStyleChanged() {
+  if (!grid_visible_checkbox_) {
+    return;
+  }
+  Config::ConfigManager::Instance()->UpdateRootConfig([this](auto& config) {
+    auto& style = config.map_style_config;
+    style.grid_visible = grid_visible_checkbox_->isChecked();
+    style.grid_spacing = grid_spacing_slider_->value();
+    style.grid_opacity = grid_opacity_slider_->value();
+    style.laser_point_size = laser_size_slider_->value();
+    style.laser_opacity = laser_opacity_slider_->value();
+    style.path_line_width = path_width_slider_->value();
+    style.costmap_opacity = costmap_opacity_slider_->value();
+  });
+  ApplyMapStyle();
+}
+
+void DisplayConfigWidget::OnResetMapStyle() {
+  Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
+    config.map_style_config = Config::MapStyleConfig();
+  });
+  const auto style = Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_style_config;
+  const auto set_slider = [](QSlider* slider, QLabel* label, int value, const QString& suffix) {
+    slider->blockSignals(true);
+    slider->setValue(value);
+    slider->blockSignals(false);
+    label->setText(QString::number(value) + suffix);
+  };
+  grid_visible_checkbox_->blockSignals(true);
+  grid_visible_checkbox_->setChecked(style.grid_visible);
+  grid_visible_checkbox_->blockSignals(false);
+  set_slider(grid_spacing_slider_, grid_spacing_label_, style.grid_spacing, tr(" px"));
+  set_slider(grid_opacity_slider_, grid_opacity_label_, style.grid_opacity, tr("%"));
+  set_slider(laser_size_slider_, laser_size_label_, style.laser_point_size, tr(" px"));
+  set_slider(laser_opacity_slider_, laser_opacity_label_, style.laser_opacity, tr("%"));
+  set_slider(path_width_slider_, path_width_label_, style.path_line_width, tr(" px"));
+  set_slider(costmap_opacity_slider_, costmap_opacity_label_, style.costmap_opacity, tr("%"));
+  ApplyMapStyle();
+}
+
+void DisplayConfigWidget::ApplyMapStyle() {
+  if (display_manager_) {
+    display_manager_->SetMapStyleConfig(
+        Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_style_config);
+  }
+}
+
 void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
   auto display = Display::FactoryDisplay::Instance()->GetDisplay(display_name);
   if (display) {
@@ -987,6 +1109,24 @@ void DisplayConfigWidget::LoadConfig() {
   robot_opacity_label_->setText(QString::number(robot_opacity_slider_->value()) + QStringLiteral("%"));
   robot_opacity_slider_->blockSignals(false);
   ApplyRobotAppearance();
+
+  const auto& map_style = config.map_style_config;
+  const auto load_style_slider = [](QSlider* slider, QLabel* label, int value, const QString& suffix) {
+    slider->blockSignals(true);
+    slider->setValue(value);
+    slider->blockSignals(false);
+    label->setText(QString::number(value) + suffix);
+  };
+  grid_visible_checkbox_->blockSignals(true);
+  grid_visible_checkbox_->setChecked(map_style.grid_visible);
+  grid_visible_checkbox_->blockSignals(false);
+  load_style_slider(grid_spacing_slider_, grid_spacing_label_, map_style.grid_spacing, tr(" px"));
+  load_style_slider(grid_opacity_slider_, grid_opacity_label_, map_style.grid_opacity, tr("%"));
+  load_style_slider(laser_size_slider_, laser_size_label_, map_style.laser_point_size, tr(" px"));
+  load_style_slider(laser_opacity_slider_, laser_opacity_label_, map_style.laser_opacity, tr("%"));
+  load_style_slider(path_width_slider_, path_width_label_, map_style.path_line_width, tr(" px"));
+  load_style_slider(costmap_opacity_slider_, costmap_opacity_label_, map_style.costmap_opacity, tr("%"));
+  ApplyMapStyle();
 
   is_loading_config_ = true;
 

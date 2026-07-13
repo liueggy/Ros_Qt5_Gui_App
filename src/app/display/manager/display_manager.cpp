@@ -8,6 +8,7 @@
 #include "display/manager/display_manager.h"
 #include "display/point_shape.h"
 #include "display/laser_points.h"
+#include <algorithm>
 #include <Eigen/Eigen>
 #include <QOpenGLWidget>
 #include "algorithm.h"
@@ -152,6 +153,21 @@ void DisplayManager::SetRobotAppearanceConfig(
   auto* robot_shape = dynamic_cast<RobotShape*>(GetDisplay(DISPLAY_ROBOT_FOOTPRINT));
   if (robot_shape) {
     robot_shape->SetAppearanceConfig(config);
+  }
+}
+
+void DisplayManager::SetMapStyleConfig(const Config::MapStyleConfig& config) {
+  graphics_view_ptr_->SetGridStyle(config.grid_visible, config.grid_spacing,
+                                   config.grid_opacity);
+  if (auto* laser = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER))) {
+    laser->SetVisualStyle(config.laser_point_size, config.laser_opacity);
+  }
+  SetDisplayConfig(DISPLAY_GLOBAL_PATH + "/LineWidth", config.path_line_width);
+  SetDisplayConfig(DISPLAY_LOCAL_PATH + "/LineWidth", config.path_line_width);
+  for (const auto& display_name : {DISPLAY_GLOBAL_COST_MAP, DISPLAY_LOCAL_COST_MAP}) {
+    if (auto* display = GetDisplay(display_name)) {
+      display->setOpacity(std::clamp(config.costmap_opacity, 0, 100) / 100.0);
+    }
   }
 }
 /**

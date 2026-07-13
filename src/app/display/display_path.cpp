@@ -7,6 +7,7 @@
  * @Description:
  */
 #include "display/display_path.h"
+#include <algorithm>
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
 namespace Display {
@@ -45,6 +46,11 @@ bool DisplayPath::SetDisplayConfig(const std::string &config_name,
     Color color;
     GetAnyData(Color, config_data, color);
     color_ = QColor(color[0], color[1], color[2]);
+  } else if (config_name == "LineWidth") {
+    int line_width = 1;
+    GetAnyData(int, config_data, line_width);
+    line_width_ = std::clamp(line_width, 1, 8);
+    update();
   } else {
     return false;
   }
@@ -54,7 +60,7 @@ void DisplayPath::drawPath(QPainter *painter) {
 
   painter->setRenderHints(QPainter::Antialiasing |
                           QPainter::SmoothPixmapTransform);
-  painter->setPen(QPen(color_, 1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+  painter->setPen(QPen(color_, line_width_, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
   painter->setBrush(QBrush(color_));
   for (int i = 1; i < path_points_.size(); i++) {
     painter->drawLine(path_points_[i - 1], path_points_[i]);

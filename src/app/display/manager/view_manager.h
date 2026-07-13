@@ -30,6 +30,9 @@ class ViewManager : public QGraphicsView {
   qreal map_view_rotation_deg_ = {-90.0};
   bool map_auto_fit_done_ = {false};
   bool user_map_view_adjusted_ = {false};
+  bool grid_visible_ = {true};
+  int grid_spacing_ = {32};
+  int grid_opacity_ = {100};
   void ApplyMapViewScale(qreal factor, QGraphicsView::ViewportAnchor anchor = QGraphicsView::AnchorViewCenter);
 
  public:
@@ -45,6 +48,7 @@ class ViewManager : public QGraphicsView {
   void FitMapToBestView();
   void ZoomMapView(qreal factor);
   void RotateMapView(qreal delta_degrees);
+  void SetGridStyle(bool visible, int spacing, int opacity);
 
  private slots:
   void OnEditMapModeChanged(MapEditMode mode);
