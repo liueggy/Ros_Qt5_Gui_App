@@ -307,7 +307,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_left_2.png);}"));
-    move_btn_u_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-left.svg")));
+    move_btn_u_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-up-left.svg"), QSize(30, 30)));
     move_btn_u_->setIconSize(QSize(30, 30));
     move_btn_u_->setStyleSheet(moveButtonStyle);
 
@@ -323,7 +323,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_2.png);}"));
-    move_btn_i_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up.svg")));
+    move_btn_i_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-up.svg"), QSize(30, 30)));
     move_btn_i_->setIconSize(QSize(30, 30));
     move_btn_i_->setStyleSheet(moveButtonStyle);
 
@@ -339,7 +339,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/up_right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/up_right_2.png);}"));
-    move_btn_o_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-up-right.svg")));
+    move_btn_o_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-up-right.svg"), QSize(30, 30)));
     move_btn_o_->setIconSize(QSize(30, 30));
     move_btn_o_->setStyleSheet(moveButtonStyle);
 
@@ -362,7 +362,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/left_2.png);}"));
-    move_btn_j_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-left.svg")));
+    move_btn_j_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-left.svg"), QSize(30, 30)));
     move_btn_j_->setIconSize(QSize(30, 30));
     move_btn_j_->setStyleSheet(moveButtonStyle);
 
@@ -388,7 +388,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/right.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/right_2.png);}"));
-    move_btn_l_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-right.svg")));
+    move_btn_l_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-right.svg"), QSize(30, 30)));
     move_btn_l_->setIconSize(QSize(30, 30));
     move_btn_l_->setStyleSheet(moveButtonStyle);
 
@@ -411,7 +411,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/down_left.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_left_2.png);}"));
-    move_btn_m_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-left.svg")));
+    move_btn_m_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-down-left.svg"), QSize(30, 30)));
     move_btn_m_->setIconSize(QSize(30, 30));
     move_btn_m_->setStyleSheet(moveButtonStyle);
 
@@ -427,7 +427,7 @@ class SpeedCtrlWidget : public QWidget {
         "QPushButton{border-image: url(://images/down.png);}\n"
         "QPushButton{border:none;}\n"
         "QPushButton:pressed{border-image: url(://images/down_2.png);}"));
-    move_btn_back_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down.svg")));
+    move_btn_back_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-down.svg"), QSize(30, 30)));
     move_btn_back_->setIconSize(QSize(30, 30));
     move_btn_back_->setStyleSheet(moveButtonStyle);
 
@@ -453,7 +453,7 @@ class SpeedCtrlWidget : public QWidget {
       connect(button, &QPushButton::released, this,
               &SpeedCtrlWidget::slotStopControl);
     }
-    move_btn_backr_->setIcon(QIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg")));
+    move_btn_backr_->setIcon(UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/arrow-down-right.svg"), QSize(30, 30)));
     move_btn_backr_->setIconSize(QSize(30, 30));
     move_btn_backr_->setStyleSheet(moveButtonStyle);
 

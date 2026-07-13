@@ -139,9 +139,11 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   network_row->setSpacing(10);
   wifi_status_label_ = new QToolButton(network_group);
   cellular_status_label_ = new QToolButton(network_group);
-  wifi_status_label_->setIcon(QIcon(QStringLiteral(":/icons/tabler/wifi.svg")));
+  wifi_status_label_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/wifi.svg"), QSize(26, 26)));
   cellular_status_label_->setIcon(
-      QIcon(QStringLiteral(":/icons/tabler/antenna-bars-5.svg")));
+      UiStyle::TintedIcon(QStringLiteral(":/icons/tabler/antenna-bars-5.svg"),
+                          QSize(26, 26)));
   wifi_status_label_->setText(tr("WiFi\n未连接"));
   cellular_status_label_->setText(tr("4G\n未连接"));
   for (auto* status : {wifi_status_label_, cellular_status_label_}) {

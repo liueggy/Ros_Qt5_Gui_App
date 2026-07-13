@@ -2,6 +2,8 @@
 
 #include <QString>
 #include <QApplication>
+#include <QIcon>
+#include <QSize>
 
 // ═══════════════════════════════════════════════
 //  UiStyle — centralized design system
@@ -129,6 +131,11 @@ QString ApplicationStyleSheet();
 QString DockStyleSheet();
 void SetDarkTheme(bool dark);
 bool IsDarkTheme();
+
+// Recolors monochrome resource icons with the active semantic colour token.
+QIcon TintedIcon(const QString& resource_path,
+                 const QSize& size = QSize(32, 32),
+                 const QString& color = Palette::Primary);
 
 // ── Panel / Card / Group ─────────────────────
 QString PanelStyleSheet();

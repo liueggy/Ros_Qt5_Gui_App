@@ -127,7 +127,8 @@ void DisplayConfigWidget::InitUI() {
       {tr("键值对"), QStringLiteral(":/icons/tabler/key.svg")},
   };
   for (const auto& item : navItems) {
-    auto* nav_item = new QListWidgetItem(QIcon(item.second), item.first, nav_list_);
+    auto* nav_item = new QListWidgetItem(
+        UiStyle::TintedIcon(item.second, QSize(24, 24)), item.first, nav_list_);
     nav_text_width = (std::max)(nav_text_width,
                                 nav_metrics.horizontalAdvance(item.first));
     nav_item->setSizeHint(QSize(150, 54));

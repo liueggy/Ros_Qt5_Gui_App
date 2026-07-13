@@ -92,7 +92,7 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   layout->setSpacing(5);
 
   auto* icon = new QLabel(pill);
-  icon->setPixmap(QIcon(icon_path).pixmap(18, 18));
+  icon->setPixmap(UiStyle::TintedIcon(icon_path, QSize(18, 18)).pixmap(18, 18));
   icon->setFixedSize(18, 18);
   icon->setAlignment(Qt::AlignCenter);
   icon->setToolTip(tooltip);
@@ -910,10 +910,8 @@ void MainWindow::setupUi() {
 
   // 添加 "view" 菜单按钮
   QToolButton* view_menu_btn = new QToolButton();
-  QIcon view_icon;
-  view_icon.addFile(QString::fromUtf8(":/icons/tabler/menu-2.svg"),
-                    QSize(32, 32), QIcon::Normal, QIcon::Off);
-  view_menu_btn->setIcon(view_icon);
+  view_menu_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/menu-2.svg"), QSize(32, 32)));
   view_menu_btn->setIconSize(QSize(24, 24));
   view_menu_btn->setMinimumWidth(58);
   view_menu_btn->setPopupMode(QToolButton::InstantPopup);
@@ -930,55 +928,44 @@ void MainWindow::setupUi() {
   reloc_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   reloc_btn->setStyleSheet(modernToolButtonStyle);
 
-  QIcon icon4;
-  icon4.addFile(QString::fromUtf8(":/icons/tabler/map-pin.svg"),
-                QSize(32, 32), QIcon::Normal, QIcon::Off);
-  reloc_btn->setIcon(icon4);
+  reloc_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/map-pin.svg"), QSize(32, 32)));
   reloc_btn->setText("重定位");
   reloc_btn->setIconSize(QSize(24, 24));
   reloc_btn->setToolTip(tr("在地图上手动设置机器人位置和朝向"));
   connect(reloc_btn, &QToolButton::clicked, this, &MainWindow::StartManualRelocation);
   horizontalLayout_tools->addWidget(reloc_btn);
 
-  QIcon icon5;
-  icon5.addFile(QString::fromUtf8(":/icons/tabler/pointer.svg"),
-                QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* edit_map_btn = new QToolButton();
-  edit_map_btn->setIcon(icon5);
+  edit_map_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/pointer.svg"), QSize(32, 32)));
   edit_map_btn->setText("编辑地图");
   edit_map_btn->setIconSize(QSize(24, 24));
   edit_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   edit_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(edit_map_btn);
 
-  QIcon icon6;
-  icon6.addFile(QString::fromUtf8(":/icons/tabler/folder-open.svg"),
-                QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* open_map_btn = new QToolButton();
-  open_map_btn->setIcon(icon6);
+  open_map_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/folder-open.svg"), QSize(32, 32)));
   open_map_btn->setText("打开地图");
   open_map_btn->setIconSize(QSize(24, 24));
   open_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   open_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(open_map_btn);
 
-  QIcon icon8;
-  icon8.addFile(QString::fromUtf8(":/icons/tabler/device-floppy.svg"),
-                QSize(32, 32), QIcon::Normal, QIcon::Off);
-
   QToolButton* save_map_btn = new QToolButton();
-  save_map_btn->setIcon(icon8);
+  save_map_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/device-floppy.svg"), QSize(32, 32)));
   save_map_btn->setText("保存地图");
   save_map_btn->setIconSize(QSize(24, 24));
   save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(save_map_btn);
 
-  QIcon icon7;
-  icon7.addFile(QString::fromUtf8(":/images/re_save.svg"),
-                QSize(32, 32), QIcon::Normal, QIcon::Off);
   QToolButton* re_save_map_btn = new QToolButton();
-  re_save_map_btn->setIcon(icon7);
+  re_save_map_btn->setIcon(
+      UiStyle::TintedIcon(QStringLiteral(":/images/re_save.svg"), QSize(32, 32)));
   re_save_map_btn->setText("另存为");
   re_save_map_btn->setIconSize(QSize(24, 24));
   re_save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
@@ -1123,10 +1110,8 @@ void MainWindow::setupUi() {
   normal_cursor_btn->setCursor(Qt::PointingHandCursor);
   normal_cursor_btn->setIconSize(QSize(24, 24));
 
-  QIcon pose_tool_btn_icon;
-  pose_tool_btn_icon.addFile(QString::fromUtf8(":/images/cursor_point_btn.svg"),
-                             QSize(), QIcon::Normal, QIcon::Off);
-  normal_cursor_btn->setIcon(pose_tool_btn_icon);
+  normal_cursor_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/cursor_point_btn.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(normal_cursor_btn);
 
   // 添加点位按钮
@@ -1137,10 +1122,8 @@ void MainWindow::setupUi() {
   add_point_btn->setCursor(Qt::PointingHandCursor);
   add_point_btn->setIconSize(QSize(24, 24));
 
-  QIcon add_point_btn_icon;
-  add_point_btn_icon.addFile(QString::fromUtf8(":/images/point_btn.svg"),
-                             QSize(), QIcon::Normal, QIcon::Off);
-  add_point_btn->setIcon(add_point_btn_icon);
+  add_point_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/point_btn.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(add_point_btn);
 
   QToolButton* add_topology_path_btn = new QToolButton();
@@ -1150,10 +1133,8 @@ void MainWindow::setupUi() {
   add_topology_path_btn->setCursor(Qt::PointingHandCursor);
   add_topology_path_btn->setIconSize(QSize(24, 24));
 
-  QIcon add_topology_path_btn_icon;
-  add_topology_path_btn_icon.addFile(QString::fromUtf8(":/images/topo_link_btn.svg"),
-                                     QSize(), QIcon::Normal, QIcon::Off);
-  add_topology_path_btn->setIcon(add_topology_path_btn_icon);
+  add_topology_path_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/topo_link_btn.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(add_topology_path_btn);
   add_topology_path_btn->setEnabled(true);
 
@@ -1165,10 +1146,8 @@ void MainWindow::setupUi() {
   add_region_btn->setCursor(Qt::PointingHandCursor);
   add_region_btn->setIconSize(QSize(24, 24));
 
-  QIcon add_region_btn_icon;
-  add_region_btn_icon.addFile(QString::fromUtf8(":/images/region_btn.svg"),
-                              QSize(), QIcon::Normal, QIcon::Off);
-  add_region_btn->setIcon(add_region_btn_icon);
+  add_region_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/region_btn.svg"), QSize(24, 24)));
   add_region_btn->setEnabled(false);
   layout_tools_edit_map->addWidget(add_region_btn);
 
@@ -1187,10 +1166,8 @@ void MainWindow::setupUi() {
   erase_btn->setCursor(Qt::PointingHandCursor);
   erase_btn->setIconSize(QSize(24, 24));
 
-  QIcon erase_btn_icon;
-  erase_btn_icon.addFile(QString::fromUtf8(":/images/erase_btn.svg"),
-                         QSize(), QIcon::Normal, QIcon::Off);
-  erase_btn->setIcon(erase_btn_icon);
+  erase_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/erase_btn.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(erase_btn);
 
   // 画笔按钮
@@ -1201,10 +1178,8 @@ void MainWindow::setupUi() {
   draw_pen_btn->setCursor(Qt::PointingHandCursor);
   draw_pen_btn->setIconSize(QSize(24, 24));
 
-  QIcon draw_pen_btn_icon;
-  draw_pen_btn_icon.addFile(QString::fromUtf8(":/images/pen.svg"),
-                            QSize(), QIcon::Normal, QIcon::Off);
-  draw_pen_btn->setIcon(draw_pen_btn_icon);
+  draw_pen_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/pen.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(draw_pen_btn);
 
   // 线段按钮
@@ -1215,10 +1190,8 @@ void MainWindow::setupUi() {
   draw_line_btn->setCursor(Qt::PointingHandCursor);
   draw_line_btn->setIconSize(QSize(24, 24));
 
-  QIcon draw_line_btn_icon;
-  draw_line_btn_icon.addFile(QString::fromUtf8(":/images/line_btn.svg"),
-                             QSize(), QIcon::Normal, QIcon::Off);
-  draw_line_btn->setIcon(draw_line_btn_icon);
+  draw_line_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/line_btn.svg"), QSize(24, 24)));
   layout_tools_edit_map->addWidget(draw_line_btn);
 
   layout_tools_edit_map->addItem(

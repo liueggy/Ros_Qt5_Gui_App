@@ -1,5 +1,10 @@
 #include "widgets/ui_style.h"
 
+#include <QColor>
+#include <QImage>
+#include <QPainter>
+#include <QPixmap>
+
 namespace UiStyle {
 
 namespace {
@@ -91,6 +96,20 @@ void SetDarkTheme(bool dark) {
 }
 
 bool IsDarkTheme() { return g_dark_theme; }
+
+QIcon TintedIcon(const QString& resource_path, const QSize& size,
+                 const QString& color) {
+  const QPixmap source = QIcon(resource_path).pixmap(size);
+  if (source.isNull()) {
+    return QIcon(resource_path);
+  }
+  QImage image = source.toImage().convertToFormat(QImage::Format_ARGB32);
+  QPainter painter(&image);
+  painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+  painter.fillRect(image.rect(), QColor(color));
+  painter.end();
+  return QIcon(QPixmap::fromImage(image));
+}
 
 // ── Legacy compatibility shims ─────────────
 

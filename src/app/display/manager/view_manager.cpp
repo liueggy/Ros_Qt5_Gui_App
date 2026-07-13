@@ -71,7 +71,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_layout->setContentsMargins(30, 26, 30, 28);
   empty_layout->setSpacing(10);
   auto* empty_icon = new QLabel(map_empty_state_);
-  empty_icon->setPixmap(QIcon(QStringLiteral(":/icons/tabler/map.svg")).pixmap(34, 34));
+  empty_icon->setPixmap(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/map.svg"), QSize(34, 34)).pixmap(34, 34));
   empty_icon->setAlignment(Qt::AlignCenter);
   empty_icon->setFixedSize(68, 58);
   empty_icon->setStyleSheet(QStringLiteral(
@@ -153,7 +154,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   // 创建工具按钮并添加到布局中
   // 添加机器人位置按钮（在放大缩小按钮左侧，初始隐藏）
   add_robot_pos_btn_ = new QToolButton();
-  add_robot_pos_btn_->setIcon(QIcon(":/images/crosshair.svg"));
+  add_robot_pos_btn_->setIcon(
+      UiStyle::TintedIcon(QStringLiteral(":/images/crosshair.svg"), QSize(25, 25)));
   add_robot_pos_btn_->setIconSize(QSize(25, 25));
   add_robot_pos_btn_->setToolTip("添加机器人当前位置为目标点");
   add_robot_pos_btn_->setCursor(Qt::PointingHandCursor);
@@ -170,27 +172,32 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   bottom_layout->addWidget(add_robot_pos_btn_);
 
   QToolButton* set_big_btn_ = new QToolButton();
-  set_big_btn_->setIcon(QIcon(":/icons/tabler/zoom-in.svg"));
+  set_big_btn_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/zoom-in.svg"), QSize(22, 22)));
   set_big_btn_->setToolTip("放大地图视图");
   set_big_btn_->setCursor(Qt::PointingHandCursor);
   bottom_layout->addWidget(set_big_btn_);
   QToolButton* set_small_btn_ = new QToolButton();
-  set_small_btn_->setIcon(QIcon(":/icons/tabler/zoom-out.svg"));
+  set_small_btn_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/zoom-out.svg"), QSize(22, 22)));
   set_small_btn_->setToolTip("缩小地图视图");
   set_small_btn_->setCursor(Qt::PointingHandCursor);
   bottom_layout->addWidget(set_small_btn_);
   QToolButton* fit_map_btn = new QToolButton();
-  fit_map_btn->setIcon(QIcon(":/icons/tabler/focus-centered.svg"));
+  fit_map_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/focus-centered.svg"), QSize(22, 22)));
   fit_map_btn->setToolTip("适配并居中地图");
   fit_map_btn->setCursor(Qt::PointingHandCursor);
   bottom_layout->addWidget(fit_map_btn);
   QToolButton* rotate_view_btn = new QToolButton();
-  rotate_view_btn->setIcon(QIcon(":/images/rotate.svg"));
+  rotate_view_btn->setIcon(
+      UiStyle::TintedIcon(QStringLiteral(":/images/rotate.svg"), QSize(22, 22)));
   rotate_view_btn->setToolTip("地图视图顺时针旋转90°");
   rotate_view_btn->setCursor(Qt::PointingHandCursor);
   bottom_layout->addWidget(rotate_view_btn);
   focus_robot_btn_ = new QToolButton();
-  focus_robot_btn_->setIcon(QIcon(":/images/unfocus.svg"));
+  focus_robot_btn_->setIcon(
+      UiStyle::TintedIcon(QStringLiteral(":/images/unfocus.svg"), QSize(22, 22)));
   focus_robot_btn_->setToolTip("聚焦机器人");
   focus_robot_btn_->setCursor(Qt::PointingHandCursor);
   focus_robot_btn_->setStyleSheet(
@@ -217,7 +224,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   // 图层列表面板
   QHBoxLayout* display_btn_list_layout = new QHBoxLayout;
   QToolButton* display_laser_btn_ = new QToolButton();
-  display_laser_btn_->setIcon(QIcon(":/images/classes/LaserScan.png"));
+  display_laser_btn_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/images/classes/LaserScan.png"), QSize(25, 25)));
   display_laser_btn_->setIconSize(QSize(25, 25));
   display_laser_btn_->setToolTip("放大");
   display_laser_btn_->setStyleSheet(
@@ -238,11 +246,13 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
     if (focus_robot_btn_->toolTip() == "聚焦机器人") {
       FactoryDisplay::Instance()->SetFocusDisplay(DISPLAY_ROBOT);
       focus_robot_btn_->setToolTip("取消聚焦机器人");
-      focus_robot_btn_->setIcon(QIcon(":/images/focus.svg"));
+      focus_robot_btn_->setIcon(
+          UiStyle::TintedIcon(QStringLiteral(":/images/focus.svg"), QSize(22, 22)));
     } else {
       FactoryDisplay::Instance()->SetFocusDisplay("");
       focus_robot_btn_->setToolTip("聚焦机器人");
-      focus_robot_btn_->setIcon(QIcon(":/images/unfocus.svg"));
+      focus_robot_btn_->setIcon(
+          UiStyle::TintedIcon(QStringLiteral(":/images/unfocus.svg"), QSize(22, 22)));
     }
   });
   connect(set_big_btn_, &QToolButton::clicked, [this]() { ZoomMapView(1.20); });
