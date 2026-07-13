@@ -270,7 +270,7 @@ class SpeedCtrlWidget : public QWidget {
             });
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = UiStyle::MoveButtonStyleSheet();
-    const QSize moveButtonSize(52, 52);
+    const QSize moveButtonSize(46, 46);
     setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid %1; border-radius:10px; background:%2; top:-1px; }"
                                                                                               "QTabBar::tab { padding:7px 18px; color:%3; border:none; background:transparent; }"
                                                                                               "QTabBar::tab:selected { color:%4; font-weight:700; border-bottom:2px solid %4; }"
@@ -288,24 +288,14 @@ class SpeedCtrlWidget : public QWidget {
     control_card->setProperty("uiCard", true);
     control_card->setStyleSheet(UiStyle::CardStyleSheet());
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
-    control_layout->setContentsMargins(14, 12, 14, 14);
-    control_layout->setSpacing(12);
-
-    QHBoxLayout* control_header = new QHBoxLayout();
-    QLabel* control_title = new QLabel(QStringLiteral("移动控制"), control_card);
-    control_title->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
-    QLabel* control_hint = new QLabel(QStringLiteral("按住移动 · 松开即停"), control_card);
-    control_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-    control_header->addWidget(control_title);
-    control_header->addStretch();
-    control_header->addWidget(control_hint);
-    control_layout->addLayout(control_header);
+    control_layout->setContentsMargins(14, 10, 14, 14);
+    control_layout->setSpacing(10);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
-    verticalLayout_cmd_btn->setContentsMargins(8, 6, 8, 10);
-    verticalLayout_cmd_btn->setSpacing(8);
+    verticalLayout_cmd_btn->setContentsMargins(8, 4, 8, 6);
+    verticalLayout_cmd_btn->setSpacing(6);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
-    horizontalLayout_2->setSpacing(22);
+    horizontalLayout_2->setSpacing(16);
     horizontalLayout_2->setAlignment(Qt::AlignCenter);
     move_btn_u_ = new QPushButton();
     move_btn_u_->setObjectName(QString::fromUtf8("pushButton_u"));
@@ -360,7 +350,7 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
     horizontalLayout_18->setObjectName(
         QString::fromUtf8("horizontalLayout_18"));
-    horizontalLayout_18->setSpacing(22);
+    horizontalLayout_18->setSpacing(16);
     horizontalLayout_18->setAlignment(Qt::AlignCenter);
     move_btn_j_ = new QPushButton();
     move_btn_j_->setProperty("moveKey", "j");
@@ -380,8 +370,8 @@ class SpeedCtrlWidget : public QWidget {
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
-    checkBox_use_all_->setMinimumSize(QSize(94, 40));
-    checkBox_use_all_->setMaximumSize(QSize(110, 40));
+    checkBox_use_all_->setMinimumSize(QSize(92, 36));
+    checkBox_use_all_->setMaximumSize(QSize(104, 36));
     checkBox_use_all_->setText("全向模式");
     checkBox_use_all_->setChecked(true);
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
@@ -409,7 +399,7 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
     horizontalLayout_19->setObjectName(
         QString::fromUtf8("horizontalLayout_19"));
-    horizontalLayout_19->setSpacing(22);
+    horizontalLayout_19->setSpacing(16);
     horizontalLayout_19->setAlignment(Qt::AlignCenter);
     move_btn_m_ = new QPushButton();
     move_btn_m_->setObjectName(QString::fromUtf8("pushButton_m"));
@@ -484,7 +474,8 @@ class SpeedCtrlWidget : public QWidget {
     QWidget* widget_joyStick = new QWidget();
     QHBoxLayout* horizontalLayout_joyStick = new QHBoxLayout();
     joyStick_widget_ = new JoyStick();
-    joyStick_widget_->setMinimumSize(QSize(200, 200));
+    joyStick_widget_->setMinimumSize(QSize(160, 160));
+    joyStick_widget_->setMaximumSize(QSize(180, 180));
 
     connect(joyStick_widget_, &JoyStick::axesChanged, this,
             &SpeedCtrlWidget::slotJoyStickAxes);

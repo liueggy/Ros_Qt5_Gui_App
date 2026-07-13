@@ -651,7 +651,9 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
   page_title->setObjectName(QStringLiteral("pageTitle"));
   auto* reset_button = new QPushButton(tr("恢复推荐值"), page);
   reset_button->setCursor(Qt::PointingHandCursor);
-  reset_button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  reset_button->setText(tr("重置"));
+  reset_button->setFixedWidth(72);
+  reset_button->setStyleSheet(UiStyle::LinkButtonStyleSheet());
   connect(reset_button, &QPushButton::clicked, this, &DisplayConfigWidget::OnResetMapStyle);
   title_row->addWidget(page_title);
   title_row->addStretch(1);
@@ -666,6 +668,7 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
   auto* scroll = new QScrollArea(page);
   scroll->setWidgetResizable(true);
   scroll->setFrameShape(QFrame::NoFrame);
+  scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   auto* content = new QWidget(scroll);
   auto* content_layout = new QVBoxLayout(content);
   content_layout->setContentsMargins(0, 0, 8, 0);
@@ -676,11 +679,11 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
                            QSpinBox*& spin, const QString& suffix) {
     auto* row = new QHBoxLayout;
     auto* caption = new QLabel(title, card);
-    caption->setMinimumWidth(98);
+    caption->setMinimumWidth(82);
     caption->setStyleSheet(UiStyle::FieldLabelStyleSheet());
     slider = new QSlider(Qt::Horizontal, card);
     slider->setRange(minimum, maximum);
-    slider->setMinimumWidth(120);
+    slider->setMinimumWidth(76);
     slider->setStyleSheet(QStringLiteral(
         "QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"
         "QSlider::sub-page:horizontal { background:%2; border-radius:3px; }"
@@ -690,8 +693,9 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
     spin->setRange(minimum, maximum);
     spin->setSuffix(suffix);
     spin->setAlignment(Qt::AlignRight);
-    spin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
-    spin->setFixedWidth(86);
+    spin->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    spin->setKeyboardTracking(false);
+    spin->setFixedWidth(72);
     spin->setStyleSheet(UiStyle::InputStyleSheet());
     connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
     connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), slider, &QSlider::setValue);
@@ -707,7 +711,7 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
                           const QString& role, QPushButton*& button) {
     auto* row = new QHBoxLayout;
     auto* caption = new QLabel(title, card);
-    caption->setMinimumWidth(98);
+    caption->setMinimumWidth(82);
     caption->setStyleSheet(UiStyle::FieldLabelStyleSheet());
     button = new QPushButton(card);
     button->setCursor(Qt::PointingHandCursor);
@@ -721,24 +725,18 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
     layout->addLayout(row);
   };
 
-  auto create_card = [content](const QString& title, const QString& hint) {
+  auto create_card = [content](const QString& title) {
     QFrame* card = CreateSettingsCard(content);
     auto* layout = new QVBoxLayout(card);
-    layout->setContentsMargins(16, 14, 16, 16);
-    layout->setSpacing(12);
+    layout->setContentsMargins(14, 12, 14, 14);
+    layout->setSpacing(10);
     auto* heading = new QLabel(title, card);
     heading->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
     layout->addWidget(heading);
-    if (!hint.isEmpty()) {
-      auto* description = new QLabel(hint, card);
-      description->setWordWrap(true);
-      description->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-      layout->addWidget(description);
-    }
     return std::make_pair(card, layout);
   };
 
-  auto grid_card = create_card(tr("栅格"), tr("调整背景参考网格；数值框可直接键入，也可使用加减按钮。"));
+  auto grid_card = create_card(tr("栅格"));
   grid_visible_checkbox_ = new QCheckBox(tr("显示地图栅格"), grid_card.first);
   grid_visible_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
   connect(grid_visible_checkbox_, &QCheckBox::toggled, this,
@@ -752,7 +750,7 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
             grid_color_button_);
   content_layout->addWidget(grid_card.first);
 
-  auto laser_card = create_card(tr("激光点"), tr("颜色统一应用于 Qt 中的激光点，不改变雷达原始数据。"));
+  auto laser_card = create_card(tr("激光点"));
   add_slider(laser_card.second, laser_card.first, tr("点大小"), 1, 8,
              laser_size_slider_, laser_size_spin_, tr(" px"));
   add_slider(laser_card.second, laser_card.first, tr("不透明度"), 0, 100,
@@ -761,9 +759,7 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
             laser_color_button_);
   content_layout->addWidget(laser_card.first);
 
-  auto path_card = create_card(
-      tr("路径与代价地图"),
-      tr("全局路径和局部路径可分别配色；代价地图保留 ROS 原始语义色。"));
+  auto path_card = create_card(tr("路径与代价地图"));
   add_slider(path_card.second, path_card.first, tr("路径线宽"), 1, 8,
              path_width_slider_, path_width_spin_, tr(" px"));
   add_color(path_card.second, path_card.first, tr("全局路径"), QStringLiteral("global_path"),
@@ -1100,12 +1096,13 @@ void DisplayConfigWidget::UpdateMapStyleColorButtons(
     button->setToolTip(QStringLiteral("点击选择颜色：%1").arg(text));
     button->setStyleSheet(QStringLiteral(
         "QPushButton { background:%1; color:%2; border:1px solid %3; border-radius:7px; "
-        "padding:6px 12px; min-width:112px; font-weight:700; }"
-        "QPushButton:hover { border:2px solid %4; padding:5px 11px; }"
-        "QPushButton:focus { border:2px solid %4; padding:5px 11px; }")
+        "padding:6px 10px; min-width:102px; font-weight:600; }"
+        "QPushButton:hover { background:%4; border-color:%5; }"
+        "QPushButton:focus { border:2px solid %5; padding:5px 9px; }")
         .arg(UiStyle::Palette::Surface,
              UiStyle::Palette::Text,
-             color.isValid() ? color.name() : UiStyle::Palette::Border,
+             UiStyle::Palette::Border,
+             UiStyle::Palette::SurfaceHover,
              UiStyle::Palette::Primary));
     if (color.isValid()) {
       QPixmap swatch(18, 18);
