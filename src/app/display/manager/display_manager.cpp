@@ -146,6 +146,14 @@ bool DisplayManager::SetDisplayConfig(const std::string &config_name,
   }
   return display->SetDisplayConfig(config_list[1].toStdString(), data);
 }
+
+void DisplayManager::SetRobotAppearanceConfig(
+    const Config::RobotShapedConfig& config) {
+  auto* robot_shape = dynamic_cast<RobotShape*>(GetDisplay(DISPLAY_ROBOT_FOOTPRINT));
+  if (robot_shape) {
+    robot_shape->SetAppearanceConfig(config);
+  }
+}
 /**
  * @description:坐标系转换为图元坐标系
  * @return {*}

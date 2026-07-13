@@ -45,9 +45,6 @@ signals:
  private slots:
   void OnToggleDisplay(const std::string &display_name, bool visible);
   void OnDisplayTopicChanged(const std::string &display_name, const QString &topic);
-  void OnKeyValueChanged(const std::string &key, const QString &value);
-  void OnAddKeyValue();
-  void OnRemoveKeyValue(const std::string &key);
   void OnAddImageConfig();
   void OnRemoveImageConfig(int row);
   void OnImageConfigChanged(int row);
@@ -55,6 +52,7 @@ signals:
   void OnRobotShapeIsEllipseChanged(bool checked);
   void OnRobotShapeColorChanged();
   void OnRobotShapeOpacityChanged(int value);
+  void OnBaseFrameIdChanged();
 
  private:
   void InitUI();
@@ -63,9 +61,8 @@ signals:
   QWidget *CreateLayersPage();
   QWidget *CreateImagePage();
   QWidget *CreateRobotPage();
-  QWidget *CreateMapPage();
-  QWidget *CreateKeyValuePage();
-  void RefreshKeyValueTab();
+  QWidget *CreateCoordinatePage();
+  void ApplyRobotAppearance();
   void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
   void AutoSaveConfig();
@@ -80,11 +77,6 @@ signals:
 
   std::map<std::string, QCheckBox *> display_toggle_buttons_;
   std::map<std::string, QLineEdit *> display_topic_edits_;
-
-  QWidget *key_value_host_{nullptr};
-  QVBoxLayout *key_value_layout_{nullptr};
-  std::map<std::string, QLineEdit *> key_value_edits_;
-
   QTableWidget *image_table_{nullptr};
 
   QTableWidget *robot_points_table_{nullptr};
@@ -101,7 +93,7 @@ signals:
   QFrame *connection_status_card_{nullptr};
   QLabel *connection_status_title_{nullptr};
   QLabel *connection_status_label_{nullptr};
-  QLineEdit *map_path_edit_{nullptr};
+  QLineEdit *base_frame_id_edit_{nullptr};
 
   QLabel *title_label_{nullptr};
   QLabel *connection_section_label_{nullptr};
@@ -109,10 +101,8 @@ signals:
   QLabel *rosbridge_section_label_{nullptr};
   QLabel *rosbridge_ip_label_{nullptr};
   QLabel *rosbridge_port_label_{nullptr};
-  QLabel *map_path_label_{nullptr};
   QPushButton *map_browse_btn_{nullptr};
   QPushButton *image_add_btn_{nullptr};
-  QPushButton *key_value_add_btn_{nullptr};
   QLabel *robot_points_hint_label_{nullptr};
   QLabel *robot_polygon_section_label_{nullptr};
   QLabel *robot_style_section_label_{nullptr};

@@ -1,14 +1,11 @@
 #include "display_config_widget.h"
 #include <QAbstractItemView>
-#include <QFileDialog>
 #include <QFontMetrics>
 #include <QFrame>
 #include <QHeaderView>
 #include <QIcon>
-#include <QInputDialog>
 #include <QIntValidator>
 #include <QListWidgetItem>
-#include <QMessageBox>
 #include <utility>
 #include <QScrollArea>
 #include <QSizePolicy>
@@ -123,8 +120,7 @@ void DisplayConfigWidget::InitUI() {
       {tr("显示与话题"), QStringLiteral(":/icons/tabler/messages.svg")},
       {tr("摄像头"), QStringLiteral(":/icons/tabler/camera.svg")},
       {tr("机器人外形"), QStringLiteral(":/icons/tabler/polygon.svg")},
-      {tr("默认地图"), QStringLiteral(":/icons/tabler/map.svg")},
-      {tr("键值对"), QStringLiteral(":/icons/tabler/key.svg")},
+      {tr("坐标与定位"), QStringLiteral(":/icons/tabler/location.svg")},
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(
@@ -149,8 +145,7 @@ void DisplayConfigWidget::InitUI() {
   page_stack_->addWidget(CreateLayersPage());
   page_stack_->addWidget(CreateImagePage());
   page_stack_->addWidget(CreateRobotPage());
-  page_stack_->addWidget(CreateMapPage());
-  page_stack_->addWidget(CreateKeyValuePage());
+  page_stack_->addWidget(CreateCoordinatePage());
   for (int index = 0; index < page_stack_->count(); ++index) {
     QWidget* page = page_stack_->widget(index);
     page->setObjectName(QStringLiteral("settingsPage"));
@@ -535,7 +530,9 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   points_layout->setContentsMargins(14, 14, 14, 14);
   points_layout->setSpacing(10);
 
-  robot_points_hint_label_ = new QLabel(tr("平面顶点坐标（米）"));
+  robot_points_hint_label_ = new QLabel(
+      tr("以机器人基座为原点的顶点坐标（米）。至少填写 3 个有效顶点后，地图立即显示自定义外形；否则显示小车实时轮廓。"));
+  robot_points_hint_label_->setWordWrap(true);
   robot_points_hint_label_->setStyleSheet(UiStyle::MutedLabelStyleSheet());
   points_layout->addWidget(robot_points_hint_label_);
 
@@ -590,8 +587,10 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   style_layout->setContentsMargins(14, 14, 14, 14);
   style_layout->setSpacing(14);
 
-  robot_is_ellipse_checkbox_ = new QCheckBox(tr("椭圆近似"), style_card);
+  robot_is_ellipse_checkbox_ = new QCheckBox(tr("按顶点范围绘制椭圆"), style_card);
   robot_is_ellipse_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
+  robot_is_ellipse_checkbox_->setToolTip(
+      tr("仅影响 Qt 地图显示，不会修改小车板端的导航足迹。"));
   connect(robot_is_ellipse_checkbox_, &QCheckBox::toggled, this, &DisplayConfigWidget::OnRobotShapeIsEllipseChanged);
 
   QHBoxLayout* color_layout = new QHBoxLayout();
@@ -640,97 +639,6 @@ QWidget* DisplayConfigWidget::CreateRobotPage() {
   return page;
 }
 
-QWidget* DisplayConfigWidget::CreateMapPage() {
-  QWidget* page = new QWidget;
-  QVBoxLayout* root = new QVBoxLayout(page);
-  root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(10);
-
-  QLabel* page_title = new QLabel(tr("默认地图"));
-  page_title->setObjectName(QStringLiteral("pageTitle"));
-  root->addWidget(page_title);
-
-  QFrame* card = CreateSettingsCard(page);
-  QVBoxLayout* card_layout = new QVBoxLayout(card);
-  card_layout->setContentsMargins(16, 16, 16, 16);
-  card_layout->setSpacing(12);
-
-  QHBoxLayout* path_layout = new QHBoxLayout();
-  map_path_label_ = new QLabel(tr("地图路径"));
-  map_path_label_->setFixedWidth(88);
-  map_path_label_->setStyleSheet(UiStyle::FieldLabelStyleSheet());
-  map_path_edit_ = new QLineEdit(card);
-  map_path_edit_->setPlaceholderText(tr("例如 /home/maps/office.yaml"));
-  map_path_edit_->setStyleSheet(UiStyle::InputStyleSheet());
-  connect(map_path_edit_, &QLineEdit::editingFinished, [this]() {
-    if (is_loading_config_) {
-      return;
-    }
-    const std::string path = map_path_edit_->text().toStdString();
-    Config::ConfigManager::Instance()->UpdateRootConfig(
-        [&path](auto& config) { config.map_config.path = path; });
-  });
-  map_browse_btn_ = new QPushButton(tr("浏览…"), card);
-  map_browse_btn_->setCursor(Qt::PointingHandCursor);
-  map_browse_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  connect(map_browse_btn_, &QPushButton::clicked, [this]() {
-    QString f = QFileDialog::getOpenFileName(this, tr("选择地图YAML"), QString(),
-                                             tr("YAML (*.yaml *.yml);;所有文件 (*.*)"));
-    if (!f.isEmpty()) {
-      map_path_edit_->setText(f);
-      if (!is_loading_config_) {
-        const std::string path = f.toStdString();
-        Config::ConfigManager::Instance()->UpdateRootConfig(
-            [&path](auto& config) { config.map_config.path = path; });
-      }
-    }
-  });
-  path_layout->addWidget(map_path_label_);
-  path_layout->addWidget(map_path_edit_, 1);
-  path_layout->addWidget(map_browse_btn_);
-  card_layout->addLayout(path_layout);
-
-  root->addWidget(card);
-  root->addStretch(1);
-  return page;
-}
-
-QWidget* DisplayConfigWidget::CreateKeyValuePage() {
-  QWidget* page = new QWidget;
-  QVBoxLayout* root = new QVBoxLayout(page);
-  root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(10);
-
-  QLabel* page_title = new QLabel(tr("键值对"));
-  page_title->setObjectName(QStringLiteral("pageTitle"));
-  root->addWidget(page_title);
-
-  QFrame* card = CreateSettingsCard(page);
-  QVBoxLayout* card_layout = new QVBoxLayout(card);
-  card_layout->setContentsMargins(0, 8, 0, 8);
-  card_layout->setSpacing(0);
-
-  QScrollArea* scroll = new QScrollArea(card);
-  scroll->setWidgetResizable(true);
-  scroll->setFrameShape(QFrame::NoFrame);
-  scroll->setMinimumHeight(200);
-  key_value_host_ = new QWidget;
-  key_value_layout_ = new QVBoxLayout(key_value_host_);
-  key_value_layout_->setContentsMargins(0, 0, 0, 0);
-  key_value_layout_->setSpacing(0);
-  scroll->setWidget(key_value_host_);
-  card_layout->addWidget(scroll);
-
-  key_value_add_btn_ = new QPushButton(tr("添加条目"), page);
-  key_value_add_btn_->setCursor(Qt::PointingHandCursor);
-  key_value_add_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  connect(key_value_add_btn_, &QPushButton::clicked, this, &DisplayConfigWidget::OnAddKeyValue);
-
-  root->addWidget(card, 1);
-  root->addWidget(key_value_add_btn_, 0, Qt::AlignLeft);
-  return page;
-}
-
 void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel_list) {
   channel_list_ = channel_list;
 
@@ -776,6 +684,47 @@ void DisplayConfigWidget::OnToggleDisplay(const std::string& display_name, bool 
   });
 }
 
+QWidget* DisplayConfigWidget::CreateCoordinatePage() {
+  QWidget* page = new QWidget;
+  QVBoxLayout* root = new QVBoxLayout(page);
+  root->setContentsMargins(8, 4, 8, 8);
+  root->setSpacing(10);
+
+  QLabel* page_title = new QLabel(tr("坐标与定位"));
+  page_title->setObjectName(QStringLiteral("pageTitle"));
+  root->addWidget(page_title);
+
+  QFrame* card = CreateSettingsCard(page);
+  QVBoxLayout* card_layout = new QVBoxLayout(card);
+  card_layout->setContentsMargins(16, 16, 16, 16);
+  card_layout->setSpacing(10);
+
+  QLabel* hint = new QLabel(
+      tr("机器人基座坐标系用于 TF 位姿和雷达坐标转换；应与小车实际发布的 frame_id 一致。"),
+      card);
+  hint->setWordWrap(true);
+  hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+  card_layout->addWidget(hint);
+
+  QHBoxLayout* row = new QHBoxLayout();
+  QLabel* label = new QLabel(tr("机器人基座坐标系"), card);
+  label->setStyleSheet(UiStyle::FieldLabelStyleSheet());
+  label->setMinimumWidth(118);
+  base_frame_id_edit_ = new QLineEdit(card);
+  base_frame_id_edit_->setPlaceholderText(QStringLiteral("base_link"));
+  base_frame_id_edit_->setStyleSheet(UiStyle::InputStyleSheet());
+  base_frame_id_edit_->setToolTip(tr("对应配置键 BaseFrameId"));
+  connect(base_frame_id_edit_, &QLineEdit::editingFinished,
+          this, &DisplayConfigWidget::OnBaseFrameIdChanged);
+  row->addWidget(label);
+  row->addWidget(base_frame_id_edit_, 1);
+  card_layout->addLayout(row);
+
+  root->addWidget(card);
+  root->addStretch();
+  return page;
+}
+
 void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name, const QString& topic) {
   auto toggle_it = display_toggle_buttons_.find(display_name);
   const bool visible = (toggle_it != display_toggle_buttons_.end()) ? toggle_it->second->isChecked() : true;
@@ -786,79 +735,6 @@ void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name,
     if (it != config.display_config.end()) it->topic = topic_name;
     else config.display_config.push_back(Config::DisplayConfig(display_name, topic_name, visible));
   });
-}
-
-void DisplayConfigWidget::OnKeyValueChanged(const std::string& key, const QString& value) {
-  SET_KEY_VALUE(key, value.toStdString())
-}
-
-void DisplayConfigWidget::OnAddKeyValue() {
-  bool ok = false;
-  QString key = QInputDialog::getText(this, tr("添加条目"), tr("键:"), QLineEdit::Normal, QString(), &ok);
-  if (ok && !key.isEmpty()) {
-    QString value = QInputDialog::getText(this, tr("添加条目"), tr("值:"), QLineEdit::Normal, QString(), &ok);
-    if (ok) {
-      SET_KEY_VALUE(key.toStdString(), value.toStdString())
-      RefreshKeyValueTab();
-    }
-  }
-}
-
-void DisplayConfigWidget::OnRemoveKeyValue(const std::string& key) {
-  Config::ConfigManager::Instance()->UpdateRootConfig(
-      [&key](auto& config) { config.key_value.erase(key); });
-  RefreshKeyValueTab();
-}
-
-void DisplayConfigWidget::RefreshKeyValueTab() {
-  if (!key_value_layout_) {
-    return;
-  }
-  QLayoutItem* item = nullptr;
-  while ((item = key_value_layout_->takeAt(0)) != nullptr) {
-    if (item->widget()) {
-      item->widget()->deleteLater();
-    }
-    delete item;
-  }
-  key_value_edits_.clear();
-
-  const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
-
-  for (const auto& [key, value] : config.key_value) {
-    QWidget* item_widget = new QWidget(key_value_host_);
-    item_widget->setStyleSheet(QStringLiteral("QWidget { background:%1; border-bottom:1px solid rgba(0,0,0,0.06); }")
-        .arg(UiStyle::Palette::Surface));
-
-    QHBoxLayout* item_layout = new QHBoxLayout(item_widget);
-    item_layout->setContentsMargins(14, 12, 14, 12);
-    item_layout->setSpacing(12);
-
-    QLabel* key_label = new QLabel(QString::fromStdString(key), item_widget);
-    key_label->setFixedWidth(128);
-    key_label->setStyleSheet(UiStyle::TopStatusLabelStyleSheet());
-    item_layout->addWidget(key_label);
-
-    QLineEdit* value_edit = new QLineEdit(QString::fromStdString(value), item_widget);
-    value_edit->setPlaceholderText(tr("值"));
-    value_edit->setStyleSheet(UiStyle::InputStyleSheet());
-    key_value_edits_[key] = value_edit;
-    connect(value_edit, &QLineEdit::editingFinished, [this, key, value_edit]() {
-      OnKeyValueChanged(key, value_edit->text());
-    });
-    item_layout->addWidget(value_edit, 1);
-
-    QPushButton* remove_btn = new QPushButton(tr("移除"), item_widget);
-    remove_btn->setFixedWidth(52);
-    remove_btn->setCursor(Qt::PointingHandCursor);
-    remove_btn->setStyleSheet(UiStyle::LinkButtonStyleSheet(UiStyle::Palette::Danger));
-    connect(remove_btn, &QPushButton::clicked, [this, key]() { OnRemoveKeyValue(key); });
-    item_layout->addWidget(remove_btn);
-
-    key_value_layout_->addWidget(item_widget);
-  }
-
-  key_value_layout_->addItem(new QSpacerItem(1, 1, QSizePolicy::Minimum, QSizePolicy::Expanding));
 }
 
 void DisplayConfigWidget::UpdateImageTableHeight() {
@@ -997,11 +873,13 @@ void DisplayConfigWidget::OnRobotShapePointChanged() {
 
   Config::ConfigManager::Instance()->UpdateRootConfig(
       [&points](auto& config) { config.robot_shape_config.shaped_points = points; });
+  ApplyRobotAppearance();
 }
 
 void DisplayConfigWidget::OnRobotShapeIsEllipseChanged(bool checked) {
   Config::ConfigManager::Instance()->UpdateRootConfig(
       [checked](auto& config) { config.robot_shape_config.is_ellipse = checked; });
+  ApplyRobotAppearance();
 }
 
 void DisplayConfigWidget::OnRobotShapeColorChanged() {
@@ -1018,6 +896,7 @@ void DisplayConfigWidget::OnRobotShapeColorChanged() {
     const std::string value = color_str.toStdString();
     Config::ConfigManager::Instance()->UpdateRootConfig(
         [&value](auto& config) { config.robot_shape_config.color = value; });
+    ApplyRobotAppearance();
   }
 }
 
@@ -1025,6 +904,26 @@ void DisplayConfigWidget::OnRobotShapeOpacityChanged(int value) {
   Config::ConfigManager::Instance()->UpdateRootConfig([value](auto& config) {
     config.robot_shape_config.opacity = value / 100.0f;
   });
+  ApplyRobotAppearance();
+}
+
+void DisplayConfigWidget::OnBaseFrameIdChanged() {
+  if (!base_frame_id_edit_) {
+    return;
+  }
+  const QString frame_id = base_frame_id_edit_->text().trimmed();
+  if (frame_id.isEmpty()) {
+    base_frame_id_edit_->setText(QStringLiteral("base_link"));
+  }
+  const std::string value = base_frame_id_edit_->text().trimmed().toStdString();
+  Config::ConfigManager::Instance()->SetConfigValue("BaseFrameId", value);
+}
+
+void DisplayConfigWidget::ApplyRobotAppearance() {
+  if (display_manager_) {
+    display_manager_->SetRobotAppearanceConfig(
+        Config::ConfigManager::Instance()->GetRootConfigSnapshot().robot_shape_config);
+  }
 }
 
 void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
@@ -1068,8 +967,6 @@ void DisplayConfigWidget::LoadConfig() {
       topic_it->second->blockSignals(false);
     }
   }
-
-  RefreshKeyValueTab();
 
   image_table_->blockSignals(true);
   image_table_->setRowCount(0);
@@ -1144,6 +1041,7 @@ void DisplayConfigWidget::LoadConfig() {
   robot_opacity_slider_->setValue(static_cast<int>(config.robot_shape_config.opacity * 100));
   robot_opacity_label_->setText(QString::number(robot_opacity_slider_->value()) + QStringLiteral("%"));
   robot_opacity_slider_->blockSignals(false);
+  ApplyRobotAppearance();
 
   is_loading_config_ = true;
 
@@ -1170,10 +1068,11 @@ void DisplayConfigWidget::LoadConfig() {
   rosbridge_port_edit_->setText(QString::fromStdString(rosbridge_port));
   rosbridge_port_edit_->blockSignals(false);
 
-  if (map_path_edit_) {
-    map_path_edit_->blockSignals(true);
-    map_path_edit_->setText(QString::fromStdString(config.map_config.path));
-    map_path_edit_->blockSignals(false);
+  if (base_frame_id_edit_) {
+    base_frame_id_edit_->blockSignals(true);
+    base_frame_id_edit_->setText(QString::fromStdString(
+        Config::ConfigManager::Instance()->GetConfigValue("BaseFrameId", "base_link")));
+    base_frame_id_edit_->blockSignals(false);
   }
 
   bool show_rosbridge = (channel_type == "rosbridge");

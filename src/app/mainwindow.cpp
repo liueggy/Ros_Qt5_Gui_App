@@ -503,19 +503,7 @@ MainWindow::MainWindow(QWidget* parent)
   setupUi();
   ApplyCenteredWindowGeometry();
   QTimer::singleShot(30, this, [this]() { openChannel(); });
-  QTimer::singleShot(50, this, [this]() {
-    RestoreState();
-    std::string map_path = Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_config.path;
-    if (!map_path.empty()) {
-      std::string yaml_path = map_path;
-      if (yaml_path.find(".yaml") == std::string::npos && yaml_path.find(".yml") == std::string::npos) {
-        yaml_path += ".yaml";
-      }
-      if (QFile::exists(QString::fromStdString(yaml_path))) {
-        LoadMap(yaml_path);
-      }
-    }
-  });
+  QTimer::singleShot(50, this, [this]() { RestoreState(); });
 }
 bool MainWindow::openChannel() {
   const int attempt_id = ++connection_attempt_id_;

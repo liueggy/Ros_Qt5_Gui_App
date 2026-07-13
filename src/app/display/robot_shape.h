@@ -27,10 +27,14 @@ class RobotShape : public VirtualDisplay {
   OccupancyMap map_data_;  // 地图数据，用于坐标转换
   QColor color_ = {0x1E90FF};
   float opacity_ = {0.5};
+  Config::RobotShapedConfig appearance_config_;
 
  private:
   void drawFrame(QPainter *painter);
   void updateFootprintPath();  // 更新RobotFootprint路径
+  void updateCustomPath();
+  void updatePathFromWorldPoints(const RobotPath& points);
+  bool hasValidCustomShape() const;
 
  public:
   RobotShape(const std::string &display_type, const int &z_value,
@@ -38,6 +42,7 @@ class RobotShape : public VirtualDisplay {
   ~RobotShape();
   bool SetDisplayConfig(const std::string &config_name,
                         const std::any &config_data) override;
+  void SetAppearanceConfig(const Config::RobotShapedConfig& config);
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
              QWidget *widget = nullptr) override;
 };
