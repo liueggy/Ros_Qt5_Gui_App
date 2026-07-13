@@ -27,11 +27,19 @@ class NavGoalTableView : public QTableView {
   bool SaveTaskChain(const std::string &name);
   std::string BuildInspectionRequest(bool is_loop);
   int RowCount() const;
+  int ValidPointCount();
+  void ResetExecutionState();
+  void SetRouteRunning(bool running);
+  void SetWaypointState(int row, const QString &text, int level = 0);
  signals:
   void signalSendNavGoal(const RobotPose &pose);
+  void signalRouteChanged(int point_count);
 
  private:
   void InsertRow(const QString &point_name = QString(),
                  const QString &expected_class = QStringLiteral("any"));
   void onItemChanged(QStandardItem *item);
+  void RefreshOrderNumbers();
+  int RowForWidget(const QWidget *widget) const;
+
 };

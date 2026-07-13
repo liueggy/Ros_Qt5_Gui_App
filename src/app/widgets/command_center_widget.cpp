@@ -438,6 +438,13 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
                                            : UiStyle::SecondaryButtonStyleSheet());
   }
   SetOverviewPill(nav_overview_label_, tr("导航"), text, color, bg, border);
+  if ((normalized == QStringLiteral("mapping_slam") ||
+       normalized == QStringLiteral("static_nav") ||
+       normalized == QStringLiteral("inspection")) &&
+      normalized != active_workspace_mode_) {
+    active_workspace_mode_ = normalized;
+    emit WorkspaceModeRequested(normalized);
+  }
 }
 
 QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
@@ -728,6 +735,8 @@ void CommandCenterWidget::SendStatusRequest() {
 }
 
 void CommandCenterWidget::StartAmclNavigation() {
+  active_workspace_mode_ = QStringLiteral("static_nav");
+  emit WorkspaceModeRequested(QStringLiteral("static_nav"));
   QJsonObject params;
   params[QStringLiteral("profile")] = QStringLiteral("navigation");
   PublishJson(MakeRequestJson("switch_profile", "navigation",
@@ -736,6 +745,8 @@ void CommandCenterWidget::StartAmclNavigation() {
 }
 
 void CommandCenterWidget::SwitchToMapping() {
+  active_workspace_mode_ = QStringLiteral("mapping_slam");
+  emit WorkspaceModeRequested(QStringLiteral("mapping_slam"));
   QJsonObject params;
   params[QStringLiteral("profile")] = QStringLiteral("mapping");
   PublishJson(MakeRequestJson("switch_profile", "mapping",
@@ -744,6 +755,8 @@ void CommandCenterWidget::SwitchToMapping() {
 }
 
 void CommandCenterWidget::StartInspection() {
+  active_workspace_mode_ = QStringLiteral("inspection");
+  emit WorkspaceModeRequested(QStringLiteral("inspection"));
   QJsonObject params;
   params[QStringLiteral("profile")] = QStringLiteral("inspection");
   PublishJson(MakeRequestJson("switch_profile", "inspection",

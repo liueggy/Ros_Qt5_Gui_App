@@ -37,6 +37,7 @@ class CommandCenterWidget : public QWidget {
 
  signals:
   void CameraViewRequested(bool visible);
+  void WorkspaceModeRequested(const QString& mode);
 
  private:
   QString MakeRequestJson(const QString& command, const QString& target,
@@ -68,4 +69,5 @@ class CommandCenterWidget : public QWidget {
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
+  QString active_workspace_mode_;
 };

@@ -3,6 +3,7 @@
 #include <QFileDialog>
 #include <QHeaderView>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QSize>
 #include <QToolButton>
 #include <QWidget>
@@ -12,13 +13,24 @@
 #include "config/config_manager.h"
 #include "logger/logger.h"
 #include "widgets/ui_style.h"
+
+namespace {
+constexpr int kOrderColumn = 0;
+constexpr int kPointColumn = 1;
+constexpr int kTargetColumn = 2;
+constexpr int kStateColumn = 3;
+constexpr int kActionColumn = 4;
+}  // namespace
+
 NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
     : QTableView(_parent_widget) {
   table_model_ = new QStandardItemModel();
   setModel(table_model_);
   QStringList table_h_headers;
-  table_h_headers << "点位名"
-                  << "目标类型"
+  table_h_headers << "顺序"
+                  << "巡检点"
+                  << "识别目标"
+                  << "执行状态"
                   << "操作";
   QHeaderView* headerView = new QHeaderView(Qt::Horizontal);
   headerView->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -34,14 +46,16 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   this->setHorizontalHeader(headerView);
   // 添加数据模型
   table_model_->setHorizontalHeaderLabels(table_h_headers);
-  headerView->setSectionResizeMode(0, QHeaderView::Stretch);
-  headerView->setSectionResizeMode(1, QHeaderView::Fixed);
-  headerView->setSectionResizeMode(2, QHeaderView::Fixed);
-  headerView->resizeSection(1, 132);
-  headerView->resizeSection(2, 150);
-  setColumnWidth(1, 132);
-  setColumnWidth(2, 150);
-  setMinimumWidth(500);
+  headerView->setSectionResizeMode(kOrderColumn, QHeaderView::Fixed);
+  headerView->setSectionResizeMode(kPointColumn, QHeaderView::Stretch);
+  headerView->setSectionResizeMode(kTargetColumn, QHeaderView::Fixed);
+  headerView->setSectionResizeMode(kStateColumn, QHeaderView::Fixed);
+  headerView->setSectionResizeMode(kActionColumn, QHeaderView::Fixed);
+  headerView->resizeSection(kOrderColumn, 62);
+  headerView->resizeSection(kTargetColumn, 126);
+  headerView->resizeSection(kStateColumn, 132);
+  headerView->resizeSection(kActionColumn, 150);
+  setMinimumWidth(620);
   connect(table_model_, &QStandardItemModel::itemChanged, this,
           &NavGoalTableView::onItemChanged);
 }
@@ -49,19 +63,20 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
 NavGoalTableView::~NavGoalTableView() {}
 
 void NavGoalTableView::onItemChanged(QStandardItem* item) {
-  if (item->column() == 0) {
+  if (item->column() == kPointColumn) {
     qDebug() << "点位名: " << item->text();
   }
 }
 void NavGoalTableView::UpdateTopologyMap(const TopologyMap& _topology_map) {
   topologyMap_ = _topology_map;
+  emit signalRouteChanged(table_model_->rowCount());
 }
 void NavGoalTableView::UpdateSelectPoint(const TopologyMap::PointInfo& point) {
   if (!this->isEnabled())
     return;
 
   QWidget* widget =
-      indexWidget(model()->index(table_model_->rowCount() - 1, 0));
+      indexWidget(model()->index(table_model_->rowCount() - 1, kPointColumn));
   if (widget) {
     QComboBox* comboBox = static_cast<QComboBox*>(widget);
     if (comboBox->currentText() == "")
@@ -82,6 +97,10 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   comboBox->setCurrentText(point_name);
   comboBox->setMinimumWidth(180);
   comboBox->setFixedHeight(UiStyle::ControlHeightPx());
+  connect(comboBox, &QComboBox::currentTextChanged, this,
+          [this](const QString&) {
+            emit signalRouteChanged(table_model_->rowCount());
+          });
   QComboBox* targetType = new QComboBox();
   targetType->addItem("自动识别", "any");
   targetType->addItem("水表", "water_meter");
@@ -89,6 +108,13 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   targetType->setFixedSize(122, UiStyle::ControlHeightPx());
   const int targetIndex = targetType->findData(expected_class);
   targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
+  auto* state_label = new QLabel(QStringLiteral("等待"), this);
+  state_label->setAlignment(Qt::AlignCenter);
+  state_label->setStyleSheet(QStringLiteral(
+      "QLabel { color:%1; background:%2; border:1px solid %3; "
+      "border-radius:8px; padding:5px 8px; font-weight:700; }")
+      .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
+           UiStyle::Palette::Border));
   auto* action_cell = new QWidget(this);
   auto* action_layout = new QHBoxLayout(action_cell);
   action_layout->setContentsMargins(6, 6, 6, 6);
@@ -119,9 +145,11 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   int row = table_model_->rowCount();
 
   connect(button_remove, &QToolButton::clicked, [this, action_cell]() {
-    const QModelIndex index = indexAt(action_cell->pos());
-    if (index.isValid()) {
-      table_model_->removeRow(index.row());
+    const int row = RowForWidget(action_cell);
+    if (row >= 0) {
+      table_model_->removeRow(row);
+      RefreshOrderNumbers();
+      emit signalRouteChanged(table_model_->rowCount());
     }
   });
   connect(button_run, &QToolButton::clicked, [this, comboBox]() {
@@ -132,10 +160,15 @@ void NavGoalTableView::InsertRow(const QString& point_name,
     }
   });
   table_model_->insertRow(row);
-
-  setIndexWidget(table_model_->index(row, 0), comboBox);
-  setIndexWidget(table_model_->index(row, 1), targetType);
-  setIndexWidget(table_model_->index(row, 2), action_cell);
+  auto* order_item = new QStandardItem(QString::number(row + 1));
+  order_item->setTextAlignment(Qt::AlignCenter);
+  order_item->setEditable(false);
+  table_model_->setItem(row, kOrderColumn, order_item);
+  setIndexWidget(table_model_->index(row, kPointColumn), comboBox);
+  setIndexWidget(table_model_->index(row, kTargetColumn), targetType);
+  setIndexWidget(table_model_->index(row, kStateColumn), state_label);
+  setIndexWidget(table_model_->index(row, kActionColumn), action_cell);
+  emit signalRouteChanged(table_model_->rowCount());
 }
 bool NavGoalTableView::LoadTaskChain(const std::string& name) {
   // 清空模型
@@ -169,6 +202,7 @@ bool NavGoalTableView::LoadTaskChain(const std::string& name) {
                                          ? "any"
                                          : expected->second));
   }
+  emit signalRouteChanged(table_model_->rowCount());
   return true;
 }
 bool NavGoalTableView::SaveTaskChain(const std::string& name) {
@@ -176,7 +210,7 @@ bool NavGoalTableView::SaveTaskChain(const std::string& name) {
   task_chain_.expected_classes.clear();
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     QComboBox* comboBoxName =
-        static_cast<QComboBox*>(indexWidget(model()->index(row, 0)));
+        static_cast<QComboBox*>(indexWidget(model()->index(row, kPointColumn)));
     TopologyMap::PointInfo point =
         topologyMap_.GetPoint(comboBoxName->currentText().toStdString());
     if (point.name == "") {
@@ -184,7 +218,7 @@ bool NavGoalTableView::SaveTaskChain(const std::string& name) {
     }
     task_chain_.points.push_back(point);
     auto* targetType =
-        static_cast<QComboBox*>(indexWidget(model()->index(row, 1)));
+        static_cast<QComboBox*>(indexWidget(model()->index(row, kTargetColumn)));
     task_chain_.expected_classes[point.name] =
         targetType ? targetType->currentData().toString().toStdString() : "any";
   }
@@ -205,9 +239,9 @@ std::string NavGoalTableView::BuildInspectionRequest(bool is_loop) {
   };
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     auto* pointCombo =
-        static_cast<QComboBox*>(indexWidget(model()->index(row, 0)));
+        static_cast<QComboBox*>(indexWidget(model()->index(row, kPointColumn)));
     auto* targetType =
-        static_cast<QComboBox*>(indexWidget(model()->index(row, 1)));
+        static_cast<QComboBox*>(indexWidget(model()->index(row, kTargetColumn)));
     if (!pointCombo) {
       continue;
     }
@@ -232,4 +266,95 @@ std::string NavGoalTableView::BuildInspectionRequest(bool is_loop) {
 
 int NavGoalTableView::RowCount() const {
   return table_model_->rowCount();
+}
+
+int NavGoalTableView::ValidPointCount() {
+  int count = 0;
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    const auto* point_combo = qobject_cast<QComboBox*>(
+        indexWidget(model()->index(row, kPointColumn)));
+    if (point_combo &&
+        !topologyMap_.GetPoint(point_combo->currentText().toStdString())
+             .name.empty()) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+void NavGoalTableView::ResetExecutionState() {
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    SetWaypointState(row, QStringLiteral("等待"), 0);
+  }
+}
+
+void NavGoalTableView::SetRouteRunning(bool running) {
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    if (auto* point = indexWidget(model()->index(row, kPointColumn))) {
+      point->setEnabled(!running);
+    }
+    if (auto* target = indexWidget(model()->index(row, kTargetColumn))) {
+      target->setEnabled(!running);
+    }
+    if (auto* action = indexWidget(model()->index(row, kActionColumn))) {
+      action->setEnabled(!running);
+    }
+  }
+}
+
+void NavGoalTableView::SetWaypointState(int row, const QString& text, int level) {
+  if (row < 0 || row >= table_model_->rowCount()) {
+    return;
+  }
+  auto* label = qobject_cast<QLabel*>(indexWidget(model()->index(row, kStateColumn)));
+  if (!label) {
+    return;
+  }
+  QString color = UiStyle::Palette::TextSecondary;
+  QString background = UiStyle::Palette::SurfaceAlt;
+  QString border = UiStyle::Palette::Border;
+  if (level == 1) {
+    color = UiStyle::Palette::Primary;
+    background = UiStyle::Palette::PrimaryLight;
+    border = UiStyle::Palette::BorderFocus;
+  } else if (level == 2) {
+    color = UiStyle::Palette::Success;
+    background = UiStyle::Palette::SuccessBg;
+    border = UiStyle::Palette::SuccessBorder;
+  } else if (level == 3) {
+    color = UiStyle::Palette::Warning;
+    background = UiStyle::Palette::WarningBg;
+    border = UiStyle::Palette::WarningBorder;
+  } else if (level >= 4) {
+    color = UiStyle::Palette::Danger;
+    background = UiStyle::Palette::DangerBg;
+    border = UiStyle::Palette::DangerBorder;
+  }
+  label->setText(text);
+  label->setStyleSheet(QStringLiteral(
+      "QLabel { color:%1; background:%2; border:1px solid %3; "
+      "border-radius:8px; padding:5px 8px; font-weight:700; }")
+      .arg(color, background, border));
+}
+
+void NavGoalTableView::RefreshOrderNumbers() {
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    auto* item = table_model_->item(row, kOrderColumn);
+    if (!item) {
+      item = new QStandardItem();
+      item->setEditable(false);
+      item->setTextAlignment(Qt::AlignCenter);
+      table_model_->setItem(row, kOrderColumn, item);
+    }
+    item->setText(QString::number(row + 1));
+  }
+}
+
+int NavGoalTableView::RowForWidget(const QWidget* widget) const {
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    if (indexWidget(model()->index(row, kActionColumn)) == widget) {
+      return row;
+    }
+  }
+  return -1;
 }

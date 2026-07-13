@@ -28,6 +28,7 @@
 #include <QTreeView>
 #include <QWidgetAction>
 #include <memory>
+#include <nlohmann/json_fwd.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
 #include "DockAreaWidget.h"
@@ -90,6 +91,7 @@ class MainWindow : public QMainWindow {
   ads::CDockAreaWidget* center_docker_area_;
   ads::CDockAreaWidget* settings_dock_area_{nullptr};
   ads::CDockAreaWidget* command_center_dock_area_{nullptr};
+  ads::CDockAreaWidget* inspection_dock_area_{nullptr};
   QWidget* custom_title_bar_{nullptr};
   QPushButton* maximize_button_{nullptr};
   bool dragging_window_ = {false};
@@ -99,14 +101,23 @@ class MainWindow : public QMainWindow {
   std::string map_path_ = {"./map"};
   DisplayConfigWidget* display_config_widget_{nullptr};
   ads::CDockWidget* settings_dock_{nullptr};
+  ads::CDockWidget* speed_ctrl_dock_{nullptr};
   DiagnosticDockWidget* diagnostic_dock_widget_{nullptr};
   ads::CDockWidget* diagnostic_dock_{nullptr};
   CommandCenterWidget* command_center_widget_{nullptr};
   ads::CDockWidget* command_center_dock_{nullptr};
   TerminalWidget* terminal_widget_{nullptr};
   ads::CDockWidget* terminal_dock_{nullptr};
+  ads::CDockWidget* inspection_task_dock_{nullptr};
   QLabel* inspection_status_label_{nullptr};
+  QLabel* inspection_route_summary_label_{nullptr};
+  QLabel* inspection_progress_label_{nullptr};
+  QLabel* inspection_readiness_label_{nullptr};
+  QProgressBar* inspection_progress_bar_{nullptr};
   QPlainTextEdit* inspection_result_view_{nullptr};
+  QPushButton* inspection_add_button_{nullptr};
+  QPushButton* inspection_load_button_{nullptr};
+  QPushButton* inspection_save_button_{nullptr};
   QPushButton* inspection_start_button_{nullptr};
   QFrame* inspection_status_card_{nullptr};
   QLabel* inspection_kimi_banner_{nullptr};
@@ -126,6 +137,13 @@ class MainWindow : public QMainWindow {
   bool map_activation_requires_localization_ = {false};
   bool relocation_pending_ = {false};
   bool localization_confirmed_ = {false};
+  bool inspection_workspace_active_{false};
+  bool inspection_running_{false};
+  bool previous_settings_visible_{true};
+  bool previous_speed_visible_{true};
+  bool previous_command_center_visible_{true};
+  bool previous_terminal_visible_{false};
+  bool previous_front_camera_visible_{false};
   RobotPose relocation_target_;
   int relocation_stable_samples_ = {0};
   int relocation_attempt_id_ = {0};
@@ -154,6 +172,10 @@ class MainWindow : public QMainWindow {
   void StartManualRelocation();
   void PublishNavGoalSafely(const RobotPose& pose);
   void AppendInspectionLogLine(const QString& line);
+  void ApplyWorkspaceMode(const QString& mode);
+  void UpdateInspectionRouteSummary();
+  void SetInspectionRunning(bool running);
+  void UpdateInspectionProgress(const nlohmann::json& data);
   void BeginRelocation(const RobotPose& pose);
   void CheckRelocationProgress(const LocalizationEstimate& estimate);
   bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);
