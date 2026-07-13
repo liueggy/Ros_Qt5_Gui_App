@@ -46,6 +46,7 @@ bool DisplayPath::SetDisplayConfig(const std::string &config_name,
     Color color;
     GetAnyData(Color, config_data, color);
     color_ = QColor(color[0], color[1], color[2]);
+    update();
   } else if (config_name == "LineWidth") {
     int line_width = 1;
     GetAnyData(int, config_data, line_width);

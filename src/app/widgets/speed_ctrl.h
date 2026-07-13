@@ -270,7 +270,7 @@ class SpeedCtrlWidget : public QWidget {
             });
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     const QString moveButtonStyle = UiStyle::MoveButtonStyleSheet();
-    const QSize moveButtonSize(56, 56);
+    const QSize moveButtonSize(52, 52);
     setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::CheckBoxStyleSheet() + QStringLiteral("QTabWidget::pane { border:1px solid %1; border-radius:10px; background:%2; top:-1px; }"
                                                                                               "QTabBar::tab { padding:7px 18px; color:%3; border:none; background:transparent; }"
                                                                                               "QTabBar::tab:selected { color:%4; font-weight:700; border-bottom:2px solid %4; }"
@@ -279,8 +279,8 @@ class SpeedCtrlWidget : public QWidget {
                                                                                               "QSlider::handle:horizontal { background:%4; width:14px; height:14px; margin:-5px 0; border-radius:7px; }")
         .arg(UiStyle::Palette::Border, UiStyle::Palette::Surface, UiStyle::Palette::TextMuted, UiStyle::Palette::Primary));
     QVBoxLayout* verticalLayout_speed_ctrl = new QVBoxLayout();
-    verticalLayout_speed_ctrl->setContentsMargins(10, 10, 10, 10);
-    verticalLayout_speed_ctrl->setSpacing(8);
+    verticalLayout_speed_ctrl->setContentsMargins(10, 8, 10, 10);
+    verticalLayout_speed_ctrl->setSpacing(10);
     verticalLayout_speed_ctrl->setObjectName(
         QString::fromUtf8("verticalLayout_speed_ctrl"));
     QFrame* control_card = new QFrame(this);
@@ -288,14 +288,24 @@ class SpeedCtrlWidget : public QWidget {
     control_card->setProperty("uiCard", true);
     control_card->setStyleSheet(UiStyle::CardStyleSheet());
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
-    control_layout->setContentsMargins(12, 10, 12, 12);
-    control_layout->setSpacing(8);
+    control_layout->setContentsMargins(14, 12, 14, 14);
+    control_layout->setSpacing(12);
+
+    QHBoxLayout* control_header = new QHBoxLayout();
+    QLabel* control_title = new QLabel(QStringLiteral("移动控制"), control_card);
+    control_title->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
+    QLabel* control_hint = new QLabel(QStringLiteral("按住移动 · 松开即停"), control_card);
+    control_hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+    control_header->addWidget(control_title);
+    control_header->addStretch();
+    control_header->addWidget(control_hint);
+    control_layout->addLayout(control_header);
     QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
     verticalLayout_cmd_btn->setContentsMargins(8, 6, 8, 10);
     verticalLayout_cmd_btn->setSpacing(8);
     QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
     horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
-    horizontalLayout_2->setSpacing(42);
+    horizontalLayout_2->setSpacing(22);
     horizontalLayout_2->setAlignment(Qt::AlignCenter);
     move_btn_u_ = new QPushButton();
     move_btn_u_->setObjectName(QString::fromUtf8("pushButton_u"));
@@ -350,7 +360,7 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
     horizontalLayout_18->setObjectName(
         QString::fromUtf8("horizontalLayout_18"));
-    horizontalLayout_18->setSpacing(42);
+    horizontalLayout_18->setSpacing(22);
     horizontalLayout_18->setAlignment(Qt::AlignCenter);
     move_btn_j_ = new QPushButton();
     move_btn_j_->setProperty("moveKey", "j");
@@ -370,9 +380,9 @@ class SpeedCtrlWidget : public QWidget {
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
-    checkBox_use_all_->setMinimumSize(QSize(78, 36));
-    checkBox_use_all_->setMaximumSize(QSize(90, 36));
-    checkBox_use_all_->setText("全向");
+    checkBox_use_all_->setMinimumSize(QSize(94, 40));
+    checkBox_use_all_->setMaximumSize(QSize(110, 40));
+    checkBox_use_all_->setText("全向模式");
     checkBox_use_all_->setChecked(true);
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
     checkBox_use_all_->setStyleSheet(UiStyle::CompactCheckBoxStyleSheet());
@@ -399,7 +409,7 @@ class SpeedCtrlWidget : public QWidget {
     QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
     horizontalLayout_19->setObjectName(
         QString::fromUtf8("horizontalLayout_19"));
-    horizontalLayout_19->setSpacing(42);
+    horizontalLayout_19->setSpacing(22);
     horizontalLayout_19->setAlignment(Qt::AlignCenter);
     move_btn_m_ = new QPushButton();
     move_btn_m_->setObjectName(QString::fromUtf8("pushButton_m"));
@@ -486,12 +496,22 @@ class SpeedCtrlWidget : public QWidget {
 
     tabWidget->addTab(widget_joyStick, "摇杆控制");
 
+    QFrame* speed_card = new QFrame(control_card);
+    speed_card->setProperty("uiCard", true);
+    speed_card->setStyleSheet(UiStyle::CardStyleSheet());
+    QVBoxLayout* speed_layout = new QVBoxLayout(speed_card);
+    speed_layout->setContentsMargins(14, 12, 14, 14);
+    speed_layout->setSpacing(10);
+    QLabel* speed_title = new QLabel(QStringLiteral("速度限制"), speed_card);
+    speed_title->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
+    speed_layout->addWidget(speed_title);
+
     QHBoxLayout* horizontalLayout_20 = new QHBoxLayout();
     horizontalLayout_20->setObjectName(
         QString::fromUtf8("horizontalLayout_20"));
     QLabel* label_14 = new QLabel();
     label_14->setObjectName(QString::fromUtf8("label_14"));
-    label_14->setText("角速度:");
+    label_14->setText("角速度上限");
     label_14->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::TextSecondary));
     horizontalLayout_20->addWidget(label_14);
 
@@ -508,7 +528,11 @@ class SpeedCtrlWidget : public QWidget {
     label_raw->setObjectName(QString::fromUtf8("label_raw"));
     label_raw->setText(QString::number(horizontalSlider_raw_->value(), 'f', 2) +
                        " deg/s");
-    label_raw->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::Text));
+    label_raw->setStyleSheet(QStringLiteral(
+        "QLabel { color:%1; background:%2; border:1px solid %3; border-radius:7px; "
+        "padding:5px 8px; font-weight:700; }")
+        .arg(UiStyle::Palette::Primary, UiStyle::Palette::PrimaryLight,
+             UiStyle::Palette::BorderHover));
     connect(horizontalSlider_raw_, &QSlider::valueChanged,
             [label_raw](qreal value) {
               label_raw->setText(QString::number(value, 'f', 2) +
@@ -516,10 +540,10 @@ class SpeedCtrlWidget : public QWidget {
             });
     horizontalLayout_20->addWidget(label_raw);
 
-    label_14->setFixedWidth(68);
-    label_raw->setMinimumWidth(86);
+    label_14->setFixedWidth(88);
+    label_raw->setMinimumWidth(94);
     label_raw->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    control_layout->addLayout(horizontalLayout_20);
+    speed_layout->addLayout(horizontalLayout_20);
 
     // linear anglur
     QHBoxLayout* horizontalLayout_21 = new QHBoxLayout();
@@ -527,7 +551,7 @@ class SpeedCtrlWidget : public QWidget {
         QString::fromUtf8("horizontalLayout_21"));
     QLabel* label_9 = new QLabel();
     label_9->setObjectName(QString::fromUtf8("label_9"));
-    label_9->setText("线速度:");
+    label_9->setText("线速度上限");
     label_9->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::TextSecondary));
     horizontalLayout_21->addWidget(label_9);
 
@@ -546,21 +570,26 @@ class SpeedCtrlWidget : public QWidget {
     label_linear->setText(
         QString::number(horizontalSlider_linear_->value() * 0.01, 'f', 2) +
         " m/s");
-    label_linear->setStyleSheet(UiStyle::TopStatusLabelStyleSheet(UiStyle::Palette::Text));
+    label_linear->setStyleSheet(QStringLiteral(
+        "QLabel { color:%1; background:%2; border:1px solid %3; border-radius:7px; "
+        "padding:5px 8px; font-weight:700; }")
+        .arg(UiStyle::Palette::Primary, UiStyle::Palette::PrimaryLight,
+             UiStyle::Palette::BorderHover));
     connect(horizontalSlider_linear_, &QSlider::valueChanged,
             [label_linear](qreal value) {
               label_linear->setText(
                   QString::number(value * 0.01, 'f', 2) + " m/s");
             });
     horizontalLayout_21->addWidget(label_linear);
-    label_9->setFixedWidth(68);
-    label_linear->setMinimumWidth(86);
+    label_9->setFixedWidth(88);
+    label_linear->setMinimumWidth(94);
     label_linear->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    control_layout->addLayout(horizontalLayout_21);
+    speed_layout->addLayout(horizontalLayout_21);
+    control_layout->addWidget(speed_card);
     QHBoxLayout* horizontalLayout_stop_button = new QHBoxLayout();
     QPushButton* btn_stop = new QPushButton();
     btn_stop->setObjectName(QString::fromUtf8("btn_stop"));
-    btn_stop->setText("立即停止   Space");
+    btn_stop->setText("立即停止    SPACE");
     btn_stop->setStyleSheet(UiStyle::DangerButtonStyleSheet());
     btn_stop->setShortcut(QKeySequence(Qt::Key_Space));
     btn_stop->setAccessibleName(QStringLiteral("立即停止机器人"));
@@ -573,29 +602,6 @@ class SpeedCtrlWidget : public QWidget {
     horizontalLayout_stop_button->addWidget(btn_stop, 1);
     control_layout->addLayout(horizontalLayout_stop_button);
     verticalLayout_speed_ctrl->addWidget(control_card, 0, Qt::AlignTop);
-
-    // QHBoxLayout *horizontalLayout_23 = new QHBoxLayout();
-    // horizontalLayout_23->setObjectName(
-    //     QString::fromUtf8("horizontalLayout_23"));
-    // QSpacerItem *horizontalSpacer_5 =
-    //     new QSpacerItem(40, 20, QSizePolicy::Expanding,
-    //     QSizePolicy::Minimum);
-
-    // horizontalLayout_23->addItem(horizontalSpacer_5);
-
-    // QSpacerItem *horizontalSpacer_6 =
-    //     new QSpacerItem(40, 20, QSizePolicy::Expanding,
-    //     QSizePolicy::Minimum);
-
-    // horizontalLayout_23->addItem(horizontalSpacer_6);
-
-    // verticalLayout_speed_ctrl->addLayout(horizontalLayout_23);
-
-    // QSpacerItem *verticalSpacer_4 =
-    //     new QSpacerItem(385, 21, QSizePolicy::Minimum,
-    //     QSizePolicy::Expanding);
-
-    // verticalLayout_speed_ctrl->addItem(verticalSpacer_4);
 
     this->setLayout(verticalLayout_speed_ctrl);
   }

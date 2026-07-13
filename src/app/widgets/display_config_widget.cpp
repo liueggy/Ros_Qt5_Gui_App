@@ -6,6 +6,7 @@
 #include <QIcon>
 #include <QIntValidator>
 #include <QListWidgetItem>
+#include <QPixmap>
 #include <utility>
 #include <QScrollArea>
 #include <QSizePolicy>
@@ -645,70 +646,137 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
   root->setContentsMargins(8, 4, 8, 8);
   root->setSpacing(10);
 
+  auto* title_row = new QHBoxLayout;
   auto* page_title = new QLabel(tr("地图样式"), page);
   page_title->setObjectName(QStringLiteral("pageTitle"));
-  root->addWidget(page_title);
+  auto* reset_button = new QPushButton(tr("恢复推荐值"), page);
+  reset_button->setCursor(Qt::PointingHandCursor);
+  reset_button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  connect(reset_button, &QPushButton::clicked, this, &DisplayConfigWidget::OnResetMapStyle);
+  title_row->addWidget(page_title);
+  title_row->addStretch(1);
+  title_row->addWidget(reset_button);
+  root->addLayout(title_row);
   auto* page_subtitle = new QLabel(
       tr("仅调整 Qt 地图画布的视觉效果；图层开关和 ROS 话题请在“显示与话题”中设置。"), page);
   page_subtitle->setObjectName(QStringLiteral("pageSubtitle"));
   page_subtitle->setWordWrap(true);
   root->addWidget(page_subtitle);
 
-  QFrame* card = CreateSettingsCard(page);
-  auto* layout = new QVBoxLayout(card);
-  layout->setContentsMargins(16, 16, 16, 16);
-  layout->setSpacing(14);
+  auto* scroll = new QScrollArea(page);
+  scroll->setWidgetResizable(true);
+  scroll->setFrameShape(QFrame::NoFrame);
+  auto* content = new QWidget(scroll);
+  auto* content_layout = new QVBoxLayout(content);
+  content_layout->setContentsMargins(0, 0, 8, 0);
+  content_layout->setSpacing(12);
 
-  auto add_slider = [this, layout, card](const QString& title, int minimum, int maximum,
-                                          QSlider*& slider, QLabel*& value_label,
-                                          const QString& suffix) {
+  auto add_slider = [this](QVBoxLayout* layout, QFrame* card, const QString& title,
+                           int minimum, int maximum, QSlider*& slider,
+                           QSpinBox*& spin, const QString& suffix) {
     auto* row = new QHBoxLayout;
     auto* caption = new QLabel(title, card);
-    caption->setFixedWidth(84);
+    caption->setMinimumWidth(98);
     caption->setStyleSheet(UiStyle::FieldLabelStyleSheet());
     slider = new QSlider(Qt::Horizontal, card);
     slider->setRange(minimum, maximum);
+    slider->setMinimumWidth(120);
     slider->setStyleSheet(QStringLiteral(
         "QSlider::groove:horizontal { height:6px; background:%1; border-radius:3px; }"
+        "QSlider::sub-page:horizontal { background:%2; border-radius:3px; }"
         "QSlider::handle:horizontal { background:%2; width:16px; margin:-5px 0; border-radius:8px; }")
         .arg(UiStyle::Palette::Scrollbar, UiStyle::Palette::Primary));
-    value_label = new QLabel(card);
-    value_label->setFixedWidth(52);
-    value_label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    value_label->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-    connect(slider, &QSlider::valueChanged, this, [this, value_label, suffix](int value) {
-      value_label->setText(QString::number(value) + suffix);
-      OnMapStyleChanged();
-    });
+    spin = new QSpinBox(card);
+    spin->setRange(minimum, maximum);
+    spin->setSuffix(suffix);
+    spin->setAlignment(Qt::AlignRight);
+    spin->setButtonSymbols(QAbstractSpinBox::PlusMinus);
+    spin->setFixedWidth(86);
+    spin->setStyleSheet(UiStyle::InputStyleSheet());
+    connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
+    connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), slider, &QSlider::setValue);
+    connect(spin, QOverload<int>::of(&QSpinBox::valueChanged), this,
+            [this](int) { OnMapStyleChanged(); });
     row->addWidget(caption);
     row->addWidget(slider, 1);
-    row->addWidget(value_label);
+    row->addWidget(spin);
     layout->addLayout(row);
   };
 
-  AddSectionHeader(layout, tr("栅格"));
-  grid_visible_checkbox_ = new QCheckBox(tr("显示地图栅格"), card);
+  auto add_color = [this](QVBoxLayout* layout, QFrame* card, const QString& title,
+                          const QString& role, QPushButton*& button) {
+    auto* row = new QHBoxLayout;
+    auto* caption = new QLabel(title, card);
+    caption->setMinimumWidth(98);
+    caption->setStyleSheet(UiStyle::FieldLabelStyleSheet());
+    button = new QPushButton(card);
+    button->setCursor(Qt::PointingHandCursor);
+    button->setMinimumHeight(36);
+    button->setAccessibleName(title);
+    connect(button, &QPushButton::clicked, this,
+            [this, role, title]() { ChooseMapStyleColor(role, title); });
+    row->addWidget(caption);
+    row->addStretch(1);
+    row->addWidget(button);
+    layout->addLayout(row);
+  };
+
+  auto create_card = [content](const QString& title, const QString& hint) {
+    QFrame* card = CreateSettingsCard(content);
+    auto* layout = new QVBoxLayout(card);
+    layout->setContentsMargins(16, 14, 16, 16);
+    layout->setSpacing(12);
+    auto* heading = new QLabel(title, card);
+    heading->setStyleSheet(UiStyle::CaptionLabelStyleSheet());
+    layout->addWidget(heading);
+    if (!hint.isEmpty()) {
+      auto* description = new QLabel(hint, card);
+      description->setWordWrap(true);
+      description->setStyleSheet(UiStyle::MutedLabelStyleSheet());
+      layout->addWidget(description);
+    }
+    return std::make_pair(card, layout);
+  };
+
+  auto grid_card = create_card(tr("栅格"), tr("调整背景参考网格；数值框可直接键入，也可使用加减按钮。"));
+  grid_visible_checkbox_ = new QCheckBox(tr("显示地图栅格"), grid_card.first);
   grid_visible_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
   connect(grid_visible_checkbox_, &QCheckBox::toggled, this,
           [this](bool) { OnMapStyleChanged(); });
-  layout->addWidget(grid_visible_checkbox_);
-  add_slider(tr("栅格间距"), 16, 96, grid_spacing_slider_, grid_spacing_label_, tr(" px"));
-  add_slider(tr("栅格强度"), 0, 100, grid_opacity_slider_, grid_opacity_label_, tr("%"));
+  grid_card.second->addWidget(grid_visible_checkbox_);
+  add_slider(grid_card.second, grid_card.first, tr("栅格间距"), 16, 96,
+             grid_spacing_slider_, grid_spacing_spin_, tr(" px"));
+  add_slider(grid_card.second, grid_card.first, tr("栅格强度"), 0, 100,
+             grid_opacity_slider_, grid_opacity_spin_, tr("%"));
+  add_color(grid_card.second, grid_card.first, tr("栅格颜色"), QStringLiteral("grid"),
+            grid_color_button_);
+  content_layout->addWidget(grid_card.first);
 
-  AddSectionHeader(layout, tr("激光与路径"));
-  add_slider(tr("激光点大小"), 1, 8, laser_size_slider_, laser_size_label_, tr(" px"));
-  add_slider(tr("激光不透明度"), 0, 100, laser_opacity_slider_, laser_opacity_label_, tr("%"));
-  add_slider(tr("路径线宽"), 1, 8, path_width_slider_, path_width_label_, tr(" px"));
-  add_slider(tr("代价地图透明度"), 0, 100, costmap_opacity_slider_, costmap_opacity_label_, tr("%"));
+  auto laser_card = create_card(tr("激光点"), tr("颜色统一应用于 Qt 中的激光点，不改变雷达原始数据。"));
+  add_slider(laser_card.second, laser_card.first, tr("点大小"), 1, 8,
+             laser_size_slider_, laser_size_spin_, tr(" px"));
+  add_slider(laser_card.second, laser_card.first, tr("不透明度"), 0, 100,
+             laser_opacity_slider_, laser_opacity_spin_, tr("%"));
+  add_color(laser_card.second, laser_card.first, tr("激光颜色"), QStringLiteral("laser"),
+            laser_color_button_);
+  content_layout->addWidget(laser_card.first);
 
-  auto* reset_button = new QPushButton(tr("恢复推荐样式"), card);
-  reset_button->setCursor(Qt::PointingHandCursor);
-  reset_button->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
-  connect(reset_button, &QPushButton::clicked, this, &DisplayConfigWidget::OnResetMapStyle);
-  layout->addWidget(reset_button, 0, Qt::AlignLeft);
+  auto path_card = create_card(
+      tr("路径与代价地图"),
+      tr("全局路径和局部路径可分别配色；代价地图保留 ROS 原始语义色。"));
+  add_slider(path_card.second, path_card.first, tr("路径线宽"), 1, 8,
+             path_width_slider_, path_width_spin_, tr(" px"));
+  add_color(path_card.second, path_card.first, tr("全局路径"), QStringLiteral("global_path"),
+            global_path_color_button_);
+  add_color(path_card.second, path_card.first, tr("局部路径"), QStringLiteral("local_path"),
+            local_path_color_button_);
+  add_slider(path_card.second, path_card.first, tr("代价图透明度"), 0, 100,
+             costmap_opacity_slider_, costmap_opacity_spin_, tr("%"));
+  content_layout->addWidget(path_card.first);
+  content_layout->addStretch(1);
 
-  root->addWidget(card, 0, Qt::AlignTop);
-  root->addStretch(1);
+  scroll->setWidget(content);
+  root->addWidget(scroll, 1);
   return page;
 }
 
@@ -968,21 +1036,24 @@ void DisplayConfigWidget::OnResetMapStyle() {
     config.map_style_config = Config::MapStyleConfig();
   });
   const auto style = Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_style_config;
-  const auto set_slider = [](QSlider* slider, QLabel* label, int value, const QString& suffix) {
+  const auto set_slider = [](QSlider* slider, QSpinBox* spin, int value) {
     slider->blockSignals(true);
+    spin->blockSignals(true);
     slider->setValue(value);
+    spin->setValue(value);
     slider->blockSignals(false);
-    label->setText(QString::number(value) + suffix);
+    spin->blockSignals(false);
   };
   grid_visible_checkbox_->blockSignals(true);
   grid_visible_checkbox_->setChecked(style.grid_visible);
   grid_visible_checkbox_->blockSignals(false);
-  set_slider(grid_spacing_slider_, grid_spacing_label_, style.grid_spacing, tr(" px"));
-  set_slider(grid_opacity_slider_, grid_opacity_label_, style.grid_opacity, tr("%"));
-  set_slider(laser_size_slider_, laser_size_label_, style.laser_point_size, tr(" px"));
-  set_slider(laser_opacity_slider_, laser_opacity_label_, style.laser_opacity, tr("%"));
-  set_slider(path_width_slider_, path_width_label_, style.path_line_width, tr(" px"));
-  set_slider(costmap_opacity_slider_, costmap_opacity_label_, style.costmap_opacity, tr("%"));
+  set_slider(grid_spacing_slider_, grid_spacing_spin_, style.grid_spacing);
+  set_slider(grid_opacity_slider_, grid_opacity_spin_, style.grid_opacity);
+  set_slider(laser_size_slider_, laser_size_spin_, style.laser_point_size);
+  set_slider(laser_opacity_slider_, laser_opacity_spin_, style.laser_opacity);
+  set_slider(path_width_slider_, path_width_spin_, style.path_line_width);
+  set_slider(costmap_opacity_slider_, costmap_opacity_spin_, style.costmap_opacity);
+  UpdateMapStyleColorButtons(style);
   ApplyMapStyle();
 }
 
@@ -991,6 +1062,62 @@ void DisplayConfigWidget::ApplyMapStyle() {
     display_manager_->SetMapStyleConfig(
         Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_style_config);
   }
+}
+
+void DisplayConfigWidget::ChooseMapStyleColor(const QString& role,
+                                               const QString& title) {
+  const auto snapshot = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
+  QString current;
+  if (role == QStringLiteral("grid")) current = QString::fromStdString(snapshot.map_style_config.grid_color);
+  else if (role == QStringLiteral("laser")) current = QString::fromStdString(snapshot.map_style_config.laser_color);
+  else if (role == QStringLiteral("global_path")) current = QString::fromStdString(snapshot.map_style_config.global_path_color);
+  else if (role == QStringLiteral("local_path")) current = QString::fromStdString(snapshot.map_style_config.local_path_color);
+
+  const QColor color = QColorDialog::getColor(QColor(current), this, tr("选择%1").arg(title));
+  if (!color.isValid()) {
+    return;
+  }
+  const std::string value = color.name(QColor::HexRgb).toUpper().toStdString();
+  Config::ConfigManager::Instance()->UpdateRootConfig([&](auto& config) {
+    if (role == QStringLiteral("grid")) config.map_style_config.grid_color = value;
+    else if (role == QStringLiteral("laser")) config.map_style_config.laser_color = value;
+    else if (role == QStringLiteral("global_path")) config.map_style_config.global_path_color = value;
+    else if (role == QStringLiteral("local_path")) config.map_style_config.local_path_color = value;
+  });
+  const auto style = Config::ConfigManager::Instance()->GetRootConfigSnapshot().map_style_config;
+  UpdateMapStyleColorButtons(style);
+  ApplyMapStyle();
+}
+
+void DisplayConfigWidget::UpdateMapStyleColorButtons(
+    const Config::MapStyleConfig& style) {
+  const auto update_button = [](QPushButton* button, const std::string& value) {
+    if (!button) return;
+    const QColor color(QString::fromStdString(value));
+    const QString text = color.isValid() ? color.name(QColor::HexRgb).toUpper()
+                                         : QStringLiteral("未设置");
+    button->setText(text);
+    button->setToolTip(QStringLiteral("点击选择颜色：%1").arg(text));
+    button->setStyleSheet(QStringLiteral(
+        "QPushButton { background:%1; color:%2; border:1px solid %3; border-radius:7px; "
+        "padding:6px 12px; min-width:112px; font-weight:700; }"
+        "QPushButton:hover { border:2px solid %4; padding:5px 11px; }"
+        "QPushButton:focus { border:2px solid %4; padding:5px 11px; }")
+        .arg(UiStyle::Palette::Surface,
+             UiStyle::Palette::Text,
+             color.isValid() ? color.name() : UiStyle::Palette::Border,
+             UiStyle::Palette::Primary));
+    if (color.isValid()) {
+      QPixmap swatch(18, 18);
+      swatch.fill(color);
+      button->setIcon(QIcon(swatch));
+      button->setIconSize(QSize(18, 18));
+    }
+  };
+  update_button(grid_color_button_, style.grid_color);
+  update_button(laser_color_button_, style.laser_color);
+  update_button(global_path_color_button_, style.global_path_color);
+  update_button(local_path_color_button_, style.local_path_color);
 }
 
 void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
@@ -1111,21 +1238,24 @@ void DisplayConfigWidget::LoadConfig() {
   ApplyRobotAppearance();
 
   const auto& map_style = config.map_style_config;
-  const auto load_style_slider = [](QSlider* slider, QLabel* label, int value, const QString& suffix) {
+  const auto load_style_slider = [](QSlider* slider, QSpinBox* spin, int value) {
     slider->blockSignals(true);
+    spin->blockSignals(true);
     slider->setValue(value);
+    spin->setValue(value);
     slider->blockSignals(false);
-    label->setText(QString::number(value) + suffix);
+    spin->blockSignals(false);
   };
   grid_visible_checkbox_->blockSignals(true);
   grid_visible_checkbox_->setChecked(map_style.grid_visible);
   grid_visible_checkbox_->blockSignals(false);
-  load_style_slider(grid_spacing_slider_, grid_spacing_label_, map_style.grid_spacing, tr(" px"));
-  load_style_slider(grid_opacity_slider_, grid_opacity_label_, map_style.grid_opacity, tr("%"));
-  load_style_slider(laser_size_slider_, laser_size_label_, map_style.laser_point_size, tr(" px"));
-  load_style_slider(laser_opacity_slider_, laser_opacity_label_, map_style.laser_opacity, tr("%"));
-  load_style_slider(path_width_slider_, path_width_label_, map_style.path_line_width, tr(" px"));
-  load_style_slider(costmap_opacity_slider_, costmap_opacity_label_, map_style.costmap_opacity, tr("%"));
+  load_style_slider(grid_spacing_slider_, grid_spacing_spin_, map_style.grid_spacing);
+  load_style_slider(grid_opacity_slider_, grid_opacity_spin_, map_style.grid_opacity);
+  load_style_slider(laser_size_slider_, laser_size_spin_, map_style.laser_point_size);
+  load_style_slider(laser_opacity_slider_, laser_opacity_spin_, map_style.laser_opacity);
+  load_style_slider(path_width_slider_, path_width_spin_, map_style.path_line_width);
+  load_style_slider(costmap_opacity_slider_, costmap_opacity_spin_, map_style.costmap_opacity);
+  UpdateMapStyleColorButtons(map_style);
   ApplyMapStyle();
 
   is_loading_config_ = true;

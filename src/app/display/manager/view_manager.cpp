@@ -291,9 +291,8 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   const qreal left = std::floor(rect.left() / minor_step) * minor_step;
   const qreal top = std::floor(rect.top() / minor_step) * minor_step;
 
-  QColor minor_color = UiStyle::IsDarkTheme() ? QColor(116, 146, 138, 34)
-                                               : QColor(96, 125, 117, 22);
-  minor_color.setAlpha(minor_color.alpha() * grid_opacity_ / 100);
+  QColor minor_color = grid_color_;
+  minor_color.setAlpha((UiStyle::IsDarkTheme() ? 34 : 22) * grid_opacity_ / 100);
   QPen minor_pen(minor_color);
   minor_pen.setWidthF(0.0);
   painter->setPen(minor_pen);
@@ -304,9 +303,8 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
     painter->drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
   }
 
-  QColor major_color = UiStyle::IsDarkTheme() ? QColor(116, 158, 147, 58)
-                                               : QColor(75, 115, 105, 38);
-  major_color.setAlpha(major_color.alpha() * grid_opacity_ / 100);
+  QColor major_color = grid_color_;
+  major_color.setAlpha((UiStyle::IsDarkTheme() ? 58 : 38) * grid_opacity_ / 100);
   QPen major_pen(major_color);
   major_pen.setWidthF(0.0);
   painter->setPen(major_pen);
@@ -322,10 +320,14 @@ void ViewManager::drawBackground(QPainter* painter, const QRectF& rect) {
   painter->restore();
 }
 
-void ViewManager::SetGridStyle(bool visible, int spacing, int opacity) {
+void ViewManager::SetGridStyle(bool visible, int spacing, int opacity,
+                               const QColor& color) {
   grid_visible_ = visible;
   grid_spacing_ = std::clamp(spacing, 16, 96);
   grid_opacity_ = std::clamp(opacity, 0, 100);
+  if (color.isValid()) {
+    grid_color_ = color;
+  }
   viewport()->update();
 }
 

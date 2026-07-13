@@ -157,11 +157,23 @@ void DisplayManager::SetRobotAppearanceConfig(
 }
 
 void DisplayManager::SetMapStyleConfig(const Config::MapStyleConfig& config) {
+  const QColor grid_color(QString::fromStdString(config.grid_color));
   graphics_view_ptr_->SetGridStyle(config.grid_visible, config.grid_spacing,
-                                   config.grid_opacity);
+                                   config.grid_opacity, grid_color);
   if (auto* laser = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER))) {
-    laser->SetVisualStyle(config.laser_point_size, config.laser_opacity);
+    laser->SetVisualStyle(config.laser_point_size, config.laser_opacity,
+                          QColor(QString::fromStdString(config.laser_color)));
   }
+  const auto apply_path_color = [this](const std::string& display_name,
+                                        const std::string& color_text) {
+    const QColor color(QString::fromStdString(color_text));
+    if (color.isValid()) {
+      SetDisplayConfig(display_name + "/Color",
+                       Color(color.red(), color.green(), color.blue()));
+    }
+  };
+  apply_path_color(DISPLAY_GLOBAL_PATH, config.global_path_color);
+  apply_path_color(DISPLAY_LOCAL_PATH, config.local_path_color);
   SetDisplayConfig(DISPLAY_GLOBAL_PATH + "/LineWidth", config.path_line_width);
   SetDisplayConfig(DISPLAY_LOCAL_PATH + "/LineWidth", config.path_line_width);
   for (const auto& display_name : {DISPLAY_GLOBAL_COST_MAP, DISPLAY_LOCAL_COST_MAP}) {

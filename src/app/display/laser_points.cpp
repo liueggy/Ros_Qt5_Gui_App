@@ -56,9 +56,13 @@ void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
   update();
 }
 
-void LaserPoints::SetVisualStyle(qreal point_size, int opacity) {
+void LaserPoints::SetVisualStyle(qreal point_size, int opacity, const QColor& color) {
   point_size_ = std::clamp(point_size, 1.0, 8.0);
   opacity_ = std::clamp(opacity, 0, 100);
+  if (color.isValid()) {
+    laser_color_ = color;
+    use_style_color_ = true;
+  }
   update();
 }
 
@@ -72,6 +76,9 @@ void LaserPoints::drawLaser(QPainter *painter, int id,
     location_to_color_[id] = color;
   } else {
     color = location_to_color_[id];
+  }
+  if (use_style_color_) {
+    color = laser_color_;
   }
   color.setAlpha(color.alpha() * opacity_ / 100);
   painter->setPen(QPen(color, point_size_));

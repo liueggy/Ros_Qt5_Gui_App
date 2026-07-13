@@ -33,6 +33,7 @@ class ViewManager : public QGraphicsView {
   bool grid_visible_ = {true};
   int grid_spacing_ = {32};
   int grid_opacity_ = {100};
+  QColor grid_color_ = {96, 125, 117};
   void ApplyMapViewScale(qreal factor, QGraphicsView::ViewportAnchor anchor = QGraphicsView::AnchorViewCenter);
 
  public:
@@ -48,7 +49,7 @@ class ViewManager : public QGraphicsView {
   void FitMapToBestView();
   void ZoomMapView(qreal factor);
   void RotateMapView(qreal delta_degrees);
-  void SetGridStyle(bool visible, int spacing, int opacity);
+  void SetGridStyle(bool visible, int spacing, int opacity, const QColor& color);
 
  private slots:
   void OnEditMapModeChanged(MapEditMode mode);

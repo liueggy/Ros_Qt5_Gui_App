@@ -10,6 +10,7 @@
 #include <QCheckBox>
 #include <QPushButton>
 #include <QSlider>
+#include <QSpinBox>
 #include <QColorDialog>
 #include <QTableWidget>
 #include <QHeaderView>
@@ -18,6 +19,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "config/config_define.h"
 
 namespace Display {
 class DisplayManager;
@@ -65,6 +67,8 @@ signals:
   QWidget *CreateMapStylePage();
   void ApplyRobotAppearance();
   void ApplyMapStyle();
+  void ChooseMapStyleColor(const QString &role, const QString &title);
+  void UpdateMapStyleColorButtons(const Config::MapStyleConfig &style);
   void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
   void AutoSaveConfig();
@@ -95,12 +99,16 @@ signals:
   QSlider *laser_opacity_slider_{nullptr};
   QSlider *path_width_slider_{nullptr};
   QSlider *costmap_opacity_slider_{nullptr};
-  QLabel *grid_spacing_label_{nullptr};
-  QLabel *grid_opacity_label_{nullptr};
-  QLabel *laser_size_label_{nullptr};
-  QLabel *laser_opacity_label_{nullptr};
-  QLabel *path_width_label_{nullptr};
-  QLabel *costmap_opacity_label_{nullptr};
+  QSpinBox *grid_spacing_spin_{nullptr};
+  QSpinBox *grid_opacity_spin_{nullptr};
+  QSpinBox *laser_size_spin_{nullptr};
+  QSpinBox *laser_opacity_spin_{nullptr};
+  QSpinBox *path_width_spin_{nullptr};
+  QSpinBox *costmap_opacity_spin_{nullptr};
+  QPushButton *grid_color_button_{nullptr};
+  QPushButton *laser_color_button_{nullptr};
+  QPushButton *global_path_color_button_{nullptr};
+  QPushButton *local_path_color_button_{nullptr};
 
   QComboBox *channel_type_combo_{nullptr};
   QLineEdit *rosbridge_ip_edit_{nullptr};
