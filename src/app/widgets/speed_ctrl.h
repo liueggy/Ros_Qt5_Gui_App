@@ -531,7 +531,9 @@ class SpeedCtrlWidget : public QWidget {
             });
     horizontalLayout_20->addWidget(label_raw);
 
-    label_14->setFixedWidth(88);
+    label_14->setMinimumWidth(
+        label_14->fontMetrics().horizontalAdvance(label_14->text()) + 16);
+    label_14->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
     label_raw->setMinimumWidth(94);
     label_raw->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     speed_layout->addLayout(horizontalLayout_20);
@@ -572,7 +574,9 @@ class SpeedCtrlWidget : public QWidget {
                   QString::number(value * 0.01, 'f', 2) + " m/s");
             });
     horizontalLayout_21->addWidget(label_linear);
-    label_9->setFixedWidth(88);
+    label_9->setMinimumWidth(
+        label_9->fontMetrics().horizontalAdvance(label_9->text()) + 16);
+    label_9->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
     label_linear->setMinimumWidth(94);
     label_linear->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     speed_layout->addLayout(horizontalLayout_21);
