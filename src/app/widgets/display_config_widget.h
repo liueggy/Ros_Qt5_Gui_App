@@ -52,7 +52,6 @@ signals:
   void OnRobotShapeIsEllipseChanged(bool checked);
   void OnRobotShapeColorChanged();
   void OnRobotShapeOpacityChanged(int value);
-  void OnBaseFrameIdChanged();
 
  private:
   void InitUI();
@@ -61,7 +60,6 @@ signals:
   QWidget *CreateLayersPage();
   QWidget *CreateImagePage();
   QWidget *CreateRobotPage();
-  QWidget *CreateCoordinatePage();
   void ApplyRobotAppearance();
   void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
@@ -93,7 +91,6 @@ signals:
   QFrame *connection_status_card_{nullptr};
   QLabel *connection_status_title_{nullptr};
   QLabel *connection_status_label_{nullptr};
-  QLineEdit *base_frame_id_edit_{nullptr};
 
   QLabel *title_label_{nullptr};
   QLabel *connection_section_label_{nullptr};

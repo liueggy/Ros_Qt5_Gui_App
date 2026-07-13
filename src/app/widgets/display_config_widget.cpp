@@ -120,7 +120,6 @@ void DisplayConfigWidget::InitUI() {
       {tr("显示与话题"), QStringLiteral(":/icons/tabler/messages.svg")},
       {tr("摄像头"), QStringLiteral(":/icons/tabler/camera.svg")},
       {tr("机器人外形"), QStringLiteral(":/icons/tabler/polygon.svg")},
-      {tr("坐标与定位"), QStringLiteral(":/icons/tabler/location.svg")},
   };
   for (const auto& item : navItems) {
     auto* nav_item = new QListWidgetItem(
@@ -145,7 +144,6 @@ void DisplayConfigWidget::InitUI() {
   page_stack_->addWidget(CreateLayersPage());
   page_stack_->addWidget(CreateImagePage());
   page_stack_->addWidget(CreateRobotPage());
-  page_stack_->addWidget(CreateCoordinatePage());
   for (int index = 0; index < page_stack_->count(); ++index) {
     QWidget* page = page_stack_->widget(index);
     page->setObjectName(QStringLiteral("settingsPage"));
@@ -684,47 +682,6 @@ void DisplayConfigWidget::OnToggleDisplay(const std::string& display_name, bool 
   });
 }
 
-QWidget* DisplayConfigWidget::CreateCoordinatePage() {
-  QWidget* page = new QWidget;
-  QVBoxLayout* root = new QVBoxLayout(page);
-  root->setContentsMargins(8, 4, 8, 8);
-  root->setSpacing(10);
-
-  QLabel* page_title = new QLabel(tr("坐标与定位"));
-  page_title->setObjectName(QStringLiteral("pageTitle"));
-  root->addWidget(page_title);
-
-  QFrame* card = CreateSettingsCard(page);
-  QVBoxLayout* card_layout = new QVBoxLayout(card);
-  card_layout->setContentsMargins(16, 16, 16, 16);
-  card_layout->setSpacing(10);
-
-  QLabel* hint = new QLabel(
-      tr("机器人基座坐标系用于 TF 位姿和雷达坐标转换；应与小车实际发布的 frame_id 一致。"),
-      card);
-  hint->setWordWrap(true);
-  hint->setStyleSheet(UiStyle::MutedLabelStyleSheet());
-  card_layout->addWidget(hint);
-
-  QHBoxLayout* row = new QHBoxLayout();
-  QLabel* label = new QLabel(tr("机器人基座坐标系"), card);
-  label->setStyleSheet(UiStyle::FieldLabelStyleSheet());
-  label->setMinimumWidth(118);
-  base_frame_id_edit_ = new QLineEdit(card);
-  base_frame_id_edit_->setPlaceholderText(QStringLiteral("base_link"));
-  base_frame_id_edit_->setStyleSheet(UiStyle::InputStyleSheet());
-  base_frame_id_edit_->setToolTip(tr("对应配置键 BaseFrameId"));
-  connect(base_frame_id_edit_, &QLineEdit::editingFinished,
-          this, &DisplayConfigWidget::OnBaseFrameIdChanged);
-  row->addWidget(label);
-  row->addWidget(base_frame_id_edit_, 1);
-  card_layout->addLayout(row);
-
-  root->addWidget(card);
-  root->addStretch();
-  return page;
-}
-
 void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name, const QString& topic) {
   auto toggle_it = display_toggle_buttons_.find(display_name);
   const bool visible = (toggle_it != display_toggle_buttons_.end()) ? toggle_it->second->isChecked() : true;
@@ -907,18 +864,6 @@ void DisplayConfigWidget::OnRobotShapeOpacityChanged(int value) {
   ApplyRobotAppearance();
 }
 
-void DisplayConfigWidget::OnBaseFrameIdChanged() {
-  if (!base_frame_id_edit_) {
-    return;
-  }
-  const QString frame_id = base_frame_id_edit_->text().trimmed();
-  if (frame_id.isEmpty()) {
-    base_frame_id_edit_->setText(QStringLiteral("base_link"));
-  }
-  const std::string value = base_frame_id_edit_->text().trimmed().toStdString();
-  Config::ConfigManager::Instance()->SetConfigValue("BaseFrameId", value);
-}
-
 void DisplayConfigWidget::ApplyRobotAppearance() {
   if (display_manager_) {
     display_manager_->SetRobotAppearanceConfig(
@@ -1067,13 +1012,6 @@ void DisplayConfigWidget::LoadConfig() {
   rosbridge_port_edit_->blockSignals(true);
   rosbridge_port_edit_->setText(QString::fromStdString(rosbridge_port));
   rosbridge_port_edit_->blockSignals(false);
-
-  if (base_frame_id_edit_) {
-    base_frame_id_edit_->blockSignals(true);
-    base_frame_id_edit_->setText(QString::fromStdString(
-        Config::ConfigManager::Instance()->GetConfigValue("BaseFrameId", "base_link")));
-    base_frame_id_edit_->blockSignals(false);
-  }
 
   bool show_rosbridge = (channel_type == "rosbridge");
   rosbridge_ip_edit_->setEnabled(show_rosbridge);
