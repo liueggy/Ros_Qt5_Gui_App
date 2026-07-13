@@ -1,7 +1,9 @@
 #include "terminal_widget.h"
 
-#include <QDateTime>
+#include <algorithm>
+
 #include <QComboBox>
+#include <QDateTime>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QJsonDocument>
@@ -9,17 +11,19 @@
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScrollBar>
+#include <QShortcut>
 #include <QSyntaxHighlighter>
-#include <QTextCursor>
 #include <QTextCharFormat>
+#include <QTextCursor>
 #include <QTime>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
-#include <QtGlobal>
 
 #include "widgets/ui_style.h"
 
@@ -31,13 +35,16 @@ struct ShortcutCommand {
 };
 
 const ShortcutCommand kShortcutCommands[] = {
-    {"ROS 节点", "rosnode list"},
-    {"ROS 话题", "rostopic list"},
-    {"ROS 服务", "rosservice list"},
-    {"ROS 参数", "rosparam list"},
-    {"磁盘空间", "df -h"},
-    {"内存使用", "free -h"},
-    {"系统服务", "systemctl list-units --no-pager --type=service --state=running,failed"},
+    {"查看 ROS 节点", "rosnode list"},
+    {"查看 ROS 话题", "rostopic list"},
+    {"查看 ROS 服务", "rosservice list"},
+    {"查看 ROS 参数", "rosparam list"},
+    {"查看机器人定位", "rostopic echo -n 1 /amcl_pose"},
+    {"查看速度指令", "rostopic echo -n 1 /cmd_vel"},
+    {"停止自动探索", "rostopic pub -1 /auto_explore/stop std_msgs/Bool true"},
+    {"查看磁盘空间", "df -h"},
+    {"查看内存使用", "free -h"},
+    {"查看异常服务", "systemctl list-units --no-pager --type=service --state=failed"},
 };
 
 class TerminalHighlighter final : public QSyntaxHighlighter {
@@ -48,19 +55,22 @@ class TerminalHighlighter final : public QSyntaxHighlighter {
  protected:
   void highlightBlock(const QString& text) override {
     Highlight(text, QStringLiteral("^root@firefly:[^#]*#"),
-              QStringLiteral("#4ADE80"), true);
-    Highlight(text, QStringLiteral(
-                  "\\b(rosnode|rostopic|rosservice|rosparam|roslaunch|rosrun|systemctl)\\b"),
-              QStringLiteral("#67E8F9"), true);
+              QStringLiteral("#5eead4"), true);
+    Highlight(text,
+              QStringLiteral("\\b(rosnode|rostopic|rosservice|rosparam|roslaunch|"
+                             "rosrun|systemctl)\\b"),
+              QStringLiteral("#8ddbd3"), true);
     Highlight(text, QStringLiteral("(^|\\s)--?[A-Za-z0-9_-]+"),
-              QStringLiteral("#C4B5FD"), false);
-    Highlight(text, QStringLiteral(
-                  "\\b(error|failed|failure|denied|timeout|异常|失败|错误|超时)\\b"),
-              QStringLiteral("#FCA5A5"), true,
+              QStringLiteral("#c4b5fd"), false);
+    Highlight(text,
+              QStringLiteral("\\b(error|failed|failure|denied|timeout|rejected|"
+                             "异常|失败|错误|超时|拒绝)\\b"),
+              QStringLiteral("#fca5a5"), true,
               QRegularExpression::CaseInsensitiveOption);
-    Highlight(text, QStringLiteral(
-                  "\\b(ok|success|completed|active|running|成功|完成|正常)\\b"),
-              QStringLiteral("#86EFAC"), false,
+    Highlight(text,
+              QStringLiteral("\\b(ok|success|completed|active|running|"
+                             "成功|完成|正常|已连接)\\b"),
+              QStringLiteral("#86efac"), false,
               QRegularExpression::CaseInsensitiveOption);
   }
 
@@ -81,22 +91,30 @@ class TerminalHighlighter final : public QSyntaxHighlighter {
   }
 };
 
+QString TerminalControlStyle() {
+  return QStringLiteral(
+             "QPushButton, QComboBox { min-height:30px; padding:3px 10px;"
+             " border:1px solid %1; border-radius:4px; color:%2;"
+             " background:%3; font-size:%4px; }"
+             "QPushButton:hover, QComboBox:hover { border-color:%5; background:%6; }"
+             "QPushButton:pressed { background:%7; }"
+             "QPushButton:disabled { color:#71807b; background:%3; border-color:%1; }"
+             "QComboBox::drop-down { border:0; width:24px; }"
+             "QComboBox QAbstractItemView { color:%2; background:%3;"
+             " border:1px solid %5; selection-background-color:%8; }")
+      .arg(UiStyle::Palette::TerminalBorder, UiStyle::Palette::TerminalText,
+           UiStyle::Palette::TerminalBg, QString::number(UiStyle::FontMiniPx()),
+           UiStyle::Palette::BorderHover, UiStyle::Palette::TerminalSelection,
+           UiStyle::Palette::PrimaryPress, UiStyle::Palette::Primary);
+}
+
 }  // namespace
 
 TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   setObjectName(QStringLiteral("terminalRoot"));
-  setStyleSheet(QStringLiteral(
-      "#terminalRoot { background:#111827; }"
-      "QLabel { color:#CBD5E1; background:transparent; }"
-      "QPushButton, QComboBox { min-height:26px; padding:2px 9px;"
-      " border:1px solid #334155; border-radius:4px; color:#DCE7F3;"
-      " background:#1E293B; font-size:14px; }"
-      "QPushButton:hover, QComboBox:hover { border-color:#64748B; background:#273449; }"
-      "QPushButton:pressed { background:#334155; }"
-      "QPushButton:disabled { color:#64748B; background:#172033; }"
-      "QComboBox::drop-down { border:0; width:22px; }"
-      "QComboBox QAbstractItemView { color:#DCE7F3; background:#1E293B;"
-      " border:1px solid #475569; selection-background-color:#2563EB; }"));
+  setMinimumSize(520, 260);
+  setStyleSheet(QStringLiteral("#terminalRoot { background:%1; }")
+                    .arg(UiStyle::Palette::TerminalBg));
 
   auto* root = new QVBoxLayout(this);
   root->setContentsMargins(0, 0, 0, 0);
@@ -104,28 +122,43 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
 
   auto* toolbar = new QWidget();
   toolbar->setObjectName(QStringLiteral("terminalToolbar"));
-  toolbar->setStyleSheet(QStringLiteral(
-      "#terminalToolbar { background:#182235; border-bottom:1px solid #2B3A51; }"));
+  toolbar->setStyleSheet(
+      QStringLiteral("#terminalToolbar { background:%1; border-bottom:1px solid %2; }"
+                     "#terminalToolbar QLabel { background:transparent; }")
+          .arg(UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalBorder));
   auto* title_row = new QHBoxLayout(toolbar);
-  title_row->setContentsMargins(10, 5, 8, 5);
-  title_row->setSpacing(7);
+  title_row->setContentsMargins(14, 8, 10, 8);
+  title_row->setSpacing(8);
 
   status_dot_ = new QLabel(QStringLiteral("●"));
   status_dot_->setFixedWidth(12);
   title_row->addWidget(status_dot_);
 
-  auto* session_label = new QLabel(tr("root@firefly  ·  rosbridge shell"));
-  session_label->setStyleSheet(QStringLiteral(
-      "font-family:Consolas,'Microsoft YaHei UI'; font-size:14px; color:#E2E8F0;"));
+  auto* session_label = new QLabel(tr("小车终端"));
+  session_label->setStyleSheet(
+      QStringLiteral("color:%1; font-weight:600; font-size:%2px;")
+          .arg(UiStyle::Palette::TerminalText)
+          .arg(UiStyle::FontSmallPx()));
   title_row->addWidget(session_label);
 
-  status_label_ = new QLabel(tr("就绪"));
-  status_label_->setStyleSheet(QStringLiteral("font-size:12px; color:#94A3B8;"));
+  connection_badge_ = new QLabel(tr("ROSBridge 安全通道"));
+  connection_badge_->setStyleSheet(
+      QStringLiteral("color:#9fb0aa; border:1px solid %1; border-radius:4px;"
+                     " padding:2px 7px; font-size:%2px;")
+          .arg(UiStyle::Palette::TerminalBorder)
+          .arg(UiStyle::FontMiniPx()));
+  title_row->addWidget(connection_badge_);
+
+  status_label_ = new QLabel(tr("未连接"));
+  status_label_->setStyleSheet(
+      QStringLiteral("color:#9fb0aa; font-size:%1px;")
+          .arg(UiStyle::FontMiniPx()));
   title_row->addWidget(status_label_);
   title_row->addStretch();
 
   quick_command_combo_ = new QComboBox();
-  quick_command_combo_->setMinimumWidth(150);
+  quick_command_combo_->setMinimumWidth(190);
+  quick_command_combo_->setToolTip(tr("选择后填入命令行，不会自动执行"));
   quick_command_combo_->addItem(tr("快捷命令…"), QString());
   for (const auto& shortcut : kShortcutCommands) {
     quick_command_combo_->addItem(tr(shortcut.label),
@@ -134,76 +167,157 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   connect(quick_command_combo_, QOverload<int>::of(&QComboBox::activated),
           this, [this](int index) {
             const QString command = quick_command_combo_->itemData(index).toString();
-            if (!command.isEmpty()) {
-              SetCommandText(command);
-            }
+            if (!command.isEmpty()) SetCommandText(command);
             quick_command_combo_->setCurrentIndex(0);
           });
   title_row->addWidget(quick_command_combo_);
 
-  terminate_button_ = new QPushButton(tr("■ 终止"));
+  terminate_button_ = new QPushButton(tr("终止"));
+  terminate_button_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/player-stop.svg"), QSize(18, 18),
+      UiStyle::Palette::Danger));
   terminate_button_->setToolTip(tr("终止当前命令（Ctrl+C）"));
-  terminate_button_->setEnabled(false);
   connect(terminate_button_, &QPushButton::clicked, this,
           &TerminalWidget::TerminateCommand);
   title_row->addWidget(terminate_button_);
 
   clear_button_ = new QPushButton(tr("清屏"));
-  clear_button_->setToolTip(tr("清空终端（Ctrl+L）"));
+  clear_button_->setToolTip(tr("清空终端输出（Ctrl+L）"));
   connect(clear_button_, &QPushButton::clicked, this,
           &TerminalWidget::ClearOutput);
   title_row->addWidget(clear_button_);
+  toolbar->setStyleSheet(toolbar->styleSheet() + TerminalControlStyle());
   root->addWidget(toolbar);
 
   output_edit_ = new QPlainTextEdit();
-  output_edit_->setReadOnly(false);
+  output_edit_->setReadOnly(true);
   output_edit_->setUndoRedoEnabled(false);
   output_edit_->setMaximumBlockCount(5000);
   output_edit_->setLineWrapMode(QPlainTextEdit::NoWrap);
   output_edit_->setTabStopWidth(32);
-  output_edit_->setPlaceholderText(tr("输入板端白名单命令，按 Enter 执行"));
-  output_edit_->setStyleSheet(QStringLiteral(
-      "QPlainTextEdit { background:#111827; color:#D7E2EE; border:0;"
-      " padding:9px 12px; font-family:Consolas,'Cascadia Mono','Microsoft YaHei UI';"
-      " font-size:16px; selection-background-color:#264F78;"
-      " selection-color:#FFFFFF; }"));
+  output_edit_->setPlaceholderText(
+      tr("连接小车后，板端命令输出会实时显示在这里。"));
+  output_edit_->setStyleSheet(
+      QStringLiteral("QPlainTextEdit { background:%1; color:%2; border:0;"
+                     " padding:12px 14px; font-family:%3; font-size:%4px;"
+                     " selection-background-color:%5; selection-color:#ffffff; }"
+                     "QScrollBar:vertical { background:%1; width:10px; margin:0; }"
+                     "QScrollBar::handle:vertical { background:%6; min-height:28px;"
+                     " border-radius:4px; margin:2px; }"
+                     "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+                     " height:0; }")
+          .arg(UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
+               QString::fromLatin1(UiStyle::Font::Mono),
+               QString::number(UiStyle::FontSmallPx()),
+               UiStyle::Palette::TerminalSelection,
+               UiStyle::Palette::TerminalBorder));
   new TerminalHighlighter(output_edit_->document());
-  root->addWidget(output_edit_, 1);
   output_edit_->installEventFilter(this);
-  AddPrompt();
+  root->addWidget(output_edit_, 1);
+
+  auto* composer = new QWidget();
+  composer->setObjectName(QStringLiteral("terminalComposer"));
+  composer->setStyleSheet(
+      QStringLiteral("#terminalComposer { background:%1; border-top:1px solid %2; }"
+                     "#terminalPrompt { color:#5eead4; font-family:%3;"
+                     " font-weight:600; font-size:%4px; }"
+                     "QLineEdit { min-height:38px; color:%5; background:#131a18;"
+                     " border:1px solid %2; border-radius:4px; padding:0 10px;"
+                     " font-family:%3; font-size:%4px; selection-background-color:%6; }"
+                     "QLineEdit:focus { border-color:%7; }"
+                     "QLineEdit:disabled { color:#71807b; background:#171d1b; }")
+          .arg(UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalBorder,
+               QString::fromLatin1(UiStyle::Font::Mono),
+               QString::number(UiStyle::FontSmallPx()),
+               UiStyle::Palette::TerminalText,
+               UiStyle::Palette::TerminalSelection, UiStyle::Palette::Primary));
+  auto* command_row = new QHBoxLayout(composer);
+  command_row->setContentsMargins(14, 10, 10, 10);
+  command_row->setSpacing(10);
+
+  auto* prompt_label = new QLabel(QStringLiteral("root@firefly:~#"));
+  prompt_label->setObjectName(QStringLiteral("terminalPrompt"));
+  command_row->addWidget(prompt_label);
+
+  command_edit_ = new QLineEdit();
+  command_edit_->setPlaceholderText(tr("输入白名单命令，按 Enter 执行"));
+  command_edit_->setClearButtonEnabled(true);
+  command_edit_->installEventFilter(this);
+  connect(command_edit_, &QLineEdit::returnPressed, this,
+          &TerminalWidget::ExecuteCommand);
+  command_row->addWidget(command_edit_, 1);
+
+  run_button_ = new QPushButton(tr("运行"));
+  run_button_->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/player-play.svg"), QSize(18, 18),
+      UiStyle::Palette::TextOnPrimary));
+  run_button_->setToolTip(tr("执行当前命令（Enter）"));
+  run_button_->setStyleSheet(
+      QStringLiteral("QPushButton { min-width:82px; min-height:38px; color:%1;"
+                     " background:%2; border:1px solid %2; border-radius:4px;"
+                     " padding:0 14px; font-weight:600; font-size:%3px; }"
+                     "QPushButton:hover { background:%4; border-color:%4; }"
+                     "QPushButton:pressed { background:%5; border-color:%5; }"
+                     "QPushButton:disabled { color:#71807b; background:#26302d;"
+                     " border-color:#35413e; }")
+          .arg(UiStyle::Palette::TextOnPrimary, UiStyle::Palette::Primary,
+               QString::number(UiStyle::FontSmallPx()),
+               UiStyle::Palette::PrimaryHover, UiStyle::Palette::PrimaryPress));
+  connect(run_button_, &QPushButton::clicked, this,
+          &TerminalWidget::ExecuteCommand);
+  command_row->addWidget(run_button_);
+  root->addWidget(composer);
+
+  cancel_shortcut_ = new QShortcut(QKeySequence(QStringLiteral("Ctrl+C")), this);
+  cancel_shortcut_->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(cancel_shortcut_, &QShortcut::activated, this,
+          &TerminalWidget::TerminateCommand);
+
+  auto* clear_shortcut = new QShortcut(QKeySequence(QStringLiteral("Ctrl+L")), this);
+  clear_shortcut->setContext(Qt::WidgetWithChildrenShortcut);
+  connect(clear_shortcut, &QShortcut::activated, this,
+          &TerminalWidget::ClearOutput);
+
   command_watchdog_ = new QTimer(this);
   command_watchdog_->setSingleShot(true);
   command_watchdog_->setInterval(35000);
   connect(command_watchdog_, &QTimer::timeout, this, [this]() {
     if (!command_running_) return;
-    AppendStatus(tr("命令响应超时，终端已恢复"));
     SetCommandRunning(false);
+    AppendStatus(tr("命令响应超时，终端已恢复"));
   });
+
+  AppendStatus(tr("终端已就绪，命令将通过板端白名单安全执行"));
   SetConnected(false);
 }
 
-void TerminalWidget::AppendOutput(const QString& text) {
-  if (text.isEmpty()) {
-    return;
-  }
-  QTextCursor cursor = output_edit_->textCursor();
+void TerminalWidget::AppendOutput(const QString& text, const QString& stream) {
+  if (text.isEmpty()) return;
+
+  QScrollBar* scroll_bar = output_edit_->verticalScrollBar();
+  const bool follow_output = scroll_bar->value() >= scroll_bar->maximum() - 2;
+  QTextCursor cursor(output_edit_->document());
   cursor.movePosition(QTextCursor::End);
-  cursor.insertText(text);
-  output_edit_->setTextCursor(cursor);
-  output_edit_->ensureCursorVisible();
+  QTextCharFormat format;
+  format.setForeground(stream.compare(QStringLiteral("stderr"),
+                                      Qt::CaseInsensitive) == 0
+                           ? QColor(QStringLiteral("#fca5a5"))
+                           : QColor(UiStyle::Palette::TerminalText));
+  cursor.insertText(text, format);
+  if (follow_output) {
+    output_edit_->setTextCursor(cursor);
+    output_edit_->ensureCursorVisible();
+  }
 }
 
 void TerminalWidget::AppendStatus(const QString& text) {
-  if (text.isEmpty()) {
-    return;
-  }
+  if (text.isEmpty()) return;
   const QString timestamp = QTime::currentTime().toString(QStringLiteral("HH:mm:ss"));
   AppendOutput(QStringLiteral("[%1] %2\n").arg(timestamp, text));
   UpdateStatus(command_running_, text);
 }
 
 void TerminalWidget::SetCommandRunning(bool running) {
-  const bool was_running = command_running_;
   command_running_ = running;
   if (running) {
     command_watchdog_->start();
@@ -211,55 +325,32 @@ void TerminalWidget::SetCommandRunning(bool running) {
     command_watchdog_->stop();
   }
   RefreshControls();
-  UpdateStatus(running, running ? tr("命令执行中") : tr("就绪"));
-  if (was_running && !running) {
-    AddPrompt();
-  } else if (!running) {
+  UpdateStatus(running, running ? tr("命令执行中")
+                                : (connected_ ? tr("已连接，可执行命令")
+                                              : tr("未连接")));
+  if (running) {
     output_edit_->setFocus();
+  } else if (connected_) {
+    command_edit_->setFocus();
   }
 }
 
 void TerminalWidget::SetConnected(bool connected) {
-  const bool needs_prompt = connected && !prompt_active_;
   connected_ = connected;
   if (!connected_) {
     command_running_ = false;
     command_watchdog_->stop();
   }
   RefreshControls();
-  UpdateStatus(false, connected_ ? tr("已连接，可执行命令")
-                                 : tr("未连接，终端不可用"));
-  if (needs_prompt) AddPrompt();
+  UpdateStatus(command_running_,
+               connected_ ? (command_running_ ? tr("命令执行中")
+                                              : tr("已连接，可执行命令"))
+                          : tr("未连接，等待 ROSBridge"));
 }
 
 bool TerminalWidget::eventFilter(QObject* watched, QEvent* event) {
-  if (watched == output_edit_ && event->type() == QEvent::KeyPress) {
+  if (watched == command_edit_ && event->type() == QEvent::KeyPress) {
     auto* key_event = static_cast<QKeyEvent*>(event);
-    if (!command_running_ && key_event->modifiers().testFlag(Qt::ControlModifier) &&
-        key_event->key() == Qt::Key_L) {
-      ClearOutput();
-      return true;
-    }
-    if (command_running_ && key_event->modifiers().testFlag(Qt::ControlModifier) &&
-        key_event->key() == Qt::Key_C) {
-      TerminateCommand();
-      return true;
-    }
-    if (command_running_) {
-      return key_event->matches(QKeySequence::Paste) ||
-             key_event->key() == Qt::Key_Return ||
-             key_event->key() == Qt::Key_Enter;
-    }
-    QTextCursor cursor = output_edit_->textCursor();
-    if (!cursor.hasSelection() && cursor.position() < prompt_position_) {
-      cursor.movePosition(QTextCursor::End);
-      output_edit_->setTextCursor(cursor);
-    }
-    if (key_event->key() == Qt::Key_Return ||
-        key_event->key() == Qt::Key_Enter) {
-      ExecuteCommand();
-      return true;
-    }
     if (key_event->key() == Qt::Key_Up) {
       NavigateHistory(-1);
       return true;
@@ -267,25 +358,6 @@ bool TerminalWidget::eventFilter(QObject* watched, QEvent* event) {
     if (key_event->key() == Qt::Key_Down) {
       NavigateHistory(1);
       return true;
-    }
-    if ((key_event->key() == Qt::Key_Backspace ||
-         key_event->key() == Qt::Key_Left) &&
-        !cursor.hasSelection() && cursor.position() <= prompt_position_) {
-      return true;
-    }
-    if (key_event->key() == Qt::Key_Home) {
-      cursor.setPosition(prompt_position_);
-      output_edit_->setTextCursor(cursor);
-      return true;
-    }
-    if (cursor.hasSelection() &&
-        cursor.selectionStart() < prompt_position_ &&
-        (key_event->key() == Qt::Key_Backspace ||
-         key_event->key() == Qt::Key_Delete ||
-         !key_event->text().isEmpty())) {
-      cursor.clearSelection();
-      cursor.movePosition(QTextCursor::End);
-      output_edit_->setTextCursor(cursor);
     }
   }
   return QWidget::eventFilter(watched, event);
@@ -296,9 +368,10 @@ void TerminalWidget::ExecuteCommand() {
     if (!connected_) UpdateStatus(false, tr("请先连接小车"));
     return;
   }
-  const QString command = CurrentCommand().trimmed();
+  const QString command = command_edit_->text().trimmed();
   if (command.isEmpty()) {
     UpdateStatus(false, tr("请输入命令"));
+    command_edit_->setFocus();
     return;
   }
 
@@ -307,32 +380,24 @@ void TerminalWidget::ExecuteCommand() {
   }
   history_index_ = command_history_.size();
   pending_command_.clear();
-  QTextCursor cursor = output_edit_->textCursor();
-  cursor.movePosition(QTextCursor::End);
-  cursor.insertText(QStringLiteral("\n"));
-  output_edit_->setTextCursor(cursor);
-  prompt_active_ = false;
+  AppendCommandEcho(command);
+  command_edit_->clear();
   SetCommandRunning(true);
   emit CommandRequested(MakeRequestJson(command));
 }
 
 void TerminalWidget::TerminateCommand() {
-  if (!command_running_) {
-    return;
-  }
-  UpdateStatus(true, tr("正在终止"));
+  if (!command_running_) return;
+  UpdateStatus(true, tr("正在终止命令…"));
   terminate_button_->setEnabled(false);
   emit TerminateRequested();
 }
 
 void TerminalWidget::ClearOutput() {
-  if (command_running_) return;
   output_edit_->clear();
-  prompt_active_ = false;
-  if (!command_running_) {
-    AddPrompt();
-  }
-  UpdateStatus(command_running_, command_running_ ? tr("命令执行中") : tr("就绪"));
+  UpdateStatus(command_running_, command_running_ ? tr("命令执行中")
+                                                  : (connected_ ? tr("已连接，可执行命令")
+                                                                : tr("未连接")));
 }
 
 QString TerminalWidget::MakeRequestJson(const QString& command) const {
@@ -346,76 +411,61 @@ QString TerminalWidget::MakeRequestJson(const QString& command) const {
   return QString::fromUtf8(QJsonDocument(request).toJson(QJsonDocument::Compact));
 }
 
-void TerminalWidget::SetCommandText(const QString& command) {
-  if (command_running_) {
-    return;
-  }
+void TerminalWidget::AppendCommandEcho(const QString& command) {
   QTextCursor cursor(output_edit_->document());
-  cursor.setPosition(prompt_position_);
-  cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-  cursor.insertText(command);
-  output_edit_->setTextCursor(cursor);
-  output_edit_->setFocus();
-}
-
-void TerminalWidget::NavigateHistory(int direction) {
-  if (command_history_.isEmpty()) {
-    return;
-  }
-
-  if (history_index_ == command_history_.size() && direction < 0) {
-    pending_command_ = CurrentCommand();
-  }
-
-  history_index_ += direction;
-  history_index_ = std::clamp(history_index_, 0, static_cast<int>(command_history_.size()));
-  if (history_index_ == command_history_.size()) {
-    SetCommandText(pending_command_);
-  } else {
-    SetCommandText(command_history_.at(history_index_));
-  }
-}
-
-void TerminalWidget::AddPrompt() {
-  QTextCursor cursor = output_edit_->textCursor();
   cursor.movePosition(QTextCursor::End);
   if (!output_edit_->toPlainText().isEmpty() &&
       !output_edit_->toPlainText().endsWith(QLatin1Char('\n'))) {
     cursor.insertText(QStringLiteral("\n"));
   }
-  cursor.insertText(QStringLiteral("root@firefly:~# "));
-  prompt_position_ = cursor.position();
-  prompt_active_ = true;
+  QTextCharFormat prompt_format;
+  prompt_format.setForeground(QColor(QStringLiteral("#5eead4")));
+  prompt_format.setFontWeight(QFont::DemiBold);
+  cursor.insertText(QStringLiteral("root@firefly:~# "), prompt_format);
+  QTextCharFormat command_format;
+  command_format.setForeground(QColor(UiStyle::Palette::TerminalText));
+  cursor.insertText(command + QLatin1Char('\n'), command_format);
   output_edit_->setTextCursor(cursor);
-  output_edit_->setFocus();
+  output_edit_->ensureCursorVisible();
 }
 
-QString TerminalWidget::CurrentCommand() const {
-  if (!prompt_active_) {
-    return QString();
+void TerminalWidget::SetCommandText(const QString& command) {
+  if (command_running_) return;
+  command_edit_->setText(command);
+  command_edit_->setFocus();
+  command_edit_->setCursorPosition(command.size());
+}
+
+void TerminalWidget::NavigateHistory(int direction) {
+  if (command_history_.isEmpty()) return;
+  if (history_index_ == command_history_.size() && direction < 0) {
+    pending_command_ = command_edit_->text();
   }
-  return output_edit_->toPlainText().mid(prompt_position_);
+  history_index_ = std::clamp(history_index_ + direction, 0,
+                              static_cast<int>(command_history_.size()));
+  SetCommandText(history_index_ == command_history_.size()
+                     ? pending_command_
+                     : command_history_.at(history_index_));
 }
 
 void TerminalWidget::UpdateStatus(bool running, const QString& text) {
   status_label_->setText(text);
+  const QString dot_color = running
+                                ? UiStyle::Palette::Warning
+                                : (connected_ ? QStringLiteral("#34d399")
+                                              : QStringLiteral("#71807b"));
   status_dot_->setStyleSheet(
-      running ? QStringLiteral("color:#FBBF24; font-size:12px;")
-              : (connected_ ? QStringLiteral("color:#34D399; font-size:12px;")
-                            : QStringLiteral("color:#64748B; font-size:12px;")));
+      QStringLiteral("color:%1; font-size:12px;").arg(dot_color));
+  connection_badge_->setText(connected_ ? tr("ROSBridge 已连接")
+                                        : tr("ROSBridge 安全通道"));
 }
 
 void TerminalWidget::RefreshControls() {
   const bool can_enter_command = connected_ && !command_running_;
-  output_edit_->setEnabled(connected_);
-  output_edit_->setTextInteractionFlags(
-      can_enter_command ? Qt::TextEditorInteraction
-                        : Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
+  command_edit_->setEnabled(can_enter_command);
+  run_button_->setEnabled(can_enter_command);
   quick_command_combo_->setEnabled(can_enter_command);
   terminate_button_->setEnabled(connected_ && command_running_);
-  clear_button_->setEnabled(can_enter_command);
+  cancel_shortcut_->setEnabled(connected_ && command_running_);
+  clear_button_->setEnabled(true);
 }
-
-
-
-

@@ -689,7 +689,8 @@ void MainWindow::registerChannel() {
       try {
         const auto obj = nlohmann::json::parse(json_str);
         terminal_widget_->AppendOutput(
-            QString::fromStdString(obj.value("data", std::string())));
+            QString::fromStdString(obj.value("data", std::string())),
+            QString::fromStdString(obj.value("stream", std::string("stdout"))));
       } catch (const std::exception&) {
         terminal_widget_->AppendOutput(QString::fromStdString(json_str));
       } }, Qt::QueuedConnection);
@@ -707,21 +708,32 @@ void MainWindow::registerChannel() {
         if (running) {
           terminal_widget_->SetCommandRunning(true);
         } else if (state != "idle") {
-          QString status = QString::fromStdString(state);
+          const std::map<std::string, QString> state_text = {
+              {"completed", tr("命令执行完成")},
+              {"cancelled", tr("命令已终止")},
+              {"timeout", tr("命令执行超时")},
+              {"rejected", tr("命令被安全策略拒绝")},
+              {"failed", tr("命令执行失败")},
+              {"error", tr("命令执行失败")},
+          };
+          const auto state_it = state_text.find(state);
+          QString status = state_it == state_text.end()
+                               ? QString::fromStdString(state)
+                               : state_it->second;
           if (obj.contains("exit_code") && !obj["exit_code"].is_null()) {
             status += tr("，退出码 %1").arg(obj["exit_code"].get<int>());
           }
           if (obj.contains("error")) {
             status += tr("：%1").arg(QString::fromStdString(obj["error"].get<std::string>()));
           }
-          terminal_widget_->AppendStatus(status);
           terminal_widget_->SetCommandRunning(false);
+          terminal_widget_->AppendStatus(status);
         } else {
           terminal_widget_->SetCommandRunning(false);
         }
       } catch (const std::exception&) {
-        terminal_widget_->AppendStatus(QString::fromStdString(json_str));
         terminal_widget_->SetCommandRunning(false);
+        terminal_widget_->AppendStatus(QString::fromStdString(json_str));
       } }, Qt::QueuedConnection);
   });
 
@@ -1466,16 +1478,16 @@ void MainWindow::setupUi() {
             if (visible) it->second->raise();
           });
 
-  //////////////////////////////////////////////////////板端终端
+  //////////////////////////////////////////////////////小车终端
   terminal_widget_ = new TerminalWidget();
   terminal_widget_->SetConnected(channel_connected_);
-  terminal_dock_ = new ads::CDockWidget("板端终端");
+  terminal_dock_ = new ads::CDockWidget("小车终端");
   terminal_dock_->setWidget(terminal_widget_);
-  ConfigureDockWidget(terminal_dock_, QSize(720, 220), QSize(1100, 320));
+  ConfigureDockWidget(terminal_dock_, QSize(760, 300), QSize(1180, 420));
   dock_manager_->addDockWidget(ads::DockWidgetArea::BottomDockWidgetArea,
                                terminal_dock_, center_docker_area_);
   terminal_dock_->toggleView(false);
-  ConfigureFloatingOnOpen(terminal_dock_, QSize(860, 580));
+  ConfigureFloatingOnOpen(terminal_dock_, QSize(960, 620));
   ui->menuView->addAction(terminal_dock_->toggleViewAction());
   connect(terminal_widget_, &TerminalWidget::CommandRequested, this,
           [](const QString& request) {
@@ -2244,6 +2256,5 @@ bool MainWindow::LoadMap(const std::string& file_path) {
 
   return false;
 }
-
 
 
