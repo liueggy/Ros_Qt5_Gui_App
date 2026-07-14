@@ -16,6 +16,7 @@ inline constexpr char kLocalCostMapTopic[] =
 inline constexpr char kFootprintTopic[] =
     "/move_base/local_costmap/published_footprint";
 inline constexpr char kManualCmdVelTopic[] = "/cmd_vel/manual";
+inline constexpr char kEmergencyStopTopic[] = "/eggy/emergency_stop";
 
 // "raw" means the stable, unannotated camera stream. The board publishes it
 // as CompressedImage to avoid an unnecessary decode/re-encode cycle.

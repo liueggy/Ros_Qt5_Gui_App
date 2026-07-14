@@ -1,5 +1,6 @@
 #pragma once
 #include <QCalendarWidget>
+#include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFileDialog>
@@ -9,6 +10,7 @@
 #include <QIcon>
 #include <QInputDialog>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPlainTextEdit>
@@ -21,6 +23,7 @@
 #include <QTableWidget>
 #include <QToolBar>
 #include <QTreeView>
+#include <QTextEdit>
 #include <QVBoxLayout>
 #include <QWidgetAction>
 #include <QtMath>
@@ -58,7 +61,9 @@ class SpeedCtrlWidget : public QWidget {
   QSlider* horizontalSlider_raw_;
   QSlider* horizontalSlider_linear_;
   QTimer* command_timer_{nullptr};
+  QPushButton* emergency_stop_button_{nullptr};
   RobotSpeed active_speed_;
+  bool emergency_stop_engaged_{false};
   double joystick_x_ = {0.0};
   double joystick_y_ = {0.0};
   bool joystick_active_ = {false};
@@ -159,11 +164,41 @@ class SpeedCtrlWidget : public QWidget {
   }
 
   void StartActiveSpeed(const RobotSpeed& speed) {
+    if (emergency_stop_engaged_) return;
     active_speed_ = speed;
     PublishActiveSpeed();
     if (!command_timer_->isActive()) {
       command_timer_->start();
     }
+  }
+
+  bool IsTextEntryFocused() const {
+    QWidget* focus = QApplication::focusWidget();
+    if (!focus) return false;
+    if (qobject_cast<QLineEdit*>(focus) ||
+        qobject_cast<QTextEdit*>(focus) ||
+        qobject_cast<QPlainTextEdit*>(focus) ||
+        qobject_cast<QAbstractSpinBox*>(focus)) {
+      return true;
+    }
+    auto* combo = qobject_cast<QComboBox*>(focus);
+    return combo && combo->isEditable();
+  }
+
+  void SetEmergencyStop(bool engaged) {
+    if (engaged) {
+      ClearMoveHighlight();
+      slotStopControl();
+    }
+    if (emergency_stop_engaged_ == engaged) return;
+    emergency_stop_engaged_ = engaged;
+    emergency_stop_button_->setText(
+        engaged ? QStringLiteral("急停已锁定 · 点击解除")
+                : QStringLiteral("立即停止    SPACE"));
+    emergency_stop_button_->setToolTip(
+        engaged ? QStringLiteral("软件急停已锁定；确认现场安全后点击解除")
+                : QStringLiteral("锁定软件急停并取消当前运动任务"));
+    emit signalEmergencyStopChanged(engaged);
   }
 
   void UpdateJoystickSpeed() {
@@ -177,6 +212,7 @@ class SpeedCtrlWidget : public QWidget {
   }
  signals:
   void signalControlSpeed(const RobotSpeed& speed);
+  void signalEmergencyStopChanged(bool engaged);
  private slots:
   void slotSpeedControl() {
     QPushButton* btn = qobject_cast<QPushButton*>(sender());
@@ -567,26 +603,32 @@ class SpeedCtrlWidget : public QWidget {
     speed_layout->addLayout(horizontalLayout_21);
     control_layout->addWidget(speed_card);
     QHBoxLayout* horizontalLayout_stop_button = new QHBoxLayout();
-    QPushButton* btn_stop = new QPushButton();
-    btn_stop->setObjectName(QString::fromUtf8("btn_stop"));
-    btn_stop->setText("立即停止    SPACE");
-    btn_stop->setStyleSheet(UiStyle::DangerButtonStyleSheet());
-    btn_stop->setShortcut(QKeySequence(Qt::Key_Space));
-    btn_stop->setAccessibleName(QStringLiteral("立即停止机器人"));
-    btn_stop->setAccessibleDescription(
-        QStringLiteral("停止当前运动，快捷键为空格键"));
-    btn_stop->setMinimumHeight(52);
-    btn_stop->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    connect(btn_stop, &QPushButton::clicked, this,
-            &SpeedCtrlWidget::slotStopControl);
-    horizontalLayout_stop_button->addWidget(btn_stop, 1);
+    emergency_stop_button_ = new QPushButton();
+    emergency_stop_button_->setObjectName(QString::fromUtf8("btn_stop"));
+    emergency_stop_button_->setText("立即停止    SPACE");
+    emergency_stop_button_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
+    emergency_stop_button_->setToolTip(
+        QStringLiteral("锁定软件急停并取消当前运动任务"));
+    emergency_stop_button_->setAccessibleName(QStringLiteral("立即停止机器人"));
+    emergency_stop_button_->setAccessibleDescription(
+        QStringLiteral("空格键锁定软件急停，确认安全后点击按钮解除"));
+    emergency_stop_button_->setMinimumHeight(52);
+    emergency_stop_button_->setSizePolicy(QSizePolicy::Expanding,
+                                          QSizePolicy::Fixed);
+    connect(emergency_stop_button_, &QPushButton::clicked, this, [this]() {
+      SetEmergencyStop(!emergency_stop_engaged_);
+    });
+    horizontalLayout_stop_button->addWidget(emergency_stop_button_, 1);
     control_layout->addLayout(horizontalLayout_stop_button);
     verticalLayout_speed_ctrl->addWidget(control_card, 0, Qt::AlignTop);
 
     this->setLayout(verticalLayout_speed_ctrl);
+    qApp->installEventFilter(this);
   }
 
-  ~SpeedCtrlWidget() {}
+  ~SpeedCtrlWidget() override {
+    if (qApp) qApp->removeEventFilter(this);
+  }
 
   // === 键盘控制 (QWEASDZXC) ===
   static char KeyboardKeyToButtonLabel(char key) {
@@ -630,15 +672,29 @@ class SpeedCtrlWidget : public QWidget {
     }
   }
 
-  void keyPressEvent(QKeyEvent* event) override {
+  bool HandleKeyPress(QKeyEvent* event) {
+    if (event->key() == Qt::Key_Space) {
+      if (!event->isAutoRepeat()) SetEmergencyStop(true);
+      event->accept();
+      return true;
+    }
+    if (IsTextEntryFocused() ||
+        event->modifiers().testFlag(Qt::ControlModifier) ||
+        event->modifiers().testFlag(Qt::AltModifier) ||
+        event->modifiers().testFlag(Qt::MetaModifier)) {
+      return false;
+    }
     const char key = QChar(event->key()).toLower().toLatin1();
-    if (event->key() == Qt::Key_Space || key == 's') {
+    if (key == 's') {
       ClearMoveHighlight();
       slotStopControl();
-      return;
+      event->accept();
+      return true;
     }
     // QWEASDZXC 方向键
-    if (active_keyboard_key_ == key) return;  // 防重复
+    if (event->isAutoRepeat() || active_keyboard_key_ == key) {
+      return active_keyboard_key_ == key;
+    }
     ClearMoveHighlight();
     MoveBinding binding = {};
     if (LookupMoveBinding(ResolveMoveKey(key), &binding)) {
@@ -648,14 +704,49 @@ class SpeedCtrlWidget : public QWidget {
       StartActiveSpeed(RobotSpeed(binding.x * LinearSpeedLimit(),
                                   binding.y * LinearSpeedLimit(),
                                   binding.theta * AngularSpeedLimitRad()));
+      event->accept();
+      return true;
     }
+    return false;
+  }
+
+  bool HandleKeyRelease(QKeyEvent* event) {
+    if (event->key() == Qt::Key_Space) {
+      event->accept();
+      return true;
+    }
+    const char key = QChar(event->key()).toLower().toLatin1();
+    if (key == active_keyboard_key_) {
+      if (event->isAutoRepeat()) return true;
+      ClearMoveHighlight();
+      slotStopControl();
+      event->accept();
+      return true;
+    }
+    return false;
+  }
+
+  void keyPressEvent(QKeyEvent* event) override {
+    if (!HandleKeyPress(event)) QWidget::keyPressEvent(event);
   }
 
   void keyReleaseEvent(QKeyEvent* event) override {
-    const char key = QChar(event->key()).toLower().toLatin1();
-    if (key == active_keyboard_key_) {
+    if (!HandleKeyRelease(event)) QWidget::keyReleaseEvent(event);
+  }
+
+  bool eventFilter(QObject* watched, QEvent* event) override {
+    Q_UNUSED(watched);
+    if (event->type() == QEvent::KeyPress) {
+      return HandleKeyPress(static_cast<QKeyEvent*>(event));
+    }
+    if (event->type() == QEvent::KeyRelease) {
+      return HandleKeyRelease(static_cast<QKeyEvent*>(event));
+    }
+    if (event->type() == QEvent::ApplicationDeactivate &&
+        active_keyboard_key_ != '\0') {
       ClearMoveHighlight();
       slotStopControl();
     }
+    return QWidget::eventFilter(watched, event);
   }
 };

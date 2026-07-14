@@ -92,6 +92,7 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_PATH, contract::kLocalPathTopic)
   SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT, "/odom")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED, contract::kManualCmdVelTopic)
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_EMERGENCY_STOP, contract::kEmergencyStopTopic)
   SET_DEFAULT_TOPIC_NAME(MSG_ID_BATTERY_STATE, "/battery")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT, contract::kFootprintTopic)
   SET_DEFAULT_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP, "/map/topology")
@@ -500,6 +501,12 @@ void RosbridgeComm::ConnectAsync() {
   speed_publisher->Advertise();
   publishers_[GET_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED)] = std::move(speed_publisher);
 
+  auto emergency_stop_publisher = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_EMERGENCY_STOP), "std_msgs/Bool", 1);
+  emergency_stop_publisher->Advertise();
+  publishers_[GET_TOPIC_NAME(MSG_ID_EMERGENCY_STOP)] =
+      std::move(emergency_stop_publisher);
+
   // 拓扑地图更新发布者
   auto topology_map_update_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE), "topology_msgs/TopologyMap", 1);
   topology_map_update_publisher->Advertise();
@@ -563,6 +570,9 @@ void RosbridgeComm::ConnectAsync() {
     LOG_INFO("recv mission request:" << json_request);
     PubStringRequest(MsgId::kMissionRequest, json_request);
   });
+
+  SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_EMERGENCY_STOP,
+                      [this](bool engaged) { PubEmergencyStop(engaged); });
 
   const bool ready = websocket_connection_ &&
                      websocket_connection_->IsConnected() &&
@@ -1787,6 +1797,18 @@ void RosbridgeComm::PubRobotSpeed(const basic::RobotSpeed& speed) {
  */
 void RosbridgeComm::PubCommandRequest(const std::string& json_request) {
   PubStringRequest(MsgId::kCommandRequest, json_request);
+}
+
+void RosbridgeComm::PubEmergencyStop(bool engaged) {
+  rapidjson::Document msg;
+  msg.SetObject();
+  msg.AddMember("data", engaged, msg.GetAllocator());
+
+  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+  auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_EMERGENCY_STOP));
+  if (it != publishers_.end()) {
+    it->second->Publish(msg);
+  }
 }
 
 bool RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_request) {

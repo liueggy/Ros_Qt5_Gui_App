@@ -29,6 +29,8 @@ TEST(RosbridgeContractTest, UsesDirectMoveBaseTopics) {
                "/move_base/local_costmap/published_footprint");
   EXPECT_STREQ(rosbridge2cpp::contract::kManualCmdVelTopic,
                "/cmd_vel/manual");
+  EXPECT_STREQ(rosbridge2cpp::contract::kEmergencyStopTopic,
+               "/eggy/emergency_stop");
   EXPECT_STREQ(rosbridge2cpp::contract::kRawCameraTopic,
                "/camera/front/image_source/compressed");
   EXPECT_STREQ(rosbridge2cpp::contract::kOverlayCameraTopic,

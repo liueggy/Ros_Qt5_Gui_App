@@ -41,6 +41,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void PubRelocPose(const basic::RobotPose& pose);
   void PubNavGoal(const basic::RobotPose& pose);
   void PubRobotSpeed(const basic::RobotSpeed& speed);
+  void PubEmergencyStop(bool engaged);
   void PubTopologyMapUpdate(const TopologyMap& topology_map);
   void PubCommandRequest(const std::string& json_request);
   bool PubStringRequest(const MsgId& id, const std::string& json_request);

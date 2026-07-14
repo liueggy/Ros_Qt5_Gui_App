@@ -1440,6 +1440,8 @@ void MainWindow::setupUi() {
           [this](const RobotSpeed& speed) {
             PUBLISH(MSG_ID_SET_ROBOT_SPEED, speed);
           });
+  connect(speed_ctrl_widget_, &SpeedCtrlWidget::signalEmergencyStopChanged,
+          [this](bool engaged) { PUBLISH(MSG_ID_EMERGENCY_STOP, engaged); });
   speed_ctrl_dock_ = new ads::CDockWidget("速度控制");
   speed_ctrl_dock_->setWidget(speed_ctrl_widget_);
   ConfigureDockWidget(speed_ctrl_dock_, QSize(320, 360), QSize(350, 420));
