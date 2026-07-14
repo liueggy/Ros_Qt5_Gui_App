@@ -26,6 +26,7 @@ class ViewManager : public QGraphicsView {
   QLineEdit *label_pos_robot_;
   QSlider *tool_size_slider_;
   QLabel *tool_size_value_label_;
+  QLabel *data_status_label_;
   QWidget *map_empty_state_;
   qreal map_view_rotation_deg_ = {-90.0};
   bool map_auto_fit_done_ = {false};
@@ -44,6 +45,7 @@ class ViewManager : public QGraphicsView {
   void UpdateMapPos(const QString &text);
   void UpdateScenePos(const QString &text);
   void UpdateRobotPos(const QString &text);
+  void UpdateDataStatus(const QString &text, bool stale);
   void UpdateToolSizeSlider(double range);
   void ShowToolSizeSlider(bool show);
   void FitMapToBestView();

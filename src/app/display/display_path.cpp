@@ -26,11 +26,35 @@ DisplayPath::DisplayPath(const std::string &display_type, const int &z_value,
   if (display_type == DISPLAY_GLOBAL_PATH) {
     SUBSCRIBE_QOBJECT(this, MSG_ID_GLOBAL_PATH, [this](const RobotPath& data) {
       updatePathPoints(data);
+      data_received_ = true;
+      last_update_timer_.restart();
+      SetDataStale(false);
     });
   } else if (display_type == DISPLAY_LOCAL_PATH) {
     SUBSCRIBE_QOBJECT(this, MSG_ID_LOCAL_PATH, [this](const RobotPath& data) {
       updatePathPoints(data);
+      data_received_ = true;
+      last_update_timer_.restart();
+      SetDataStale(false);
     });
+  }
+}
+qint64 DisplayPath::DataAgeMs() const {
+  return data_received_ && last_update_timer_.isValid()
+             ? last_update_timer_.elapsed()
+             : -1;
+}
+
+void DisplayPath::SetDataStale(bool stale) {
+  if (stale) {
+    if (!hidden_by_stale_) {
+      visible_before_stale_ = isVisible();
+      hidden_by_stale_ = true;
+      setVisible(false);
+    }
+  } else if (hidden_by_stale_) {
+    hidden_by_stale_ = false;
+    setVisible(visible_before_stale_);
   }
 }
 void DisplayPath::paint(QPainter *painter,

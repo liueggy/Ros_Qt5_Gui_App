@@ -148,6 +148,15 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   label_pos_robot_->setText("机器人: (0.00, 0.00, 0.00)");
   bottom_layout->addWidget(label_pos_robot_);
 
+  data_status_label_ = new QLabel(tr("数据: 等待位姿 / 路径 / 代价地图"));
+  data_status_label_->setMinimumWidth(300);
+  data_status_label_->setMaximumWidth(420);
+  data_status_label_->setFixedHeight(20);
+  data_status_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:%1; font-size:%2px; font-weight:600; }")
+      .arg(UiStyle::Palette::TextMuted, UiStyle::FontMiniPx()));
+  bottom_layout->addWidget(data_status_label_);
+
   // 中间spacer，将右侧按钮推到右边
   bottom_layout->addItem(
       new QSpacerItem(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum));
@@ -428,6 +437,15 @@ void ViewManager::UpdateRobotPos(const QString& text) {
   if (label_pos_robot_) {
     label_pos_robot_->setText(text);
   }
+}
+
+void ViewManager::UpdateDataStatus(const QString& text, bool stale) {
+  if (!data_status_label_) return;
+  data_status_label_->setText(text);
+  data_status_label_->setStyleSheet(QStringLiteral(
+      "QLabel { color:%1; font-size:%2px; font-weight:600; }")
+      .arg(stale ? UiStyle::Palette::Danger : UiStyle::Palette::TextMuted,
+           UiStyle::FontMiniPx()));
 }
 
 void ViewManager::UpdateToolSizeSlider(double range) {

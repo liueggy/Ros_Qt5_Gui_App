@@ -20,16 +20,40 @@ DisplayCostMap::DisplayCostMap(const std::string &display_type,
     SUBSCRIBE_QOBJECT(this, MSG_ID_GLOBAL_COST_MAP, [this](const OccupancyMap& data) {
       cost_map_data_ = data;
       ParseCostMap();
+      data_received_ = true;
+      last_update_timer_.restart();
+      SetDataStale(false);
       SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
       update();
     });
   } else if (display_type == DISPLAY_LOCAL_COST_MAP) {
     SUBSCRIBE_QOBJECT(this, MSG_ID_LOCAL_COST_MAP, [this](const OccupancyMap& data) {
       cost_map_data_ = data;
-  ParseCostMap();
-  SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
-  update();
+      ParseCostMap();
+      data_received_ = true;
+      last_update_timer_.restart();
+      SetDataStale(false);
+      SetBoundingRect(QRectF(0, 0, map_image_.width(), map_image_.height()));
+      update();
     });
+  }
+}
+qint64 DisplayCostMap::DataAgeMs() const {
+  return data_received_ && last_update_timer_.isValid()
+             ? last_update_timer_.elapsed()
+             : -1;
+}
+
+void DisplayCostMap::SetDataStale(bool stale) {
+  if (stale) {
+    if (!hidden_by_stale_) {
+      visible_before_stale_ = isVisible();
+      hidden_by_stale_ = true;
+      setVisible(false);
+    }
+  } else if (hidden_by_stale_) {
+    hidden_by_stale_ = false;
+    setVisible(visible_before_stale_);
   }
 }
 bool DisplayCostMap::SetDisplayConfig(const std::string &config_name,
@@ -44,19 +68,45 @@ void DisplayCostMap::paint(QPainter *painter,
   painter->drawImage(0, 0, map_image_);
 }
 void DisplayCostMap::ParseCostMap() {
-  Eigen::Matrix<Eigen::Vector4i, Eigen::Dynamic, Eigen::Dynamic> cost_map =
-      cost_map_data_.GetCostMapData();
-  map_image_ = QImage(cost_map_data_.Cols(), cost_map_data_.Rows(),
-                      QImage::Format_ARGB32);
-  // map_image_.save("./test.png");
-  for (int i = 0; i < cost_map.cols(); i++)
-    for (int j = 0; j < cost_map.rows(); j++) {
-      Eigen::Vector4i color_data = cost_map(j, i);
-      QColor color;
-      color.setRgb(color_data[0], color_data[1], color_data[2]);
-      color.setAlpha(color_data[3]);
-      map_image_.setPixelColor(i, j, color);
+  const bool size_changed = map_image_.width() != cost_map_data_.Cols() ||
+                            map_image_.height() != cost_map_data_.Rows();
+  if (size_changed) {
+    map_image_ = QImage(cost_map_data_.Cols(), cost_map_data_.Rows(),
+                        QImage::Format_ARGB32);
+    map_image_.fill(Qt::transparent);
+  }
+
+  QRect dirty_rect;
+  if (!size_changed && cost_map_data_.dirty_region.valid) {
+    const auto& current = cost_map_data_.dirty_region;
+    dirty_rect = QRect(current.col_min, current.row_min,
+                       current.col_max - current.col_min,
+                       current.row_max - current.row_min)
+                     .united(last_dirty_rect_);
+  } else {
+    dirty_rect = QRect(0, 0, cost_map_data_.Cols(), cost_map_data_.Rows());
+  }
+  dirty_rect = dirty_rect.intersected(map_image_.rect());
+  for (int row = dirty_rect.top(); row <= dirty_rect.bottom(); ++row) {
+    for (int col = dirty_rect.left(); col <= dirty_rect.right(); ++col) {
+      map_image_.setPixelColor(col, row, CostColor(cost_map_data_(row, col)));
     }
+  }
+  last_dirty_rect_ = cost_map_data_.dirty_region.valid
+                         ? QRect(cost_map_data_.dirty_region.col_min,
+                                 cost_map_data_.dirty_region.row_min,
+                                 cost_map_data_.dirty_region.col_max -
+                                     cost_map_data_.dirty_region.col_min,
+                                 cost_map_data_.dirty_region.row_max -
+                                     cost_map_data_.dirty_region.row_min)
+                         : dirty_rect;
+}
+
+QColor DisplayCostMap::CostColor(int data) const {
+  if (data >= 90) return QColor(0xe7, 0x6f, 0x51, 150);
+  if (data >= 40) return QColor(0xe9, 0xc4, 0x6a, 125);
+  if (data >= 1) return QColor(0xe9, 0xc4, 0x6a, 85);
+  return QColor(0, 0, 0, 0);
 }
 
 } // namespace Display

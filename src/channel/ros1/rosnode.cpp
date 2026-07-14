@@ -299,6 +299,7 @@ void RosNode::LocalCostMapCallback(nav_msgs::OccupancyGrid::ConstPtr msg) {
   for (int x = x_start; x < x_end; x++)
     for (int y = y_start; y < y_end; y++)
       sized_cost_map(x, y) = cost_map(x - (int)map_o_x, y - (int)map_o_y);
+  sized_cost_map.SetDirtyRegion(x_start, y_start, x_end, y_end);
   PUBLISH(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
 }
 

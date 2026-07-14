@@ -931,18 +931,21 @@ void RosbridgeComm::LocalCostMapCallback(const ROSBridgePublishMsg& msg) {
   // 计算原点在地图坐标系中的位置
   double map_o_x, map_o_y;
   occ_map_.xy2OccPose(origin_pose.x, origin_pose.y, map_o_x, map_o_y);
-  sized_cost_map.map_data.setZero();
 
-  // 将局部代价地图数据复制到全局地图对应位置
-  for (int x = 0; x < occ_map_.rows; x++)
-    for (int y = 0; y < occ_map_.cols; y++) {
-      if (x > map_o_x && y > map_o_y && y < map_o_y + cost_map.rows &&
-          x < map_o_x + cost_map.cols) {
-        sized_cost_map(x, y) = cost_map(x - map_o_x, y - map_o_y);
-      } else {
-        sized_cost_map(x, y) = 0;
-      }
-    }
+  // 只清零并填充局部代价地图覆盖的区域；显示层会据此只重绘脏区域。
+  sized_cost_map.map_data.setZero();
+  const int row_start = (std::max)(0, static_cast<int>(map_o_x));
+  const int col_start = (std::max)(0, static_cast<int>(map_o_y));
+  const int row_end = (std::min)(static_cast<int>(occ_map_.rows),
+                                 static_cast<int>(map_o_x) + cost_map.rows);
+  const int col_end = (std::min)(static_cast<int>(occ_map_.cols),
+                                 static_cast<int>(map_o_y) + cost_map.cols);
+  for (int row = row_start; row < row_end; ++row)
+    for (int col = col_start; col < col_end; ++col)
+      sized_cost_map(row, col) =
+          cost_map(row - static_cast<int>(map_o_x),
+                   col - static_cast<int>(map_o_y));
+  sized_cost_map.SetDirtyRegion(row_start, col_start, row_end, col_end);
   PUBLISH_LATEST(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
 }
 

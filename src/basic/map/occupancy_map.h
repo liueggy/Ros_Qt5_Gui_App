@@ -163,10 +163,19 @@ struct MapConfig {
 
 class OccupancyMap {
  public:
+  struct DirtyRegion {
+    int row_min{0};
+    int col_min{0};
+    int row_max{0};
+    int col_max{0};
+    bool valid{false};
+  };
+
   MapConfig map_config;
   int rows{0};               // 行(高)
   int cols{0};               // 列(宽)
   Eigen::MatrixXi map_data;  // 地图数据,数据的地图已经被上下翻转
+  DirtyRegion dirty_region;
  public:
   OccupancyMap() {}
   OccupancyMap(int rows_, int cols_, Eigen::Vector3d origin, double res)
@@ -183,6 +192,16 @@ class OccupancyMap {
   Eigen::MatrixXi flip() { return map_data.colwise().reverse(); }
   void SetFlip() { map_data = flip(); }
   auto &operator()(int r, int c) { return map_data(r, c); }
+  void SetDirtyRegion(int row_min, int col_min, int row_max, int col_max) {
+    dirty_region.row_min = std::max(0, std::min(row_min, rows));
+    dirty_region.col_min = std::max(0, std::min(col_min, cols));
+    dirty_region.row_max = std::max(dirty_region.row_min,
+                                    std::min(row_max, rows));
+    dirty_region.col_max = std::max(dirty_region.col_min,
+                                    std::min(col_max, cols));
+    dirty_region.valid = dirty_region.row_min < dirty_region.row_max &&
+                         dirty_region.col_min < dirty_region.col_max;
+  }
   // 输入原始栅格地图数据(地图未翻转)
   void SetMapData(const Eigen::MatrixXi &data) {
     map_data = data;

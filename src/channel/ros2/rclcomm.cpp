@@ -468,15 +468,18 @@ void rclcomm::localCostMapCallback(
   double map_o_x, map_o_y;
   occ_map_.xy2OccPose(origin_pose.x, origin_pose.y, map_o_x, map_o_y);
   sized_cost_map.map_data.setZero();
-  for (int x = 0; x < occ_map_.rows; x++)
-    for (int y = 0; y < occ_map_.cols; y++) {
-      if (x > map_o_x && y > map_o_y && y < map_o_y + cost_map.rows &&
-          x < map_o_x + cost_map.cols) {
-        sized_cost_map(x, y) = cost_map(x - map_o_x, y - map_o_y);
-      } else {
-        sized_cost_map(x, y) = 0;
-      }
-    }
+  const int row_start = (std::max)(0, static_cast<int>(map_o_x));
+  const int col_start = (std::max)(0, static_cast<int>(map_o_y));
+  const int row_end = (std::min)(static_cast<int>(occ_map_.rows),
+                                 static_cast<int>(map_o_x) + cost_map.rows);
+  const int col_end = (std::min)(static_cast<int>(occ_map_.cols),
+                                 static_cast<int>(map_o_y) + cost_map.cols);
+  for (int row = row_start; row < row_end; ++row)
+    for (int col = col_start; col < col_end; ++col)
+      sized_cost_map(row, col) =
+          cost_map(row - static_cast<int>(map_o_x),
+                   col - static_cast<int>(map_o_y));
+  sized_cost_map.SetDirtyRegion(row_start, col_start, row_end, col_end);
   PUBLISH(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
 }
 void rclcomm::map_callback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {

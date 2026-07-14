@@ -13,6 +13,7 @@
 #include <QColor>
 #include <QGraphicsItem>
 #include <QGraphicsSceneWheelEvent>
+#include <QElapsedTimer>
 
 #include "virtual_display.h"
 using namespace basic;
@@ -23,6 +24,10 @@ class DisplayPath : public VirtualDisplay {
   int line_width_ = {1};
   QPolygonF path_points_;
   OccupancyMap map_data_;
+  QElapsedTimer last_update_timer_;
+  bool data_received_{false};
+  bool hidden_by_stale_{false};
+  bool visible_before_stale_{true};
 
  private:
   void drawPath(QPainter *painter);
@@ -36,6 +41,8 @@ class DisplayPath : public VirtualDisplay {
   ~DisplayPath();
   bool SetDisplayConfig(const std::string &config_name,
                         const std::any &config_data) override;
+  qint64 DataAgeMs() const;
+  void SetDataStale(bool stale);
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
              QWidget *widget = nullptr) override;
 };

@@ -16,6 +16,8 @@
 #include <QGraphicsView>
 #include <QLabel>
 #include <QPushButton>
+#include <QElapsedTimer>
+#include <QTimer>
 #include <QtWidgets/QVBoxLayout>
 #include <any>
 #include <functional>
@@ -54,6 +56,9 @@ class DisplayManager : public QObject {
   SetPoseWidget *set_reloc_pose_widget_;
   SceneManager *scene_manager_ptr_;
   bool init_flag_ = {false};
+  QElapsedTimer robot_pose_timer_;
+  QTimer *freshness_timer_{nullptr};
+  bool robot_pose_received_{false};
 
 
  signals:
@@ -86,6 +91,7 @@ class DisplayManager : public QObject {
 
  private:
   void InitUi();
+  void UpdateFreshnessStatus();
   std::vector<Point> transLaserPoint(const std::vector<Point> &point);
   QPushButton *btn_move_focus_;
 
