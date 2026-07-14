@@ -290,13 +290,15 @@ class SpeedCtrlWidget : public QWidget {
     QVBoxLayout* control_layout = new QVBoxLayout(control_card);
     control_layout->setContentsMargins(14, 10, 14, 14);
     control_layout->setSpacing(10);
-    QVBoxLayout* verticalLayout_cmd_btn = new QVBoxLayout();
-    verticalLayout_cmd_btn->setContentsMargins(8, 4, 8, 6);
-    verticalLayout_cmd_btn->setSpacing(6);
-    QHBoxLayout* horizontalLayout_2 = new QHBoxLayout();
-    horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
-    horizontalLayout_2->setSpacing(16);
-    horizontalLayout_2->setAlignment(Qt::AlignCenter);
+    QGridLayout* direction_layout = new QGridLayout();
+    direction_layout->setObjectName(QString::fromUtf8("directionLayout"));
+    direction_layout->setContentsMargins(8, 4, 8, 6);
+    direction_layout->setHorizontalSpacing(16);
+    direction_layout->setVerticalSpacing(6);
+    direction_layout->setAlignment(Qt::AlignCenter);
+    direction_layout->setColumnMinimumWidth(0, moveButtonSize.width());
+    direction_layout->setColumnMinimumWidth(1, 62);
+    direction_layout->setColumnMinimumWidth(2, moveButtonSize.width());
     move_btn_u_ = new QPushButton();
     move_btn_u_->setObjectName(QString::fromUtf8("pushButton_u"));
     move_btn_u_->setProperty("moveKey", "u");
@@ -311,7 +313,7 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_u_->setIconSize(QSize(30, 30));
     move_btn_u_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(move_btn_u_);
+    direction_layout->addWidget(move_btn_u_, 0, 0, Qt::AlignCenter);
 
     move_btn_i_ = new QPushButton();
     move_btn_i_->setObjectName(QString::fromUtf8("pushButton_i"));
@@ -327,7 +329,7 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_i_->setIconSize(QSize(30, 30));
     move_btn_i_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(move_btn_i_);
+    direction_layout->addWidget(move_btn_i_, 0, 1, Qt::AlignCenter);
 
     move_btn_o_ = new QPushButton();
     move_btn_o_->setObjectName(QString::fromUtf8("pushButton_o"));
@@ -343,15 +345,8 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_o_->setIconSize(QSize(30, 30));
     move_btn_o_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_2->addWidget(move_btn_o_);
+    direction_layout->addWidget(move_btn_o_, 0, 2, Qt::AlignCenter);
 
-    verticalLayout_cmd_btn->addLayout(horizontalLayout_2);
-
-    QHBoxLayout* horizontalLayout_18 = new QHBoxLayout();
-    horizontalLayout_18->setObjectName(
-        QString::fromUtf8("horizontalLayout_18"));
-    horizontalLayout_18->setSpacing(16);
-    horizontalLayout_18->setAlignment(Qt::AlignCenter);
     move_btn_j_ = new QPushButton();
     move_btn_j_->setProperty("moveKey", "j");
     move_btn_j_->setToolTip(QStringLiteral("左移或左转"));
@@ -366,17 +361,16 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_j_->setIconSize(QSize(30, 30));
     move_btn_j_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_18->addWidget(move_btn_j_);
+    direction_layout->addWidget(move_btn_j_, 1, 0, Qt::AlignCenter);
 
     checkBox_use_all_ = new QCheckBox();
     checkBox_use_all_->setObjectName(QString::fromUtf8("checkBox_use_all_"));
-    checkBox_use_all_->setMinimumSize(QSize(92, 36));
-    checkBox_use_all_->setMaximumSize(QSize(104, 36));
-    checkBox_use_all_->setText("全向模式");
+    checkBox_use_all_->setFixedSize(QSize(62, 36));
+    checkBox_use_all_->setText("全向");
     checkBox_use_all_->setChecked(true);
     checkBox_use_all_->setCursor(Qt::PointingHandCursor);
     checkBox_use_all_->setStyleSheet(UiStyle::CompactCheckBoxStyleSheet());
-    horizontalLayout_18->addWidget(checkBox_use_all_);
+    direction_layout->addWidget(checkBox_use_all_, 1, 1, Qt::AlignCenter);
 
     move_btn_l_ = new QPushButton();
     move_btn_l_->setObjectName(QString::fromUtf8("pushButton_l"));
@@ -392,15 +386,8 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_l_->setIconSize(QSize(30, 30));
     move_btn_l_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_18->addWidget(move_btn_l_);
+    direction_layout->addWidget(move_btn_l_, 1, 2, Qt::AlignCenter);
 
-    verticalLayout_cmd_btn->addLayout(horizontalLayout_18);
-
-    QHBoxLayout* horizontalLayout_19 = new QHBoxLayout();
-    horizontalLayout_19->setObjectName(
-        QString::fromUtf8("horizontalLayout_19"));
-    horizontalLayout_19->setSpacing(16);
-    horizontalLayout_19->setAlignment(Qt::AlignCenter);
     move_btn_m_ = new QPushButton();
     move_btn_m_->setObjectName(QString::fromUtf8("pushButton_m"));
     move_btn_m_->setProperty("moveKey", "m");
@@ -415,7 +402,7 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_m_->setIconSize(QSize(30, 30));
     move_btn_m_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(move_btn_m_);
+    direction_layout->addWidget(move_btn_m_, 2, 0, Qt::AlignCenter);
 
     move_btn_back_ = new QPushButton();
     move_btn_back_->setObjectName(QString::fromUtf8("pushButton_,"));
@@ -431,7 +418,7 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_back_->setIconSize(QSize(30, 30));
     move_btn_back_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(move_btn_back_);
+    direction_layout->addWidget(move_btn_back_, 2, 1, Qt::AlignCenter);
 
     move_btn_backr_ = new QPushButton();
     move_btn_backr_->setObjectName(QString::fromUtf8("pushButton_."));
@@ -457,12 +444,10 @@ class SpeedCtrlWidget : public QWidget {
     move_btn_backr_->setIconSize(QSize(30, 30));
     move_btn_backr_->setStyleSheet(moveButtonStyle);
 
-    horizontalLayout_19->addWidget(move_btn_backr_);
-
-    verticalLayout_cmd_btn->addLayout(horizontalLayout_19);
+    direction_layout->addWidget(move_btn_backr_, 2, 2, Qt::AlignCenter);
 
     QWidget* cmdCtrlWidget = new QWidget();
-    cmdCtrlWidget->setLayout(verticalLayout_cmd_btn);
+    cmdCtrlWidget->setLayout(direction_layout);
     cmdCtrlWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
     QTabWidget* tabWidget = new QTabWidget;
