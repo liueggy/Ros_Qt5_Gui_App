@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QSize>
 #include <QToolButton>
+#include <QUuid>
 #include <QWidget>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -20,6 +21,26 @@ constexpr int kPointColumn = 1;
 constexpr int kTargetColumn = 2;
 constexpr int kStateColumn = 3;
 constexpr int kActionColumn = 4;
+
+std::string BuildMissionJson(const nlohmann::json& route, bool loop,
+                             bool return_home, bool inspection_enabled) {
+  const nlohmann::json request = {
+      {"schema_version", 1},
+      {"request_id",
+       QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
+      {"command", "start"},
+      {"mission_type", "navigation"},
+      {"loop", loop},
+      {"return_home", return_home},
+      {"on_nav_failure", "stop"},
+      {"inspection",
+       {{"enabled", inspection_enabled},
+        {"vision_search", inspection_enabled},
+        {"ai_analysis", inspection_enabled}}},
+      {"route", route},
+  };
+  return request.dump();
+}
 }  // namespace
 
 NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
@@ -28,7 +49,7 @@ NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
   setModel(table_model_);
   QStringList table_h_headers;
   table_h_headers << "顺序"
-                  << "巡检点"
+                  << "导航点"
                   << "识别目标"
                   << "执行状态"
                   << "操作";
@@ -108,6 +129,7 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   targetType->setFixedSize(122, UiStyle::ControlHeightPx());
   const int targetIndex = targetType->findData(expected_class);
   targetType->setCurrentIndex(targetIndex >= 0 ? targetIndex : 0);
+  targetType->setEnabled(inspection_enabled_ && !route_running_);
   auto* state_label = new QLabel(QStringLiteral("等待"), this);
   state_label->setAlignment(Qt::AlignCenter);
   state_label->setStyleSheet(QStringLiteral(
@@ -124,7 +146,7 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   QToolButton* button_remove = new QToolButton(action_cell);
   button_run->setText("前往");
   button_remove->setText("删除");
-  button_run->setToolTip("运行到该点位");
+  button_run->setToolTip("以单点导航任务前往该点位");
   button_remove->setToolTip("删除该点位");
   button_run->setCursor(Qt::PointingHandCursor);
   button_remove->setCursor(Qt::PointingHandCursor);
@@ -152,11 +174,21 @@ void NavGoalTableView::InsertRow(const QString& point_name,
       emit signalRouteChanged(table_model_->rowCount());
     }
   });
-  connect(button_run, &QToolButton::clicked, [this, comboBox]() {
+  connect(button_run, &QToolButton::clicked, [this, comboBox, targetType]() {
     auto point =
         topologyMap_.GetPoint(comboBox->currentText().toStdString());
     if (!point.name.empty()) {
-      emit signalSendNavGoal(point.ToRobotPose());
+      nlohmann::json route = nlohmann::json::array();
+      route.push_back({
+          {"id", point.name},
+          {"frame_id", "map"},
+          {"x", point.x},
+          {"y", point.y},
+          {"yaw", point.theta},
+          {"expected_class", targetType->currentData().toString().toStdString()},
+      });
+      emit signalMissionRequest(
+          BuildMissionJson(route, false, false, inspection_enabled_));
     }
   });
   table_model_->insertRow(row);
@@ -235,13 +267,9 @@ void NavGoalTableView::UpdateRobotPose(const RobotPose& pose) {
   robot_pose_ = pose;
 }
 
-std::string NavGoalTableView::BuildInspectionRequest(bool is_loop) {
-  nlohmann::json request = {
-      {"command", "start"},
-      {"loop", is_loop},
-      {"return_home", true},
-      {"route", nlohmann::json::array()},
-  };
+std::string NavGoalTableView::BuildMissionRequest(bool is_loop,
+                                                  bool return_home) {
+  nlohmann::json route = nlohmann::json::array();
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     auto* pointCombo =
         static_cast<QComboBox*>(indexWidget(model()->index(row, kPointColumn)));
@@ -255,18 +283,21 @@ std::string NavGoalTableView::BuildInspectionRequest(bool is_loop) {
     if (point.name.empty()) {
       continue;
     }
-    request["route"].push_back({
-        {"id", point.name},
+    route.push_back({
+        {"id", QStringLiteral("%1#%2")
+                   .arg(QString::fromStdString(point.name))
+                   .arg(row + 1)
+                   .toStdString()},
+        {"point_name", point.name},
         {"frame_id", "map"},
         {"x", point.x},
         {"y", point.y},
         {"yaw", point.theta},
         {"expected_class",
          targetType ? targetType->currentData().toString().toStdString() : "any"},
-        {"allow_vision_intercept", true},
     });
   }
-  return request.dump();
+  return BuildMissionJson(route, is_loop, return_home, inspection_enabled_);
 }
 
 int NavGoalTableView::RowCount() const {
@@ -287,6 +318,15 @@ int NavGoalTableView::ValidPointCount() {
   return count;
 }
 
+void NavGoalTableView::SetInspectionEnabled(bool enabled) {
+  inspection_enabled_ = enabled;
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    if (auto* target = indexWidget(model()->index(row, kTargetColumn))) {
+      target->setEnabled(enabled && !route_running_);
+    }
+  }
+}
+
 void NavGoalTableView::ResetExecutionState() {
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     SetWaypointState(row, QStringLiteral("等待"), 0);
@@ -294,12 +334,13 @@ void NavGoalTableView::ResetExecutionState() {
 }
 
 void NavGoalTableView::SetRouteRunning(bool running) {
+  route_running_ = running;
   for (int row = 0; row < table_model_->rowCount(); ++row) {
     if (auto* point = indexWidget(model()->index(row, kPointColumn))) {
       point->setEnabled(!running);
     }
     if (auto* target = indexWidget(model()->index(row, kTargetColumn))) {
-      target->setEnabled(!running);
+      target->setEnabled(!running && inspection_enabled_);
     }
     if (auto* action = indexWidget(model()->index(row, kActionColumn))) {
       action->setEnabled(!running);

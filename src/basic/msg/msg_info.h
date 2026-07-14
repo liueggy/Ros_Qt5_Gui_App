@@ -11,8 +11,8 @@
                           OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )                            \
                               OneValue(kCommandRequest, ) OneValue(kCommandResponse, )                      \
                                   OneValue(kCommandStatus, )                                                \
-                                      OneValue(kInspectionRequest, ) OneValue(kInspectionStatus, )          \
-                                          OneValue(kInspectionResult, ) OneValue(kAutoExploreStatus, )      \
+                                      OneValue(kMissionRequest, ) OneValue(kMissionStatus, )                \
+                                          OneValue(kMissionResult, ) OneValue(kAutoExploreStatus, )         \
                                               OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
                                                   OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )      \
                                                       OneValue(kShellRequest, ) OneValue(kShellOutput, )    \
@@ -43,9 +43,9 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_COMMAND_REQUEST ToString(MsgId::kCommandRequest)
 #define MSG_ID_COMMAND_RESPONSE ToString(MsgId::kCommandResponse)
 #define MSG_ID_COMMAND_STATUS ToString(MsgId::kCommandStatus)
-#define MSG_ID_INSPECTION_REQUEST ToString(MsgId::kInspectionRequest)
-#define MSG_ID_INSPECTION_STATUS ToString(MsgId::kInspectionStatus)
-#define MSG_ID_INSPECTION_RESULT ToString(MsgId::kInspectionResult)
+#define MSG_ID_MISSION_REQUEST ToString(MsgId::kMissionRequest)
+#define MSG_ID_MISSION_STATUS ToString(MsgId::kMissionStatus)
+#define MSG_ID_MISSION_RESULT ToString(MsgId::kMissionResult)
 #define MSG_ID_AUTO_EXPLORE_STATUS ToString(MsgId::kAutoExploreStatus)
 #define MSG_ID_DHT11_TEMP ToString(MsgId::kDht11Temp)
 #define MSG_ID_DHT11_HUMI ToString(MsgId::kDht11Humi)

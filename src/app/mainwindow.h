@@ -3,6 +3,7 @@
 
 #include <QCalendarWidget>
 #include <QComboBox>
+#include <QCheckBox>
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QFileDialog>
@@ -119,6 +120,9 @@ class MainWindow : public QMainWindow {
   QPushButton* inspection_load_button_{nullptr};
   QPushButton* inspection_save_button_{nullptr};
   QPushButton* inspection_start_button_{nullptr};
+  QCheckBox* inspection_ai_checkbox_{nullptr};
+  QCheckBox* inspection_loop_checkbox_{nullptr};
+  QCheckBox* inspection_return_home_checkbox_{nullptr};
   QFrame* inspection_status_card_{nullptr};
   QLabel* inspection_kimi_banner_{nullptr};
   QString last_inspection_log_line_;
@@ -139,6 +143,9 @@ class MainWindow : public QMainWindow {
   bool localization_confirmed_ = {false};
   bool inspection_workspace_active_{false};
   bool inspection_running_{false};
+  bool active_mission_inspection_enabled_{false};
+  int active_mission_point_count_{0};
+  QString active_mission_request_id_;
   bool previous_settings_visible_{true};
   bool previous_speed_visible_{true};
   bool previous_command_center_visible_{true};
@@ -174,6 +181,8 @@ class MainWindow : public QMainWindow {
   void AppendInspectionLogLine(const QString& line);
   void ApplyWorkspaceMode(const QString& mode);
   void UpdateInspectionRouteSummary();
+  void StartMissionRequest(const std::string& request);
+  bool IsCurrentMissionMessage(const nlohmann::json& data) const;
   void SetInspectionRunning(bool running);
   void UpdateInspectionProgress(const nlohmann::json& data);
   void BeginRelocation(const RobotPose& pose);

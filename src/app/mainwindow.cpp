@@ -347,9 +347,12 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
 QString InspectionStageText(const std::string& stage) {
   static const std::map<std::string, QString> kStageText = {
       {"ready", QStringLiteral("待命")},
+      {"accepted", QStringLiteral("任务已受理")},
       {"home_recorded", QStringLiteral("已记录起点")},
       {"waiting_move_base", QStringLiteral("等待导航")},
       {"navigating", QStringLiteral("前往目标点")},
+      {"arrived", QStringLiteral("已到达目标点")},
+      {"point_complete", QStringLiteral("本点已完成")},
       {"search_settling", QStringLiteral("到达后识别")},
       {"searching_target", QStringLiteral("正在搜索目标")},
       {"search_rotating", QStringLiteral("90°步进旋转寻找")},
@@ -360,9 +363,14 @@ QString InspectionStageText(const std::string& stage) {
       {"kimi_complete", QStringLiteral("AI分析完成")},
       {"returning_home", QStringLiteral("正在返航")},
       {"complete", QStringLiteral("巡检完成")},
+      {"completed", QStringLiteral("任务完成")},
+      {"cancelling", QStringLiteral("正在取消")},
       {"cancelled", QStringLiteral("已取消")},
       {"error", QStringLiteral("巡检异常")},
       {"busy", QStringLiteral("任务运行中")},
+      {"rejected", QStringLiteral("任务被拒绝")},
+      {"bad_request", QStringLiteral("任务参数错误")},
+      {"cancel_ignored", QStringLiteral("取消请求已忽略")},
   };
   const auto it = kStageText.find(stage);
   if (it != kStageText.end()) {
@@ -737,34 +745,57 @@ void MainWindow::registerChannel() {
       } }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE_QOBJECT(this, MSG_ID_INSPECTION_STATUS, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_MISSION_STATUS, [this](const std::string& json_str) {
     if (!inspection_status_label_) {
       return;
     }
     QMetaObject::invokeMethod(this, [this, json_str]() {
+      nlohmann::json data;
+      try {
+        data = nlohmann::json::parse(json_str);
+      } catch (const std::exception&) {
+        return;
+      }
+      if (!IsCurrentMissionMessage(data)) {
+        return;
+      }
       const QString line = FormatInspectionStatus(json_str);
       inspection_status_label_->setText(line);
       AppendInspectionLogLine(line);
       std::string stage;
-      try {
-        const auto data = nlohmann::json::parse(json_str);
-        stage = data.value("stage", data.value("state", std::string()));
-        UpdateInspectionProgress(data);
-      } catch (const std::exception&) {}
+      stage = data.value("stage", data.value("state", std::string()));
+      UpdateInspectionProgress(data);
       if (stage == "error") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusDangerStyleSheet());
       } else if (stage == "target_skipped") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
-      } else if (stage == "kimi_complete" || stage == "complete") {
+      } else if (stage == "kimi_complete" || stage == "complete" ||
+                 stage == "completed") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
       } else {
         inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
       }
+      if (stage == "rejected" || stage == "bad_request" || stage == "busy" ||
+          stage == "cancel_ignored") {
+        SetInspectionRunning(false);
+        active_mission_request_id_.clear();
+        active_mission_point_count_ = 0;
+        active_mission_inspection_enabled_ = false;
+      }
     }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE_QOBJECT(this, MSG_ID_INSPECTION_RESULT, [this](const std::string& json_str) {
+  SUBSCRIBE_QOBJECT(this, MSG_ID_MISSION_RESULT, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
+      nlohmann::json mission_result;
+      try {
+        mission_result = nlohmann::json::parse(json_str);
+      } catch (const std::exception&) {
+        return;
+      }
+      if (!IsCurrentMissionMessage(mission_result)) {
+        return;
+      }
       if (inspection_result_view_) {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
       }
@@ -798,8 +829,11 @@ void MainWindow::registerChannel() {
                                       : nlohmann::json();
               const bool search_ok = search.is_object() &&
                                      search.value("ok", false);
-              const bool point_ok = nav_ok && search_ok &&
-                                    (!kimi.is_object() || kimi.value("ok", true));
+              const bool point_ok =
+                  nav_ok &&
+                  (!active_mission_inspection_enabled_ ||
+                   (search_ok &&
+                    (!kimi.is_object() || kimi.value("ok", true))));
               nav_goal_table_view_->SetWaypointState(
                   row, point_ok ? QStringLiteral("已完成")
                                 : QStringLiteral("需检查"),
@@ -839,14 +873,16 @@ void MainWindow::registerChannel() {
         }
       }
       SetInspectionRunning(false);
-      const int total = nav_goal_table_view_->RowCount();
+      const int total = active_mission_point_count_;
       const bool all_points_ok = inspection_ok && completed_points == total;
       if (inspection_progress_bar_) {
         inspection_progress_bar_->setRange(0, (std::max)(1, total));
         inspection_progress_bar_->setValue(inspection_ok ? total : completed_points);
         inspection_progress_bar_->setFormat(
             all_points_ok
-                ? QStringLiteral("巡检完成 · %1 / %1").arg(total)
+                ? (active_mission_inspection_enabled_
+                       ? QStringLiteral("巡检完成 · %1 / %1").arg(total)
+                       : QStringLiteral("导航完成 · %1 / %1").arg(total))
                 : QStringLiteral("路线结束 · %1 / %2 项结果正常")
                       .arg(completed_points)
                       .arg(total));
@@ -862,12 +898,19 @@ void MainWindow::registerChannel() {
       if (inspection_status_label_) {
         inspection_status_label_->setText(
             all_points_ok
-                ? QStringLiteral("巡检任务已完成，全部点位结果正常。")
-                : QStringLiteral("巡检路线已结束，请重点检查标记为异常的点位。"));
+                ? (active_mission_inspection_enabled_
+                       ? QStringLiteral("巡检任务已完成，全部点位结果正常。")
+                       : QStringLiteral("导航任务已完成，全部点位均已到达。"))
+                : (active_mission_inspection_enabled_
+                       ? QStringLiteral("巡检路线已结束，请重点检查标记为异常的点位。")
+                       : QStringLiteral("导航路线已结束，请检查未正常到达的点位。")));
         inspection_status_label_->setStyleSheet(
             all_points_ok ? UiStyle::StatusSuccessStyleSheet()
                           : UiStyle::StatusWarningStyleSheet());
       }
+      active_mission_request_id_.clear();
+      active_mission_point_count_ = 0;
+      active_mission_inspection_enabled_ = false;
     }, Qt::QueuedConnection);
   });
 
@@ -1362,29 +1405,42 @@ void MainWindow::setupUi() {
   inspection_route_summary_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
   inspection_header_row->addWidget(inspection_route_summary_label_);
   inspection_header_row->addStretch();
-  inspection_readiness_label_ = new QLabel(QStringLiteral("添加巡检点"));
+  inspection_readiness_label_ = new QLabel(QStringLiteral("添加导航点"));
   inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
   inspection_header_row->addWidget(inspection_readiness_label_);
   inspection_header_layout->addLayout(inspection_header_row);
   horizontalLayout_13->addWidget(inspection_header_card);
   horizontalLayout_13->addWidget(nav_goal_table_view_, 1);
   task_list_widget->setLayout(horizontalLayout_13);
-  inspection_task_dock_ = new ads::CDockWidget("巡检任务");
+  inspection_task_dock_ = new ads::CDockWidget("导航任务");
 
   // 现代化按钮样式
   QString modernButtonStyle = UiStyle::MainButtonStyleSheet();
 
-  inspection_add_button_ = new QPushButton("添加路线项");
+  inspection_add_button_ = new QPushButton("添加导航点");
   inspection_add_button_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
   inspection_add_button_->setToolTip(QStringLiteral("新增一行，并从已有地图点位中选择巡检位置"));
 
   QHBoxLayout* horizontalLayout_15 = new QHBoxLayout();
-  QPushButton* btn_start_task_chain = new QPushButton("开始巡检");
+  QPushButton* btn_start_task_chain = new QPushButton("开始任务");
   btn_start_task_chain->setStyleSheet(modernButtonStyle);
   inspection_start_button_ = btn_start_task_chain;
 
   QCheckBox* loop_task_checkbox = new QCheckBox("循环任务");
+  inspection_loop_checkbox_ = loop_task_checkbox;
   loop_task_checkbox->setStyleSheet(UiStyle::CheckBoxStyleSheet());
+
+  inspection_ai_checkbox_ = new QCheckBox("到点后 AI 巡检");
+  inspection_ai_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
+  inspection_ai_checkbox_->setToolTip(
+      QStringLiteral("开启后，每个点到达后执行视觉搜索与 AI 分析；需要先进入巡检模式"));
+  inspection_ai_checkbox_->setChecked(false);
+
+  inspection_return_home_checkbox_ = new QCheckBox("任务结束返航");
+  inspection_return_home_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
+  inspection_return_home_checkbox_->setToolTip(
+      QStringLiteral("开启后，任务链全部点位完成后返回任务启动位置"));
+  inspection_return_home_checkbox_->setChecked(true);
 
   horizontalLayout_15->setSpacing(10);
   horizontalLayout_15->addWidget(inspection_add_button_);
@@ -1392,10 +1448,9 @@ void MainWindow::setupUi() {
 
   QHBoxLayout* loop_task_layout = new QHBoxLayout();
   loop_task_layout->setContentsMargins(0, 0, 0, 0);
+  loop_task_layout->addWidget(inspection_ai_checkbox_);
   loop_task_layout->addWidget(loop_task_checkbox);
-  auto* return_home_label = new QLabel(QStringLiteral("✓ 自动返航"));
-  return_home_label->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
-  loop_task_layout->addWidget(return_home_label);
+  loop_task_layout->addWidget(inspection_return_home_checkbox_);
   loop_task_layout->addStretch();
 
   inspection_load_button_ = new QPushButton("加载方案");
@@ -1470,10 +1525,14 @@ void MainWindow::setupUi() {
       center_docker_area_);
   ConfigureFloatingOnOpen(inspection_task_dock_, QSize(820, 820));
   inspection_task_dock_->toggleView(false);
-  connect(nav_goal_table_view_, &NavGoalTableView::signalSendNavGoal,
-          [this](const RobotPose& pose) {
-            PublishNavGoalSafely(pose);
+  connect(nav_goal_table_view_, &NavGoalTableView::signalMissionRequest,
+          this, &MainWindow::StartMissionRequest);
+  connect(inspection_ai_checkbox_, &QCheckBox::toggled, this,
+          [this](bool enabled) {
+            nav_goal_table_view_->SetInspectionEnabled(enabled);
+            UpdateInspectionRouteSummary();
           });
+  nav_goal_table_view_->SetInspectionEnabled(false);
   connect(inspection_load_button_, &QPushButton::clicked, [this]() {
     QString fileName = QFileDialog::getOpenFileName(nullptr, "打开JSON文件",
                                                     "", "JSON文件 (*.json)",
@@ -1518,51 +1577,32 @@ void MainWindow::setupUi() {
           this, [this](int) { UpdateInspectionRouteSummary(); });
   connect(btn_start_task_chain, &QPushButton::clicked,
           [this, btn_start_task_chain, loop_task_checkbox]() {
-            if (btn_start_task_chain->text() == QStringLiteral("开始巡检")) {
-              if (!localization_confirmed_) {
-                QMessageBox::warning(
-                    this, tr("定位尚未确认"),
-                    tr("任务链会驱动小车移动。请先完成手动重定位并等待 AMCL 定位确认。"));
-                return;
-              }
+            if (btn_start_task_chain->text() == QStringLiteral("开始任务")) {
               if (nav_goal_table_view_->RowCount() == 0 ||
                   nav_goal_table_view_->ValidPointCount() !=
                       nav_goal_table_view_->RowCount()) {
-                QMessageBox::information(this, QStringLiteral("巡检路线未就绪"),
+                QMessageBox::information(this, QStringLiteral("导航路线未就绪"),
                                          QStringLiteral("请为每一行选择有效的地图点位。"),
                                          QMessageBox::Ok);
                 return;
               }
-              SetInspectionRunning(true);
-              nav_goal_table_view_->ResetExecutionState();
-              if (inspection_progress_bar_) {
-                inspection_progress_bar_->setRange(0, nav_goal_table_view_->RowCount());
-                inspection_progress_bar_->setValue(0);
-                inspection_progress_bar_->setFormat(
-                    QStringLiteral("已完成 0 / %1").arg(nav_goal_table_view_->RowCount()));
-              }
-              if (inspection_progress_label_) {
-                inspection_progress_label_->setText(
-                    QStringLiteral("0 / %1").arg(nav_goal_table_view_->RowCount()));
-              }
               const auto request =
-                  nav_goal_table_view_->BuildInspectionRequest(loop_task_checkbox->isChecked());
-              if (inspection_status_label_) {
-                inspection_status_label_->setText(QStringLiteral("任务已发送，等待小车开始巡检…"));
-                inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
-              }
-              last_inspection_log_line_.clear();
-              if (inspection_result_view_) {
-                inspection_result_view_->clear();
-                AppendInspectionLogLine(QStringLiteral("任务已发送，等待小车开始巡检…"));
-              }
-              PUBLISH(MSG_ID_INSPECTION_REQUEST, request);
+                  nav_goal_table_view_->BuildMissionRequest(
+                      loop_task_checkbox->isChecked(),
+                      inspection_return_home_checkbox_->isChecked());
+              StartMissionRequest(request);
             } else {
               btn_start_task_chain->setText(QStringLiteral("正在停止…"));
               btn_start_task_chain->setEnabled(false);
-              PUBLISH(MSG_ID_INSPECTION_REQUEST, std::string("{\"command\":\"cancel\"}"));
+              const nlohmann::json cancel_request = {
+                  {"schema_version", 1},
+                  {"request_id", active_mission_request_id_.toStdString()},
+                  {"command", "cancel"},
+                  {"mission_type", "navigation"},
+              };
+              PUBLISH(MSG_ID_MISSION_REQUEST, cancel_request.dump());
               if (inspection_status_label_) {
-                inspection_status_label_->setText(QStringLiteral("正在安全停止巡检任务…"));
+                inspection_status_label_->setText(QStringLiteral("正在安全停止导航任务…"));
                 inspection_status_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
               }
             }
@@ -2039,6 +2079,12 @@ void MainWindow::StartManualRelocation() {
 }
 
 void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
+  if (inspection_running_) {
+    QMessageBox::information(
+        this, tr("任务正在运行"),
+        tr("请先停止当前导航任务，再发送兼容的 /goal_pose 单点目标。"));
+    return;
+  }
   if (map_activation_requires_localization_ && !localization_confirmed_) {
     QMessageBox::warning(
         this, tr("尚未完成定位"),
@@ -2046,6 +2092,85 @@ void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
     return;
   }
   PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
+}
+
+void MainWindow::StartMissionRequest(const std::string& request) {
+  if (inspection_running_) {
+    return;
+  }
+
+  nlohmann::json mission;
+  try {
+    mission = nlohmann::json::parse(request);
+  } catch (const std::exception&) {
+    QMessageBox::warning(this, tr("任务请求无效"),
+                         tr("无法生成有效的导航任务，请检查路线配置。"));
+    return;
+  }
+
+  const auto route = mission.value("route", nlohmann::json::array());
+  const std::string request_id = mission.value("request_id", std::string());
+  const auto inspection =
+      mission.contains("inspection") && mission["inspection"].is_object()
+          ? mission["inspection"]
+          : nlohmann::json::object();
+  const bool inspection_enabled = inspection.value("enabled", false);
+  if (!route.is_array() || route.empty() || request_id.empty() ||
+      mission.value("mission_type", std::string()) != "navigation") {
+    QMessageBox::warning(this, tr("任务请求无效"),
+                         tr("导航任务缺少路线、任务类型或请求编号。"));
+    return;
+  }
+  if (!localization_confirmed_) {
+    QMessageBox::warning(
+        this, tr("定位尚未确认"),
+        tr("导航任务会驱动小车移动。请先完成手动重定位并等待 AMCL 定位确认。"));
+    return;
+  }
+  if (inspection_enabled && !inspection_workspace_active_) {
+    QMessageBox::warning(
+        this, tr("AI 巡检服务未启用"),
+        tr("当前运行模式未启动巡检执行器、视觉识别和 AI 服务。请先在命令中心切换到“巡检模式”，再启动启用了 AI 巡检的任务。"));
+    return;
+  }
+
+  active_mission_request_id_ = QString::fromStdString(request_id);
+  active_mission_inspection_enabled_ = inspection_enabled;
+  active_mission_point_count_ = static_cast<int>(route.size());
+  SetInspectionRunning(true);
+  nav_goal_table_view_->ResetExecutionState();
+  if (inspection_progress_bar_) {
+    inspection_progress_bar_->setRange(0, active_mission_point_count_);
+    inspection_progress_bar_->setValue(0);
+    inspection_progress_bar_->setFormat(
+        QStringLiteral("已完成 0 / %1").arg(active_mission_point_count_));
+  }
+  if (inspection_progress_label_) {
+    inspection_progress_label_->setText(
+        QStringLiteral("0 / %1").arg(active_mission_point_count_));
+  }
+  const QString pending_text = inspection_enabled
+      ? QStringLiteral("任务已发送，等待小车开始导航与 AI 巡检…")
+      : QStringLiteral("任务已发送，等待小车开始导航…");
+  if (inspection_status_label_) {
+    inspection_status_label_->setText(pending_text);
+    inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
+  }
+  last_inspection_log_line_.clear();
+  if (inspection_result_view_) {
+    inspection_result_view_->clear();
+    AppendInspectionLogLine(pending_text);
+  }
+  PUBLISH(MSG_ID_MISSION_REQUEST, request);
+}
+
+bool MainWindow::IsCurrentMissionMessage(const nlohmann::json& data) const {
+  if (!inspection_running_ || active_mission_request_id_.isEmpty()) {
+    return false;
+  }
+  const std::string request_id = data.value("request_id", std::string());
+  return !request_id.empty() &&
+         QString::fromStdString(request_id) == active_mission_request_id_;
 }
 
 void MainWindow::AppendInspectionLogLine(const QString& line) {
@@ -2143,7 +2268,7 @@ void MainWindow::UpdateInspectionRouteSummary() {
       inspection_readiness_label_->setText(QStringLiteral("执行中"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
     } else if (point_count == 0) {
-      inspection_readiness_label_->setText(QStringLiteral("添加巡检点"));
+      inspection_readiness_label_->setText(QStringLiteral("添加导航点"));
       inspection_readiness_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
     } else if (valid_point_count != point_count) {
       inspection_readiness_label_->setText(QStringLiteral("补全点位"));
@@ -2171,9 +2296,14 @@ void MainWindow::SetInspectionRunning(bool running) {
   if (inspection_add_button_) inspection_add_button_->setEnabled(!running);
   if (inspection_load_button_) inspection_load_button_->setEnabled(!running);
   if (inspection_save_button_) inspection_save_button_->setEnabled(!running);
+  if (inspection_ai_checkbox_) inspection_ai_checkbox_->setEnabled(!running);
+  if (inspection_loop_checkbox_) inspection_loop_checkbox_->setEnabled(!running);
+  if (inspection_return_home_checkbox_) {
+    inspection_return_home_checkbox_->setEnabled(!running);
+  }
   if (inspection_start_button_) {
     inspection_start_button_->setText(
-        running ? QStringLiteral("停止巡检") : QStringLiteral("开始巡检"));
+        running ? QStringLiteral("停止任务") : QStringLiteral("开始任务"));
     inspection_start_button_->setStyleSheet(
         running ? UiStyle::DangerButtonStyleSheet()
                 : UiStyle::MainButtonStyleSheet());
@@ -2197,8 +2327,8 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
   const auto extra = data.contains("extra") && data["extra"].is_object()
                          ? data["extra"]
                          : nlohmann::json::object();
-  const int row = extra.value("index", -1);
-  const int total = nav_goal_table_view_->RowCount();
+  const int row = data.value("point_index", extra.value("index", -1));
+  const int total = active_mission_point_count_;
   const QString stage_text = InspectionStageText(stage_value);
 
   if (row >= 0 && row < total) {
@@ -2226,7 +2356,8 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
       stage == QStringLiteral("target_skipped")) {
     completed_count = row + 1;
   } else if (stage == QStringLiteral("returning_home") ||
-             stage == QStringLiteral("complete")) {
+             stage == QStringLiteral("complete") ||
+             stage == QStringLiteral("completed")) {
     completed_count = total;
   }
   completed_count = (std::max)(0, (std::min)(completed_count, total));

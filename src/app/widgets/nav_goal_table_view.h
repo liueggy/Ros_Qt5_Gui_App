@@ -25,14 +25,15 @@ class NavGoalTableView : public QTableView {
   void UpdateRobotPose(const RobotPose &pose);
   bool LoadTaskChain(const std::string &name);
   bool SaveTaskChain(const std::string &name);
-  std::string BuildInspectionRequest(bool is_loop);
+  std::string BuildMissionRequest(bool is_loop, bool return_home = true);
   int RowCount() const;
   int ValidPointCount();
+  void SetInspectionEnabled(bool enabled);
   void ResetExecutionState();
   void SetRouteRunning(bool running);
   void SetWaypointState(int row, const QString &text, int level = 0);
  signals:
-  void signalSendNavGoal(const RobotPose &pose);
+  void signalMissionRequest(const std::string &request);
   void signalRouteChanged(int point_count);
 
  private:
@@ -41,5 +42,7 @@ class NavGoalTableView : public QTableView {
   void onItemChanged(QStandardItem *item);
   void RefreshOrderNumbers();
   int RowForWidget(const QWidget *widget) const;
+  bool inspection_enabled_{false};
+  bool route_running_{false};
 
 };
