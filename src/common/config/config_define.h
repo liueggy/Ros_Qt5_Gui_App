@@ -39,11 +39,35 @@ struct RosbridgeConfig {
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(RosbridgeConfig, ip, port);
 
+inline constexpr const char* kRosbridgeChannelType = "rosbridge";
+inline constexpr const char* kTailscaleRosbridgeChannelType =
+    "tailscale_rosbridge";
+
 struct ChannelConfig {
   std::string channel_type = {"rosbridge"};
   RosbridgeConfig rosbridge_config;
+  RosbridgeConfig tailscale_rosbridge_config = {"", "9090"};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ChannelConfig, channel_type, rosbridge_config);
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
+    ChannelConfig, channel_type, rosbridge_config, tailscale_rosbridge_config);
+
+inline bool IsRosbridgePreset(const std::string& channel_type) {
+  return channel_type == kRosbridgeChannelType ||
+         channel_type == kTailscaleRosbridgeChannelType;
+}
+
+inline const RosbridgeConfig& SelectedRosbridgeConfig(
+    const ChannelConfig& channel_config) {
+  return channel_config.channel_type == kTailscaleRosbridgeChannelType
+             ? channel_config.tailscale_rosbridge_config
+             : channel_config.rosbridge_config;
+}
+
+inline RosbridgeConfig& SelectedRosbridgeConfig(ChannelConfig& channel_config) {
+  return channel_config.channel_type == kTailscaleRosbridgeChannelType
+             ? channel_config.tailscale_rosbridge_config
+             : channel_config.rosbridge_config;
+}
 
 
 struct MapConfig {

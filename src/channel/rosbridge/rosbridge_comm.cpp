@@ -119,9 +119,14 @@ RosbridgeComm::RosbridgeComm() {
 
   // 设置默认通道配置
   Config::ConfigManager::Instance()->UpdateRootConfig([](auto& config) {
-    if (config.channel_config.channel_type.empty()) config.channel_config.channel_type = "rosbridge";
+    if (config.channel_config.channel_type.empty()) {
+      config.channel_config.channel_type = Config::kRosbridgeChannelType;
+    }
     if (config.channel_config.rosbridge_config.ip.empty()) config.channel_config.rosbridge_config.ip = "192.168.31.50";
     if (config.channel_config.rosbridge_config.port.empty()) config.channel_config.rosbridge_config.port = "9090";
+    if (config.channel_config.tailscale_rosbridge_config.port.empty()) {
+      config.channel_config.tailscale_rosbridge_config.port = "9090";
+    }
     contract::MigrateLegacyTopic(config.display_config, DISPLAY_LOCAL_COST_MAP,
                                  "/local_costmap/costmap",
                                  contract::kLocalCostMapTopic);
@@ -150,10 +155,26 @@ RosbridgeComm::RosbridgeComm() {
 bool RosbridgeComm::Start() {
   // 从配置读取ROSBridge服务器地址和端口
   const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
-  rosbridge_ip_ = config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
-  const std::string port_text = config.channel_config.rosbridge_config.port.empty()
+  const auto& endpoint = Config::SelectedRosbridgeConfig(config.channel_config);
+  const bool is_tailscale =
+      config.channel_config.channel_type == Config::kTailscaleRosbridgeChannelType;
+  rosbridge_ip_ = endpoint.ip.empty() && !is_tailscale
+                      ? "192.168.31.50"
+                      : endpoint.ip;
+  const std::string port_text = endpoint.port.empty()
                                     ? "9090"
-                                    : config.channel_config.rosbridge_config.port;
+                                    : endpoint.port;
+  if (rosbridge_ip_.empty()) {
+    connecting_ = false;
+    connected_ = false;
+    connection_failed_ = true;
+    std::lock_guard<std::mutex> lock(error_msg_mutex_);
+    connection_error_msg_ =
+        "Tailscale ROSBridge address is empty. Enter a 100.x address or "
+        "MagicDNS hostname.";
+    LOG_ERROR(connection_error_msg_);
+    return false;
+  }
   int parsed_port = 0;
   const auto parse_result =
       std::from_chars(port_text.data(), port_text.data() + port_text.size(), parsed_port);

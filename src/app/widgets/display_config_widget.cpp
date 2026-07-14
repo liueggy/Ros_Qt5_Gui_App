@@ -183,9 +183,7 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     std::string channel_type = channel_type_combo_->itemData(index).toString().toStdString();
     Config::ConfigManager::Instance()->UpdateRootConfig(
         [&channel_type](auto& config) { config.channel_config.channel_type = channel_type; });
-    bool show_rosbridge = (channel_type == "rosbridge");
-    rosbridge_ip_edit_->setEnabled(show_rosbridge);
-    rosbridge_port_edit_->setEnabled(show_rosbridge);
+    RefreshRosbridgeEndpointEditor();
   });
   type_layout->addWidget(channel_type_label_);
   type_layout->addWidget(channel_type_combo_, 1);
@@ -208,7 +206,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     }
     QString new_ip = rosbridge_ip_edit_->text();
     Config::ConfigManager::Instance()->UpdateRootConfig([&new_ip](auto& config) {
-      config.channel_config.rosbridge_config.ip = new_ip.toStdString();
+      Config::SelectedRosbridgeConfig(config.channel_config).ip =
+          new_ip.trimmed().toStdString();
     });
   });
   ip_layout->addWidget(rosbridge_ip_label_);
@@ -229,10 +228,12 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     }
     if (!rosbridge_port_edit_->hasAcceptableInput()) {
       const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
+      const auto& endpoint =
+          Config::SelectedRosbridgeConfig(config.channel_config);
       const QString saved_port = QString::fromStdString(
-          config.channel_config.rosbridge_config.port.empty()
+          endpoint.port.empty()
               ? std::string("9090")
-              : config.channel_config.rosbridge_config.port);
+              : endpoint.port);
       rosbridge_port_edit_->setText(saved_port);
       rosbridge_port_edit_->setToolTip(tr("端口必须是 1 到 65535 之间的整数"));
       return;
@@ -240,7 +241,8 @@ QWidget* DisplayConfigWidget::CreateChannelPage() {
     rosbridge_port_edit_->setToolTip(QString());
     QString new_port = rosbridge_port_edit_->text();
     Config::ConfigManager::Instance()->UpdateRootConfig([&new_port](auto& config) {
-      config.channel_config.rosbridge_config.port = new_port.toStdString();
+      Config::SelectedRosbridgeConfig(config.channel_config).port =
+          new_port.toStdString();
     });
   });
   port_layout->addWidget(rosbridge_port_label_);
@@ -744,7 +746,17 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel
   channel_type_combo_->addItem(tr("自动"), QStringLiteral("auto"));
   for (const auto& channel_type : channel_list_) {
     QString q = QString::fromStdString(channel_type);
-    channel_type_combo_->addItem(q, q);
+    channel_type_combo_->addItem(
+        channel_type == Config::kRosbridgeChannelType
+            ? tr("局域网（ROSBridge）")
+            : q,
+        q);
+  }
+  if (channel_type_combo_->findData(
+          QString::fromLatin1(Config::kTailscaleRosbridgeChannelType)) < 0) {
+    channel_type_combo_->addItem(
+        tr("Tailscale（ROSBridge）"),
+        QString::fromLatin1(Config::kTailscaleRosbridgeChannelType));
   }
 
   const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
@@ -758,6 +770,40 @@ void DisplayConfigWidget::SetChannelList(const std::vector<std::string>& channel
   }
 
   channel_type_combo_->blockSignals(false);
+  RefreshRosbridgeEndpointEditor();
+}
+
+void DisplayConfigWidget::RefreshRosbridgeEndpointEditor() {
+  if (!channel_type_combo_ || !rosbridge_ip_edit_ || !rosbridge_port_edit_) {
+    return;
+  }
+  const auto config =
+      Config::ConfigManager::Instance()->GetRootConfigSnapshot();
+  const std::string channel_type =
+      config.channel_config.channel_type.empty()
+          ? Config::kRosbridgeChannelType
+          : config.channel_config.channel_type;
+  const bool is_rosbridge = Config::IsRosbridgePreset(channel_type);
+  const bool is_tailscale =
+      channel_type == Config::kTailscaleRosbridgeChannelType;
+  const auto& endpoint =
+      Config::SelectedRosbridgeConfig(config.channel_config);
+
+  rosbridge_ip_edit_->setEnabled(is_rosbridge);
+  rosbridge_port_edit_->setEnabled(is_rosbridge);
+  rosbridge_ip_edit_->setPlaceholderText(
+      is_tailscale ? tr("100.x 地址或 MagicDNS 主机名")
+                   : QStringLiteral("192.168.31.50"));
+  rosbridge_ip_edit_->setToolTip(
+      is_tailscale
+          ? tr("填写这台小车在 Tailscale 中的 100.x 地址或 MagicDNS 主机名")
+          : QString());
+  rosbridge_ip_edit_->setText(QString::fromStdString(
+      endpoint.ip.empty() && !is_tailscale
+          ? std::string("192.168.31.50")
+          : endpoint.ip));
+  rosbridge_port_edit_->setText(QString::fromStdString(
+      endpoint.port.empty() ? std::string("9090") : endpoint.port));
 }
 
 void DisplayConfigWidget::SetDisplayManager(Display::DisplayManager* manager) {
@@ -1227,21 +1273,7 @@ void DisplayConfigWidget::LoadConfig() {
   }
   channel_type_combo_->blockSignals(false);
 
-  std::string rosbridge_ip =
-      config.channel_config.rosbridge_config.ip.empty() ? "192.168.31.50" : config.channel_config.rosbridge_config.ip;
-  rosbridge_ip_edit_->blockSignals(true);
-  rosbridge_ip_edit_->setText(QString::fromStdString(rosbridge_ip));
-  rosbridge_ip_edit_->blockSignals(false);
-
-  std::string rosbridge_port =
-      config.channel_config.rosbridge_config.port.empty() ? "9090" : config.channel_config.rosbridge_config.port;
-  rosbridge_port_edit_->blockSignals(true);
-  rosbridge_port_edit_->setText(QString::fromStdString(rosbridge_port));
-  rosbridge_port_edit_->blockSignals(false);
-
-  bool show_rosbridge = (channel_type == "rosbridge");
-  rosbridge_ip_edit_->setEnabled(show_rosbridge);
-  rosbridge_port_edit_->setEnabled(show_rosbridge);
+  RefreshRosbridgeEndpointEditor();
 
   is_loading_config_ = false;
 }

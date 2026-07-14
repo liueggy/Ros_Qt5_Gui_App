@@ -38,6 +38,9 @@ std::string ChannelManager::NormalizeStoredChannelType(const std::string& raw) {
   while (s.size() > kCh.size() && s.compare(0, kCh.size(), kCh) == 0) {
     s = s.substr(kCh.size());
   }
+  if (s == Config::kTailscaleRosbridgeChannelType) {
+    return Config::kRosbridgeChannelType;
+  }
   return s;
 }
 

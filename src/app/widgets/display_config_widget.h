@@ -71,6 +71,7 @@ signals:
   void UpdateMapStyleColorButtons(const Config::MapStyleConfig &style);
   void UpdateImageTableHeight();
   void UpdateDisplayVisibility(const std::string &display_name, bool visible);
+  void RefreshRosbridgeEndpointEditor();
   void AutoSaveConfig();
 
   static QFrame *CreateSettingsCard(QWidget *parent);
