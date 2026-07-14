@@ -1454,15 +1454,26 @@ void MainWindow::setupUi() {
   QWidget* task_list_widget = new QWidget();
   nav_goal_table_view_ = new NavGoalTableView();
   QVBoxLayout* horizontalLayout_13 = new QVBoxLayout();
-  horizontalLayout_13->setContentsMargins(16, 16, 16, 16);
-  horizontalLayout_13->setSpacing(12);
+  horizontalLayout_13->setContentsMargins(12, 12, 12, 12);
+  horizontalLayout_13->setSpacing(10);
 
   auto* inspection_header_card = new QFrame();
+  inspection_header_card->setProperty("uiCard", true);
   inspection_header_card->setStyleSheet(UiStyle::CardStyleSheet());
   auto* inspection_header_layout = new QVBoxLayout(inspection_header_card);
-  inspection_header_layout->setContentsMargins(16, 14, 16, 14);
-  inspection_header_layout->setSpacing(8);
+  inspection_header_layout->setContentsMargins(16, 14, 16, 12);
+  inspection_header_layout->setSpacing(6);
+  auto* inspection_title = new QLabel(QStringLiteral("导航任务"));
+  inspection_title->setObjectName(QStringLiteral("pageTitle"));
+  inspection_title->setStyleSheet(UiStyle::TitleLabelStyleSheet());
+  auto* inspection_subtitle = new QLabel(
+      QStringLiteral("按顺序前往地图点位，可选 AI 巡检、循环执行和任务结束返航。"));
+  inspection_subtitle->setStyleSheet(UiStyle::HintLabelStyleSheet());
+  inspection_subtitle->setWordWrap(true);
+  inspection_header_layout->addWidget(inspection_title);
+  inspection_header_layout->addWidget(inspection_subtitle);
   auto* inspection_header_row = new QHBoxLayout();
+  inspection_header_row->setContentsMargins(0, 4, 0, 0);
   inspection_route_summary_label_ = new QLabel(QStringLiteral("路线 0 / 0"));
   inspection_route_summary_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
   inspection_header_row->addWidget(inspection_route_summary_label_);
@@ -1472,7 +1483,25 @@ void MainWindow::setupUi() {
   inspection_header_row->addWidget(inspection_readiness_label_);
   inspection_header_layout->addLayout(inspection_header_row);
   horizontalLayout_13->addWidget(inspection_header_card);
-  horizontalLayout_13->addWidget(nav_goal_table_view_, 1);
+
+  auto* route_card = new QFrame();
+  route_card->setProperty("uiCard", true);
+  route_card->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* route_layout = new QVBoxLayout(route_card);
+  route_layout->setContentsMargins(12, 10, 12, 10);
+  route_layout->setSpacing(6);
+  auto* route_header = new QHBoxLayout();
+  auto* route_title = new QLabel(QStringLiteral("任务点位"));
+  route_title->setStyleSheet(UiStyle::SectionLabelStyleSheet());
+  auto* route_hint = new QLabel(QStringLiteral("点位顺序与执行状态会在这里显示。"));
+  route_hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
+  route_hint->setWordWrap(true);
+  route_header->addWidget(route_title);
+  route_header->addSpacing(10);
+  route_header->addWidget(route_hint, 1);
+  route_layout->addLayout(route_header);
+  route_layout->addWidget(nav_goal_table_view_, 1);
+  horizontalLayout_13->addWidget(route_card, 1);
   task_list_widget->setLayout(horizontalLayout_13);
   inspection_task_dock_ = new ads::CDockWidget("导航任务");
 
@@ -1484,6 +1513,7 @@ void MainWindow::setupUi() {
   inspection_add_button_->setToolTip(QStringLiteral("新增一行，并从已有地图点位中选择巡检位置"));
 
   QHBoxLayout* horizontalLayout_15 = new QHBoxLayout();
+  horizontalLayout_15->setContentsMargins(0, 0, 0, 0);
   QPushButton* btn_start_task_chain = new QPushButton("开始任务");
   btn_start_task_chain->setStyleSheet(modernButtonStyle);
   inspection_start_button_ = btn_start_task_chain;
@@ -1509,12 +1539,30 @@ void MainWindow::setupUi() {
   horizontalLayout_15->addWidget(inspection_add_button_);
   horizontalLayout_15->addWidget(btn_start_task_chain, 1);
 
+  auto* options_card = new QFrame();
+  options_card->setProperty("uiCard", true);
+  options_card->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* options_layout = new QVBoxLayout(options_card);
+  options_layout->setContentsMargins(14, 10, 14, 10);
+  options_layout->setSpacing(6);
+  auto* options_header = new QHBoxLayout();
+  auto* options_title = new QLabel(QStringLiteral("任务配置"));
+  options_title->setStyleSheet(UiStyle::SectionLabelStyleSheet());
+  auto* options_hint = new QLabel(QStringLiteral("只影响本次任务，可随时保存为方案"));
+  options_hint->setStyleSheet(UiStyle::HintLabelStyleSheet());
+  options_header->addWidget(options_title);
+  options_header->addStretch();
+  options_header->addWidget(options_hint);
+  options_layout->addLayout(options_header);
+
   QHBoxLayout* loop_task_layout = new QHBoxLayout();
   loop_task_layout->setContentsMargins(0, 0, 0, 0);
+  loop_task_layout->setSpacing(18);
   loop_task_layout->addWidget(inspection_ai_checkbox_);
   loop_task_layout->addWidget(loop_task_checkbox);
   loop_task_layout->addWidget(inspection_return_home_checkbox_);
   loop_task_layout->addStretch();
+  options_layout->addLayout(loop_task_layout);
 
   inspection_load_button_ = new QPushButton("加载方案");
   inspection_save_button_ = new QPushButton("保存方案");
@@ -1522,11 +1570,15 @@ void MainWindow::setupUi() {
   inspection_save_button_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
 
   QHBoxLayout* horizontalLayout_16 = new QHBoxLayout();
+  horizontalLayout_16->setContentsMargins(0, 0, 0, 0);
+  horizontalLayout_16->setSpacing(8);
   horizontalLayout_16->addWidget(inspection_load_button_);
   horizontalLayout_16->addWidget(inspection_save_button_);
+  options_layout->addLayout(horizontalLayout_16);
 
   auto* inspection_status_card = new QFrame();
   inspection_status_card_ = inspection_status_card;
+  inspection_status_card->setProperty("uiCard", true);
   inspection_status_card->setStyleSheet(QStringLiteral(
       "QFrame { background:%1; border:1px solid %2; border-radius:12px; }"
       "QLabel { background:transparent; border:none; color:%3; }"
@@ -1577,8 +1629,7 @@ void MainWindow::setupUi() {
   inspection_status_layout->addWidget(inspection_kimi_banner_);
 
   horizontalLayout_13->addLayout(horizontalLayout_15);
-  horizontalLayout_13->addLayout(loop_task_layout);
-  horizontalLayout_13->addLayout(horizontalLayout_16);
+  horizontalLayout_13->addWidget(options_card);
   horizontalLayout_13->addWidget(inspection_status_card);
   inspection_task_dock_->setWidget(task_list_widget);
   ConfigureDockWidget(inspection_task_dock_, QSize(660, 520), QSize(720, 780));
