@@ -1,101 +1,274 @@
 #include "widgets/ui_style.h"
 
+#include <QAbstractButton>
 #include <QColor>
 #include <QImage>
+#include <QLabel>
+#include <QListWidget>
 #include <QPainter>
+#include <QPair>
+#include <QPalette>
 #include <QPixmap>
+#include <QSet>
+#include <QStringList>
+#include <QStyle>
+#include <QVector>
+#include <QWidget>
 
 namespace UiStyle {
 
 namespace {
 bool g_dark_theme = false;
+
+QStringList ThemeTokens(bool dark) {
+  if (dark) {
+    return {QStringLiteral("#3fb5a6"), QStringLiteral("#58c7b8"),
+            QStringLiteral("#2d9588"), QStringLiteral("#173b37"),
+            QStringLiteral("#171b1a"), QStringLiteral("#1d2321"),
+            QStringLiteral("#252d2a"), QStringLiteral("#202725"),
+            QStringLiteral("#e7ece9"), QStringLiteral("#bac5c0"),
+            QStringLiteral("#8d9b95"), QStringLiteral("#071c19"),
+            QStringLiteral("#39433f"), QStringLiteral("#55746d"),
+            QStringLiteral("#63c69f"), QStringLiteral("#17362c"),
+            QStringLiteral("#356d59"), QStringLiteral("#ee817a"),
+            QStringLiteral("#402321"), QStringLiteral("#78433f"),
+            QStringLiteral("#ff948d"), QStringLiteral("#e4a34e"),
+            QStringLiteral("#3b2e1b"), QStringLiteral("#76572f"),
+            QStringLiteral("#74b9c1"), QStringLiteral("#203438"),
+            QStringLiteral("#3d6870"), QStringLiteral("#1a201e"),
+            QStringLiteral("#46514d"), QStringLiteral("#65736d"),
+            QStringLiteral("#6f7a75"), QStringLiteral("#242a28"),
+            QStringLiteral("#111715"), QStringLiteral("#34413d"),
+            QStringLiteral("#dce7e2"), QStringLiteral("#285f57")};
+  }
+  return {QStringLiteral("#0f766e"), QStringLiteral("#0b5f59"),
+          QStringLiteral("#084c47"), QStringLiteral("#e5f4f1"),
+          QStringLiteral("#f2f3f1"), QStringLiteral("#fbfcfa"),
+          QStringLiteral("#f0f3f0"), QStringLiteral("#f6f7f5"),
+          QStringLiteral("#1b2422"), QStringLiteral("#45524f"),
+          QStringLiteral("#687572"), QStringLiteral("#ffffff"),
+          QStringLiteral("#d3d8d5"), QStringLiteral("#86aaa4"),
+          QStringLiteral("#18775f"), QStringLiteral("#e4f3ed"),
+          QStringLiteral("#91c4b5"), QStringLiteral("#b83a3a"),
+          QStringLiteral("#faecea"), QStringLiteral("#dea29d"),
+          QStringLiteral("#962f2f"), QStringLiteral("#b76512"),
+          QStringLiteral("#fbf0df"), QStringLiteral("#d8ad70"),
+          QStringLiteral("#356b73"), QStringLiteral("#e9f1f2"),
+          QStringLiteral("#9cbfc3"), QStringLiteral("#f8f9f7"),
+          QStringLiteral("#b9c1bd"), QStringLiteral("#87938e"),
+          QStringLiteral("#99a29e"), QStringLiteral("#eceeec"),
+          QStringLiteral("#1b2221"), QStringLiteral("#35413e"),
+          QStringLiteral("#e2e9e6"), QStringLiteral("#315f58")};
 }
+
+QColor TranslateThemeColor(const QColor& color, bool from_dark, bool to_dark) {
+  const QStringList from = ThemeTokens(from_dark);
+  const QStringList to = ThemeTokens(to_dark);
+  const QString source = color.name(QColor::HexRgb);
+  for (int i = 0; i < from.size(); ++i) {
+    if (source.compare(from.at(i), Qt::CaseInsensitive) == 0) {
+      QColor translated(to.at(i));
+      translated.setAlpha(color.alpha());
+      return translated;
+    }
+  }
+  return color;
+}
+
+QPixmap TranslateTintedPixmap(const QPixmap& pixmap, bool from_dark,
+                              bool to_dark, bool* changed) {
+  if (changed) *changed = false;
+  if (pixmap.isNull()) return pixmap;
+  const QImage image = pixmap.toImage().convertToFormat(QImage::Format_ARGB32);
+  QColor source;
+  bool found = false;
+  for (int y = 0; y < image.height(); ++y) {
+    for (int x = 0; x < image.width(); ++x) {
+      const QColor pixel = image.pixelColor(x, y);
+      if (pixel.alpha() == 0) continue;
+      if (!found) {
+        source = pixel;
+        source.setAlpha(255);
+        found = true;
+      } else if (pixel.red() != source.red() ||
+                 pixel.green() != source.green() ||
+                 pixel.blue() != source.blue()) {
+        return pixmap;
+      }
+    }
+  }
+  if (!found) return pixmap;
+  const QColor target = TranslateThemeColor(source, from_dark, to_dark);
+  if (target.rgb() == source.rgb()) return pixmap;
+
+  QImage translated = image;
+  QPainter painter(&translated);
+  painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+  painter.fillRect(translated.rect(), target);
+  painter.end();
+  if (changed) *changed = true;
+  return QPixmap::fromImage(translated);
+}
+
+void TranslateTintedAssets(QWidget* widget, bool from_dark, bool to_dark) {
+  if (auto* button = qobject_cast<QAbstractButton*>(widget)) {
+    const QSize size = button->iconSize().isValid() ? button->iconSize()
+                                                    : QSize(24, 24);
+    bool changed = false;
+    const QPixmap translated = TranslateTintedPixmap(
+        button->icon().pixmap(size), from_dark, to_dark, &changed);
+    if (changed) button->setIcon(QIcon(translated));
+  }
+  if (auto* label = qobject_cast<QLabel*>(widget)) {
+    const QPixmap* current = label->pixmap();
+    if (current) {
+      bool changed = false;
+      const QPixmap translated =
+          TranslateTintedPixmap(*current, from_dark, to_dark, &changed);
+      if (changed) label->setPixmap(translated);
+    }
+  }
+  if (auto* list = qobject_cast<QListWidget*>(widget)) {
+    const QSize size = list->iconSize().isValid() ? list->iconSize()
+                                                  : QSize(24, 24);
+    for (int i = 0; i < list->count(); ++i) {
+      QListWidgetItem* item = list->item(i);
+      bool changed = false;
+      const QPixmap translated = TranslateTintedPixmap(
+          item->icon().pixmap(size), from_dark, to_dark, &changed);
+      if (changed) item->setIcon(QIcon(translated));
+    }
+  }
+}
+}  // namespace
 
 void SetDarkTheme(bool dark) {
   g_dark_theme = dark;
   using namespace Palette;
-  if (!dark) {
-    Primary = QStringLiteral("#0f766e");
-    PrimaryHover = QStringLiteral("#0b5f59");
-    PrimaryPress = QStringLiteral("#084c47");
-    PrimaryLight = QStringLiteral("#e5f4f1");
-    Background = QStringLiteral("#f2f3f1");
-    Surface = QStringLiteral("#fbfcfa");
-    SurfaceHover = QStringLiteral("#f0f3f0");
-    SurfaceAlt = QStringLiteral("#f6f7f5");
-    Text = QStringLiteral("#1b2422");
-    TextSecondary = QStringLiteral("#45524f");
-    TextMuted = QStringLiteral("#687572");
-    TextOnPrimary = QStringLiteral("#ffffff");
-    Border = QStringLiteral("#d3d8d5");
-    BorderHover = QStringLiteral("#86aaa4");
-    BorderFocus = Primary;
-    Success = QStringLiteral("#18775f");
-    SuccessBg = QStringLiteral("#e4f3ed");
-    SuccessBorder = QStringLiteral("#91c4b5");
-    Danger = QStringLiteral("#b83a3a");
-    DangerBg = QStringLiteral("#faecea");
-    DangerBorder = QStringLiteral("#dea29d");
-    DangerHover = QStringLiteral("#962f2f");
-    Warning = QStringLiteral("#b76512");
-    WarningBg = QStringLiteral("#fbf0df");
-    WarningBorder = QStringLiteral("#d8ad70");
-    Info = QStringLiteral("#356b73");
-    InfoBg = QStringLiteral("#e9f1f2");
-    InfoBorder = QStringLiteral("#9cbfc3");
-    ToolbarBg = QStringLiteral("#f8f9f7");
-    Separator = Border;
-    Scrollbar = QStringLiteral("#b9c1bd");
-    ScrollbarHvr = QStringLiteral("#87938e");
-    DisabledText = QStringLiteral("#99a29e");
-    DisabledBg = QStringLiteral("#eceeec");
-    TerminalBg = QStringLiteral("#1b2221");
-    TerminalBorder = QStringLiteral("#35413e");
-    TerminalText = QStringLiteral("#e2e9e6");
-    TerminalSelection = QStringLiteral("#315f58");
-    return;
-  }
-  Primary = QStringLiteral("#3fb5a6");
-  PrimaryHover = QStringLiteral("#58c7b8");
-  PrimaryPress = QStringLiteral("#2d9588");
-  PrimaryLight = QStringLiteral("#173b37");
-  Background = QStringLiteral("#171b1a");
-  Surface = QStringLiteral("#1d2321");
-  SurfaceHover = QStringLiteral("#252d2a");
-  SurfaceAlt = QStringLiteral("#202725");
-  Text = QStringLiteral("#e7ece9");
-  TextSecondary = QStringLiteral("#bac5c0");
-  TextMuted = QStringLiteral("#8d9b95");
-  TextOnPrimary = QStringLiteral("#071c19");
-  Border = QStringLiteral("#39433f");
-  BorderHover = QStringLiteral("#55746d");
+  const QStringList tokens = ThemeTokens(dark);
+  int index = 0;
+  Primary = tokens.at(index++);
+  PrimaryHover = tokens.at(index++);
+  PrimaryPress = tokens.at(index++);
+  PrimaryLight = tokens.at(index++);
+  Background = tokens.at(index++);
+  Surface = tokens.at(index++);
+  SurfaceHover = tokens.at(index++);
+  SurfaceAlt = tokens.at(index++);
+  Text = tokens.at(index++);
+  TextSecondary = tokens.at(index++);
+  TextMuted = tokens.at(index++);
+  TextOnPrimary = tokens.at(index++);
+  Border = tokens.at(index++);
+  BorderHover = tokens.at(index++);
   BorderFocus = Primary;
-  Success = QStringLiteral("#63c69f");
-  SuccessBg = QStringLiteral("#17362c");
-  SuccessBorder = QStringLiteral("#356d59");
-  Danger = QStringLiteral("#ee817a");
-  DangerBg = QStringLiteral("#402321");
-  DangerBorder = QStringLiteral("#78433f");
-  DangerHover = QStringLiteral("#ff948d");
-  Warning = QStringLiteral("#e4a34e");
-  WarningBg = QStringLiteral("#3b2e1b");
-  WarningBorder = QStringLiteral("#76572f");
-  Info = QStringLiteral("#74b9c1");
-  InfoBg = QStringLiteral("#203438");
-  InfoBorder = QStringLiteral("#3d6870");
-  ToolbarBg = QStringLiteral("#1a201e");
+  Success = tokens.at(index++);
+  SuccessBg = tokens.at(index++);
+  SuccessBorder = tokens.at(index++);
+  Danger = tokens.at(index++);
+  DangerBg = tokens.at(index++);
+  DangerBorder = tokens.at(index++);
+  DangerHover = tokens.at(index++);
+  Warning = tokens.at(index++);
+  WarningBg = tokens.at(index++);
+  WarningBorder = tokens.at(index++);
+  Info = tokens.at(index++);
+  InfoBg = tokens.at(index++);
+  InfoBorder = tokens.at(index++);
+  ToolbarBg = tokens.at(index++);
   Separator = Border;
-  Scrollbar = QStringLiteral("#46514d");
-  ScrollbarHvr = QStringLiteral("#65736d");
-  DisabledText = QStringLiteral("#6f7a75");
-  DisabledBg = QStringLiteral("#242a28");
-  TerminalBg = QStringLiteral("#111715");
-  TerminalBorder = QStringLiteral("#34413d");
-  TerminalText = QStringLiteral("#dce7e2");
-  TerminalSelection = QStringLiteral("#285f57");
+  Scrollbar = tokens.at(index++);
+  ScrollbarHvr = tokens.at(index++);
+  DisabledText = tokens.at(index++);
+  DisabledBg = tokens.at(index++);
+  TerminalBg = tokens.at(index++);
+  TerminalBorder = tokens.at(index++);
+  TerminalText = tokens.at(index++);
+  TerminalSelection = tokens.at(index++);
+  Q_ASSERT(index == tokens.size());
 }
 
 bool IsDarkTheme() { return g_dark_theme; }
+
+QString TranslateStyleSheetTheme(const QString& style_sheet, bool from_dark,
+                                 bool to_dark) {
+  if (style_sheet.isEmpty() || from_dark == to_dark) {
+    return style_sheet;
+  }
+  const QStringList from = ThemeTokens(from_dark);
+  const QStringList to = ThemeTokens(to_dark);
+  QString translated = style_sheet;
+  QSet<QString> replaced;
+  QVector<QPair<QString, QString>> placeholders;
+  for (int i = 0; i < from.size(); ++i) {
+    const QString key = from.at(i).toLower();
+    if (replaced.contains(key)) {
+      continue;
+    }
+    replaced.insert(key);
+    const QString placeholder =
+        QStringLiteral("__qt_theme_token_%1__").arg(placeholders.size());
+    translated.replace(from.at(i), placeholder, Qt::CaseInsensitive);
+    placeholders.append(qMakePair(placeholder, to.at(i)));
+  }
+  for (const auto& replacement : placeholders) {
+    translated.replace(replacement.first, replacement.second);
+  }
+  return translated;
+}
+
+void ApplyApplicationTheme(QApplication* app, QWidget* root, bool dark) {
+  if (!app) {
+    return;
+  }
+  const bool previous_dark = IsDarkTheme();
+  QList<QPair<QWidget*, QString>> local_styles;
+  if (root && previous_dark != dark) {
+    QList<QWidget*> widgets{root};
+    widgets.append(root->findChildren<QWidget*>());
+    for (QWidget* widget : widgets) {
+      if (widget && !widget->styleSheet().isEmpty()) {
+        local_styles.append(qMakePair(widget, widget->styleSheet()));
+      }
+    }
+  }
+
+  SetDarkTheme(dark);
+  QPalette palette;
+  palette.setColor(QPalette::Window, QColor(Palette::Background));
+  palette.setColor(QPalette::WindowText, QColor(Palette::Text));
+  palette.setColor(QPalette::Base, QColor(Palette::Surface));
+  palette.setColor(QPalette::AlternateBase, QColor(Palette::SurfaceAlt));
+  palette.setColor(QPalette::Text, QColor(Palette::Text));
+  palette.setColor(QPalette::Button, QColor(Palette::Surface));
+  palette.setColor(QPalette::ButtonText, QColor(Palette::Text));
+  palette.setColor(QPalette::Highlight, QColor(Palette::Primary));
+  palette.setColor(QPalette::HighlightedText, QColor(Palette::TextOnPrimary));
+  palette.setColor(QPalette::Disabled, QPalette::Text,
+                   QColor(Palette::DisabledText));
+  palette.setColor(QPalette::Disabled, QPalette::ButtonText,
+                   QColor(Palette::DisabledText));
+  palette.setColor(QPalette::Disabled, QPalette::Base,
+                   QColor(Palette::DisabledBg));
+  app->setPalette(palette);
+  app->setStyleSheet(ApplicationStyleSheet());
+
+  for (const auto& entry : local_styles) {
+    entry.first->setStyleSheet(
+        TranslateStyleSheetTheme(entry.second, previous_dark, dark));
+  }
+  if (root) {
+    QList<QWidget*> widgets{root};
+    widgets.append(root->findChildren<QWidget*>());
+    for (QWidget* widget : widgets) {
+      if (!widget) continue;
+      TranslateTintedAssets(widget, previous_dark, dark);
+      widget->style()->unpolish(widget);
+      widget->style()->polish(widget);
+      widget->update();
+    }
+  }
+}
 
 QIcon TintedIcon(const QString& resource_path, const QSize& size,
                  const QString& color) {
@@ -113,9 +286,9 @@ QIcon TintedIcon(const QString& resource_path, const QSize& size,
 
 // ── Legacy compatibility shims ─────────────
 
-int FontBasePx()  { return Font::Base; }
+int FontBasePx() { return Font::Base; }
 int FontSmallPx() { return Font::Small; }
-int FontMiniPx()  { return Font::Mini; }
+int FontMiniPx() { return Font::Mini; }
 int FontTitlePx() { return Font::Title; }
 int ControlHeightPx() { return Control::Height; }
 
@@ -125,50 +298,50 @@ QString ApplicationStyleSheet() {
   using namespace Palette;
   const QString dock_tab = IsDarkTheme() ? SurfaceAlt : QStringLiteral("#eef1ee");
   return QStringLiteral(
-    "QWidget { color:%1; font-size:%2px; }"
-    "QMainWindow, QDialog { background:%3; }"
-    "QToolTip { color:%1; background:%4; border:1px solid %5; border-radius:%6px; padding:6px %8px; }"
-    "QMenu { background:%4; border:1px solid %5; border-radius:%7px; padding:6px; }"
-    "QMenu::item { padding:%8px 28px %8px %9px; border-radius:%6px; }"
-    "QMenu::item:selected { color:%10; background:%11; }"
-    "QMenu::separator { height:1px; background:%5; margin:5px %8px; }"
-    "QComboBox { color:%1; background:%4; border:1px solid %5; border-radius:%6px;"
-    " padding:5px 36px 5px %9px; min-height:24px; }"
-    "QComboBox:hover { border-color:%14; background:%4; }"
-    "QComboBox:focus { border-color:%10; }"
-    "QComboBox:disabled { color:%16; background:%17; border-color:%5; }"
-    "QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:top right; "
-    "width:34px; border:none; border-left:1px solid %5; }"
-    "QComboBox::down-arrow { image:url(:/icons/tabler/arrow-down.svg); width:14px; height:14px; }"
-    "QComboBox QAbstractItemView { background:%4; color:%1; border:1px solid %5; "
-    "border-radius:%8px; padding:6px; outline:none; selection-background-color:%11; "
-    "selection-color:%10; }"
-    "QComboBox QAbstractItemView::item { min-height:34px; padding:5px 10px; }"
-    "QScrollBar:vertical { width:10px; margin:2px; border:none; background:transparent; }"
-    "QScrollBar::handle:vertical { min-height:32px; border-radius:4px; background:%12; }"
-    "QScrollBar::handle:vertical:hover { background:%13; }"
-    "QScrollBar:horizontal { height:10px; margin:2px; border:none; background:transparent; }"
-    "QScrollBar::handle:horizontal { min-width:32px; border-radius:4px; background:%12; }"
-    "QScrollBar::handle:horizontal:hover { background:%13; }"
-    "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
-    "QTabWidget::pane { border:1px solid %5; border-radius:5px; background:%4; top:-1px; }"
-    "QTabBar::tab { min-height:30px; padding:6px 16px; color:%18; background:transparent; border:none; }"
-    "QTabBar::tab:hover { color:%10; background:%11; }"
-    "QTabBar::tab:selected { color:%10; font-weight:600; border-bottom:2px solid %14; }"
-    "ads--CDockAreaTitleBar, ads--CDockAreaWidget, ads--CDockContainerWidget { background:%3; }"
-    "ads--CDockWidgetTab { background:%15; color:%18; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
-    "ads--CDockWidgetTab[activeTab=\"true\"] { background:%11; color:%10; border-bottom:2px solid %14; font-weight:700; }"
-    "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
-    "ads--CTitleBarButton { background:transparent; border:none; border-radius:5px; padding:2px; }"
-    "ads--CTitleBarButton:hover { background:%11; }"
-    "QSplitter::handle { background:%5; }"
-    "QSplitter::handle:hover { background:%14; }"
-  ).arg(Text, QString::number(Font::Base), Background, Surface, Border,
-        QString::number(Radius::SM), QString::number(Radius::LG),
-        QString::number(Space::SM),
-        QString::number(Space::MD), Primary, PrimaryLight,
-        Scrollbar, ScrollbarHvr, BorderHover, dock_tab, DisabledText,
-        DisabledBg, TextSecondary);
+             "QWidget { color:%1; font-size:%2px; }"
+             "QMainWindow, QDialog { background:%3; }"
+             "QToolTip { color:%1; background:%4; border:1px solid %5; border-radius:%6px; padding:6px %8px; }"
+             "QMenu { background:%4; border:1px solid %5; border-radius:%7px; padding:6px; }"
+             "QMenu::item { padding:%8px 28px %8px %9px; border-radius:%6px; }"
+             "QMenu::item:selected { color:%10; background:%11; }"
+             "QMenu::separator { height:1px; background:%5; margin:5px %8px; }"
+             "QComboBox { color:%1; background:%4; border:1px solid %5; border-radius:%6px;"
+             " padding:5px 36px 5px %9px; min-height:24px; }"
+             "QComboBox:hover { border-color:%14; background:%4; }"
+             "QComboBox:focus { border-color:%10; }"
+             "QComboBox:disabled { color:%16; background:%17; border-color:%5; }"
+             "QComboBox::drop-down { subcontrol-origin:padding; subcontrol-position:top right; "
+             "width:34px; border:none; border-left:1px solid %5; }"
+             "QComboBox::down-arrow { image:url(:/icons/tabler/arrow-down.svg); width:14px; height:14px; }"
+             "QComboBox QAbstractItemView { background:%4; color:%1; border:1px solid %5; "
+             "border-radius:%8px; padding:6px; outline:none; selection-background-color:%11; "
+             "selection-color:%10; }"
+             "QComboBox QAbstractItemView::item { min-height:34px; padding:5px 10px; }"
+             "QScrollBar:vertical { width:10px; margin:2px; border:none; background:transparent; }"
+             "QScrollBar::handle:vertical { min-height:32px; border-radius:4px; background:%12; }"
+             "QScrollBar::handle:vertical:hover { background:%13; }"
+             "QScrollBar:horizontal { height:10px; margin:2px; border:none; background:transparent; }"
+             "QScrollBar::handle:horizontal { min-width:32px; border-radius:4px; background:%12; }"
+             "QScrollBar::handle:horizontal:hover { background:%13; }"
+             "QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; }"
+             "QTabWidget::pane { border:1px solid %5; border-radius:5px; background:%4; top:-1px; }"
+             "QTabBar::tab { min-height:30px; padding:6px 16px; color:%18; background:transparent; border:none; }"
+             "QTabBar::tab:hover { color:%10; background:%11; }"
+             "QTabBar::tab:selected { color:%10; font-weight:600; border-bottom:2px solid %14; }"
+             "ads--CDockAreaTitleBar, ads--CDockAreaWidget, ads--CDockContainerWidget { background:%3; }"
+             "ads--CDockWidgetTab { background:%15; color:%18; border:none; border-bottom:1px solid %5; padding:4px 10px; }"
+             "ads--CDockWidgetTab[activeTab=\"true\"] { background:%11; color:%10; border-bottom:2px solid %14; font-weight:700; }"
+             "ads--CDockWidgetTab QLabel { background:transparent; color:inherit; }"
+             "ads--CTitleBarButton { background:transparent; border:none; border-radius:5px; padding:2px; }"
+             "ads--CTitleBarButton:hover { background:%11; }"
+             "QSplitter::handle { background:%5; }"
+             "QSplitter::handle:hover { background:%14; }")
+      .arg(Text, QString::number(Font::Base), Background, Surface, Border,
+           QString::number(Radius::SM), QString::number(Radius::LG),
+           QString::number(Space::SM),
+           QString::number(Space::MD), Primary, PrimaryLight,
+           Scrollbar, ScrollbarHvr, BorderHover, dock_tab, DisabledText,
+           DisabledBg, TextSecondary);
 }
 
 QString DockStyleSheet() {

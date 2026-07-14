@@ -64,7 +64,6 @@ using namespace ads;
 namespace {
 
 constexpr int kUiLayoutVersion = 12;
-constexpr int kRestartForThemeChange = 773;
 
 void ConfigureDockWidget(ads::CDockWidget* dock, const QSize& minimum_size,
                          const QSize& preferred_size = QSize()) {
@@ -512,8 +511,12 @@ MainWindow::MainWindow(QWidget* parent)
   qRegisterMetaType<TopologyMap::PointInfo>("TopologyMap::PointInfo");
   setupUi();
   ApplyCenteredWindowGeometry();
+  if (display_config_widget_) {
+    display_config_widget_->SetConnectionState(
+        false, true, tr("正在检测小车连接，请稍候…"));
+  }
+  RestoreState();
   QTimer::singleShot(30, this, [this]() { openChannel(); });
-  QTimer::singleShot(50, this, [this]() { RestoreState(); });
 }
 bool MainWindow::openChannel() {
   const int attempt_id = ++connection_attempt_id_;
@@ -1177,22 +1180,39 @@ void MainWindow::setupUi() {
   });
 
   horizontalLayout_tools->addSpacing(8);
-  auto* theme_btn = new QToolButton(this);
-  theme_btn->setText(UiStyle::IsDarkTheme() ? QStringLiteral("☀")
-                                            : QStringLiteral("☾"));
-  theme_btn->setToolTip(UiStyle::IsDarkTheme() ? tr("切换到明亮模式")
-                                               : tr("切换到暗色模式"));
-  theme_btn->setAccessibleName(theme_btn->toolTip());
-  theme_btn->setFixedSize(32, 28);
-  theme_btn->setStyleSheet(UiStyle::MiniToolButtonStyleSheet());
-  connect(theme_btn, &QToolButton::clicked, this, []() {
+  theme_button_ = new QToolButton(this);
+  theme_button_->setText(UiStyle::IsDarkTheme() ? QStringLiteral("☀")
+                                                : QStringLiteral("☾"));
+  theme_button_->setToolTip(UiStyle::IsDarkTheme() ? tr("切换到明亮模式")
+                                                   : tr("切换到暗色模式"));
+  theme_button_->setAccessibleName(theme_button_->toolTip());
+  theme_button_->setFixedSize(32, 28);
+  theme_button_->setStyleSheet(UiStyle::MiniToolButtonStyleSheet());
+  connect(theme_button_, &QToolButton::clicked, this, [this]() {
+    const bool dark = !UiStyle::IsDarkTheme();
     QSettings settings(QStringLiteral("state.ini"), QSettings::IniFormat);
-    settings.setValue(QStringLiteral("appearance/darkTheme"),
-                      !UiStyle::IsDarkTheme());
+    settings.setValue(QStringLiteral("appearance/darkTheme"), dark);
     settings.sync();
-    qApp->exit(kRestartForThemeChange);
+    setUpdatesEnabled(false);
+    UiStyle::ApplyApplicationTheme(qApp, this, dark);
+    if (dock_manager_) {
+      dock_manager_->setStyleSheet(UiStyle::DockStyleSheet());
+    }
+    if (display_manager_) {
+      auto* view_manager = dynamic_cast<Display::ViewManager*>(
+          display_manager_->GetViewPtr());
+      if (view_manager) {
+        view_manager->setBackgroundBrush(QColor(UiStyle::Palette::Surface));
+      }
+    }
+    theme_button_->setText(dark ? QStringLiteral("☀") : QStringLiteral("☾"));
+    theme_button_->setToolTip(dark ? tr("切换到明亮模式")
+                                   : tr("切换到暗色模式"));
+    theme_button_->setAccessibleName(theme_button_->toolTip());
+    setUpdatesEnabled(true);
+    update();
   });
-  horizontalLayout_tools->addWidget(theme_btn);
+  horizontalLayout_tools->addWidget(theme_button_);
 
   horizontalLayout_tools->addSpacing(4);
   QPushButton* min_btn = new QPushButton(this);

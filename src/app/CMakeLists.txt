@@ -60,6 +60,20 @@ if(BUILD_WITH_TEST)
     nlohmann_json::nlohmann_json
   )
   add_test(NAME app_contract_test COMMAND app_contract_test)
+
+  add_executable(ui_theme_contract_test
+    ui_theme_contract_test.cpp
+    widgets/ui_style.cpp
+  )
+  target_include_directories(ui_theme_contract_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_link_libraries(ui_theme_contract_test PRIVATE
+    GTest::gtest
+    Qt5::Widgets
+  )
+  add_test(NAME ui_theme_contract_test COMMAND ui_theme_contract_test)
 endif()
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")

@@ -33,14 +33,6 @@ NavGoalWidget::NavGoalWidget(QWidget* parent) : QWidget(parent) {
   // 设置现代化样式
   setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  // 设置调色板确保背景不透明
-  QPalette pal = palette();
-  pal.setColor(QPalette::Window, QColor(UiStyle::Palette::Surface));
-  pal.setColor(QPalette::Base, QColor(UiStyle::Palette::Surface));
-  pal.setColor(QPalette::Text, QColor(UiStyle::Palette::Text));
-  pal.setColor(QPalette::WindowText, QColor(UiStyle::Palette::Text));
-  setPalette(pal);
-
   QHBoxLayout* layout_name = new QHBoxLayout();
   layout_name->setSpacing(6);
   QLabel* label_name = new QLabel("名称:");

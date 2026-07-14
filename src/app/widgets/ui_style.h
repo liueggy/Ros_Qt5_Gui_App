@@ -5,6 +5,8 @@
 #include <QIcon>
 #include <QSize>
 
+class QWidget;
+
 // ═══════════════════════════════════════════════
 //  UiStyle — centralized design system
 //  To change the theme: edit Palette below,
@@ -131,6 +133,9 @@ QString ApplicationStyleSheet();
 QString DockStyleSheet();
 void SetDarkTheme(bool dark);
 bool IsDarkTheme();
+QString TranslateStyleSheetTheme(const QString& style_sheet, bool from_dark,
+                                 bool to_dark);
+void ApplyApplicationTheme(QApplication* app, QWidget* root, bool dark);
 
 // Recolors monochrome resource icons with the active semantic colour token.
 QIcon TintedIcon(const QString& resource_path,

@@ -31,14 +31,6 @@ SetPoseWidget::SetPoseWidget(QWidget* parent) : QWidget(parent) {
   // 设置现代化样式
   setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  // 设置调色板确保背景不透明
-  QPalette pal = palette();
-  pal.setColor(QPalette::Window, QColor(UiStyle::Palette::Surface));
-  pal.setColor(QPalette::Base, QColor(UiStyle::Palette::Surface));
-  pal.setColor(QPalette::Text, QColor(UiStyle::Palette::Text));
-  pal.setColor(QPalette::WindowText, QColor(UiStyle::Palette::Text));
-  setPalette(pal);
-
   QLabel* hint =
       new QLabel("在地图上选择位置并拖动确定朝向，再用数值微调");
   hint->setStyleSheet(UiStyle::HintLabelStyleSheet());

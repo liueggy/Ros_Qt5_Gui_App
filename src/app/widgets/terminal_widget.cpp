@@ -185,7 +185,7 @@ TerminalWidget::TerminalWidget(QWidget* parent) : QWidget(parent) {
   output_edit_->setStyleSheet(
       QStringLiteral("QPlainTextEdit { background:%1; color:%2; border:0;"
                      " padding:12px 14px; font-family:%3; font-size:%4px;"
-                     " selection-background-color:%5; selection-color:#ffffff; }"
+                     " selection-background-color:%5; selection-color:%2; }"
                      "QScrollBar:vertical { background:%1; width:10px; margin:0; }"
                      "QScrollBar::handle:vertical { background:%6; min-height:28px;"
                      " border-radius:4px; margin:2px; }"

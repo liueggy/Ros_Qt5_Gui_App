@@ -95,6 +95,7 @@ class MainWindow : public QMainWindow {
   ads::CDockAreaWidget* command_center_dock_area_{nullptr};
   ads::CDockAreaWidget* inspection_dock_area_{nullptr};
   QWidget* custom_title_bar_{nullptr};
+  QToolButton* theme_button_{nullptr};
   QPushButton* maximize_button_{nullptr};
   bool dragging_window_ = {false};
   QPoint drag_position_;

@@ -90,16 +90,6 @@ void DisplayConfigWidget::InitUI() {
   main_layout_->setSpacing(0);
   setAutoFillBackground(true);
   setAttribute(Qt::WA_StyledBackground, true);
-  QPalette themed_palette = palette();
-  themed_palette.setColor(QPalette::Window,
-                          QColor(UiStyle::Palette::Background));
-  themed_palette.setColor(QPalette::WindowText,
-                          QColor(UiStyle::Palette::Text));
-  themed_palette.setColor(QPalette::Base,
-                          QColor(UiStyle::Palette::Surface));
-  themed_palette.setColor(QPalette::Text,
-                          QColor(UiStyle::Palette::Text));
-  setPalette(themed_palette);
 
   QHBoxLayout* body = new QHBoxLayout();
   body->setSpacing(16);
@@ -134,7 +124,6 @@ void DisplayConfigWidget::InitUI() {
   page_stack_->setObjectName(QStringLiteral("settingsPageStack"));
   page_stack_->setAutoFillBackground(true);
   page_stack_->setAttribute(Qt::WA_StyledBackground, true);
-  page_stack_->setPalette(themed_palette);
   page_stack_->setMinimumWidth(0);
   page_stack_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
@@ -148,7 +137,6 @@ void DisplayConfigWidget::InitUI() {
     page->setObjectName(QStringLiteral("settingsPage"));
     page->setAutoFillBackground(true);
     page->setAttribute(Qt::WA_StyledBackground, true);
-    page->setPalette(themed_palette);
     page->setStyleSheet(QStringLiteral(
         "QWidget#settingsPage { background-color:%1; }")
         .arg(UiStyle::Palette::Background));

@@ -10,17 +10,17 @@
 #endif
 
 #include <QApplication>
-#include <QColor>
-#include <QPalette>
-#include <QScreen>
-#include <QSettings>
-#include <QFileInfo>
 #include <QCoreApplication>
 #include <QDir>
+#include <QEasingCurve>
+#include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
 #include <QLockFile>
 #include <QMessageBox>
+#include <QPropertyAnimation>
+#include <QScreen>
+#include <QSettings>
 #include <QThread>
 #include <QTimer>
 #include <csignal>
@@ -30,8 +30,6 @@
 #include "widgets/ui_style.h"
 
 namespace {
-
-constexpr int kRestartForThemeChange = 773;
 
 void ApplyApplicationFont(QApplication* app) {
   const QStringList preferredFontFamilies = {
@@ -53,28 +51,6 @@ void ApplyApplicationFont(QApplication* app) {
   uiFont.setStyleStrategy(QFont::PreferAntialias);
   app->setFont(uiFont);
 }
-
-void ApplyApplicationPalette(QApplication* app) {
-  QPalette palette;
-  palette.setColor(QPalette::Window, QColor(UiStyle::Palette::Background));
-  palette.setColor(QPalette::WindowText, QColor(UiStyle::Palette::Text));
-  palette.setColor(QPalette::Base, QColor(UiStyle::Palette::Surface));
-  palette.setColor(QPalette::AlternateBase, QColor(UiStyle::Palette::SurfaceAlt));
-  palette.setColor(QPalette::Text, QColor(UiStyle::Palette::Text));
-  palette.setColor(QPalette::Button, QColor(UiStyle::Palette::Surface));
-  palette.setColor(QPalette::ButtonText, QColor(UiStyle::Palette::Text));
-  palette.setColor(QPalette::Highlight, QColor(UiStyle::Palette::Primary));
-  palette.setColor(QPalette::HighlightedText,
-                   QColor(UiStyle::Palette::TextOnPrimary));
-  palette.setColor(QPalette::Disabled, QPalette::Text,
-                   QColor(UiStyle::Palette::DisabledText));
-  palette.setColor(QPalette::Disabled, QPalette::ButtonText,
-                   QColor(UiStyle::Palette::DisabledText));
-  palette.setColor(QPalette::Disabled, QPalette::Base,
-                   QColor(UiStyle::Palette::DisabledBg));
-  app->setPalette(palette);
-}
-
 
 }  // namespace
 static QApplication* g_app = nullptr;
@@ -109,17 +85,28 @@ int main(int argc, char* argv[]) {
   std::signal(SIGINT, signalHandler);
   std::signal(SIGTERM, signalHandler);
 
-  int result = 0;
-  do {
-    QSettings appearance_settings(QStringLiteral("state.ini"), QSettings::IniFormat);
-    UiStyle::SetDarkTheme(
-        appearance_settings.value(QStringLiteral("appearance/darkTheme"), false).toBool());
-    ApplyApplicationPalette(&a);
-    a.setStyleSheet(UiStyle::ApplicationStyleSheet());
-    MainWindow main_window;
-    main_window.show();
-    LOG_INFO("ros_qt5_gui_app init!");
-    result = a.exec();
-  } while (result == kRestartForThemeChange);
-  return result;
+  QSettings appearance_settings(QStringLiteral("state.ini"), QSettings::IniFormat);
+  const bool dark_theme =
+      appearance_settings.value(QStringLiteral("appearance/darkTheme"), false).toBool();
+  const bool reduced_motion =
+      appearance_settings.value(QStringLiteral("appearance/reducedMotion"), false).toBool();
+  UiStyle::ApplyApplicationTheme(&a, nullptr, dark_theme);
+
+  MainWindow main_window;
+  if (!reduced_motion) {
+    main_window.setWindowOpacity(0.0);
+  }
+  main_window.show();
+  if (!reduced_motion) {
+    QTimer::singleShot(0, &main_window, [&main_window]() {
+      auto* reveal = new QPropertyAnimation(&main_window, "windowOpacity", &main_window);
+      reveal->setDuration(180);
+      reveal->setStartValue(0.0);
+      reveal->setEndValue(1.0);
+      reveal->setEasingCurve(QEasingCurve::OutCubic);
+      reveal->start(QAbstractAnimation::DeleteWhenStopped);
+    });
+  }
+  LOG_INFO("ros_qt5_gui_app init!");
+  return a.exec();
 }
