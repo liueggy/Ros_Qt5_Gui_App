@@ -358,7 +358,13 @@ QString InspectionStageText(const std::string& stage) {
       {"searching_target", QStringLiteral("正在搜索目标")},
       {"search_rotating", QStringLiteral("90°步进旋转寻找")},
       {"search_paused", QStringLiteral("暂停判定目标")},
+      {"aligned", QStringLiteral("目标已对准")},
       {"target_confirmed", QStringLiteral("目标已确认")},
+      {"target_lost", QStringLiteral("目标暂时丢失")},
+      {"rotation_sensor_stop", QStringLiteral("传感器异常，停止旋转")},
+      {"tf_unavailable", QStringLiteral("定位反馈不可用")},
+      {"align_timeout", QStringLiteral("目标对准超时")},
+      {"invalid_detection", QStringLiteral("识别框数据无效")},
       {"target_skipped", QStringLiteral("未找到目标，跳过本点")},
       {"kimi_running", QStringLiteral("AI视觉分析")},
       {"kimi_complete", QStringLiteral("AI分析完成")},
@@ -775,9 +781,11 @@ void MainWindow::registerChannel() {
         mission_tracker_.Accept(request_id);
       }
       UpdateInspectionProgress(data);
-      if (stage == "error") {
+      if (stage == "error" || stage == "rotation_sensor_stop" ||
+          stage == "tf_unavailable" || stage == "invalid_detection") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusDangerStyleSheet());
-      } else if (stage == "target_skipped") {
+      } else if (stage == "target_skipped" || stage == "target_lost" ||
+                 stage == "align_timeout") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
       } else if (stage == "kimi_complete" || stage == "complete" ||
                  stage == "completed") {
@@ -2513,9 +2521,16 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
     } else if (stage == QStringLiteral("target_skipped")) {
       level = 3;
       row_text = QStringLiteral("未找到目标");
-    } else if (stage == QStringLiteral("error")) {
+    } else if (stage == QStringLiteral("error") ||
+               stage == QStringLiteral("rotation_sensor_stop") ||
+               stage == QStringLiteral("tf_unavailable") ||
+               stage == QStringLiteral("invalid_detection")) {
       level = 4;
       row_text = QStringLiteral("执行异常");
+    } else if (stage == QStringLiteral("target_lost") ||
+               stage == QStringLiteral("align_timeout")) {
+      level = 3;
+      row_text = QStringLiteral("重新搜索");
     }
     nav_goal_table_view_->SetWaypointState(row, row_text, level);
   }
