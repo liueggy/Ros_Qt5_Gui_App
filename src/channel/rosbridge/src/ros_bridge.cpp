@@ -1,6 +1,7 @@
 
 #include "ros_bridge.h"
 #include "ros_topic.h"
+#include "protocol_validation.h"
 
 namespace rosbridge2cpp {
 
@@ -93,10 +94,16 @@ namespace rosbridge2cpp {
 
 	void ROSBridge::IncomingMessageCallback(json &data)
 	{
+		std::string validation_error;
+		if (!validation::ValidateEnvelope(data, &validation_error)) {
+			std::cerr << "Invalid rosbridge envelope: " << validation_error << std::endl;
+			return;
+		}
+		const std::string operation(data["op"].GetString(), data["op"].GetStringLength());
 		// Check the message type and dispatch the message properly
 		//
 		// Incoming Topic messages
-		if (std::string(data["op"].GetString(), data["op"].GetStringLength()) == "publish") {
+		if (operation == "publish") {
 			ROSBridgePublishMsg m;
 			if (m.FromJSON(data)) {
 				HandleIncomingPublishMessage(m);
@@ -107,7 +114,7 @@ namespace rosbridge2cpp {
 		}
 
 		// Service responses for service we called earlier
-		if (std::string(data["op"].GetString(), data["op"].GetStringLength()) == "service_response") {
+		if (operation == "service_response") {
 			ROSBridgeServiceResponseMsg m;
 			// m.FromJSON(data);
 			if (m.FromJSON(data)) {
@@ -118,10 +125,11 @@ namespace rosbridge2cpp {
 		}
 
 		// Service Requests to a service that we advertised in ROSService
-		if (std::string(data["op"].GetString(), data["op"].GetStringLength()) == "call_service") {
+		if (operation == "call_service") {
 			ROSBridgeCallServiceMsg m;
-			m.FromJSON(data);
-			HandleIncomingServiceRequestMessage(m);
+			if (m.FromJSON(data)) {
+				HandleIncomingServiceRequestMessage(m);
+			}
 		}
 	}
 
@@ -135,7 +143,7 @@ namespace rosbridge2cpp {
 
 	bool ROSBridge::IsHealthy() const
 	{
-		return true;
+		return transport_layer_.IsHealthy();
 	}
 
 	void ROSBridge::RegisterTopicCallback(std::string topic_name, ROSCallbackHandle<FunVrROSPublishMsg>& callback_handle)

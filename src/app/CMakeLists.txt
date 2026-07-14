@@ -46,6 +46,22 @@ INSTALL_RPATH "$ORIGIN:$ORIGIN/lib"
 install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION bin)
 
+if(BUILD_WITH_TEST)
+  find_package(GTest REQUIRED)
+  add_executable(app_contract_test mission_contract_test.cpp)
+  target_include_directories(app_contract_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  target_link_libraries(app_contract_test PRIVATE
+    GTest::gtest_main
+    Qt5::Core
+    basic
+    nlohmann_json::nlohmann_json
+  )
+  add_test(NAME app_contract_test COMMAND app_contract_test)
+endif()
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets")
   add_custom_command(
     TARGET ${PROJECT_NAME} POST_BUILD

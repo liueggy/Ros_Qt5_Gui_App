@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <thread>
 #include "algorithm.h"
 #include "config/config_manager.h"
 #include "core/framework/framework.h"
@@ -16,8 +17,10 @@
 #include "include/ros_bridge.h"
 #include "include/ros_topic.h"
 #include "include/types.h"
+#include "include/latest_value_queue.h"
 #include "logger/logger.h"
 #include "msg/diagnostic_snapshot.h"
+#include "msg/channel_publish_result.h"
 #include "msg/msg_info.h"
 #include "point_type.h"
 #include "tf2_rosbridge.h"
@@ -40,7 +43,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void PubRobotSpeed(const basic::RobotSpeed& speed);
   void PubTopologyMapUpdate(const TopologyMap& topology_map);
   void PubCommandRequest(const std::string& json_request);
-  void PubStringRequest(const MsgId& id, const std::string& json_request);
+  bool PubStringRequest(const MsgId& id, const std::string& json_request);
 
   bool IsConnecting() const override { return connecting_; }
   bool IsConnected() const override { return connected_.load(); }
@@ -72,6 +75,7 @@ class RosbridgeComm : public VirtualChannelNode {
   void Dht11HumiCallback(const ROSBridgePublishMsg& msg);
   void VoiceCommandCallback(const ROSBridgePublishMsg& msg);
   void ImageCallback(const ROSBridgePublishMsg& msg, const std::string& location);
+  void ImageWorkerLoop();
   void TfCallback(const ROSBridgePublishMsg& msg);
 
   basic::RobotPose GetTransform(const std::string& from, const std::string& to);
@@ -117,6 +121,19 @@ class RosbridgeComm : public VirtualChannelNode {
   std::atomic_bool reconnecting_ = {false};
   std::thread reconnect_thread_;
   std::mutex reconnect_mutex_;
+
+  struct ImageJob {
+    bool compressed{false};
+    bool base64_encoded{false};
+    std::string encoding;
+    unsigned width{0};
+    unsigned height{0};
+    unsigned step{0};
+    std::string encoded_data;
+    std::vector<uint8_t> bytes;
+  };
+  rosbridge2cpp::LatestValueQueue<std::string, ImageJob> image_jobs_{4};
+  std::thread image_worker_thread_;
 };
 
 #endif  // ROSBRIDGE_COMM_H

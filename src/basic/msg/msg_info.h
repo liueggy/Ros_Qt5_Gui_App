@@ -15,6 +15,8 @@
                                           OneValue(kMissionResult, ) OneValue(kAutoExploreStatus, )         \
                                               OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
                                                   OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )      \
+                                                      OneValue(kCmdVelControl, )                           \
+                                                      OneValue(kChannelPublishResult, )                   \
                                                       OneValue(kShellRequest, ) OneValue(kShellOutput, )    \
                                                           OneValue(kShellStatus, ) OneValue(kShellCancel, )
 
@@ -51,6 +53,8 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_DHT11_HUMI ToString(MsgId::kDht11Humi)
 #define MSG_ID_VOICE_COMMAND ToString(MsgId::kVoiceCommand)
 #define MSG_ID_NETWORK_STATUS ToString(MsgId::kNetworkStatus)
+#define MSG_ID_CMD_VEL_CONTROL ToString(MsgId::kCmdVelControl)
+#define MSG_ID_CHANNEL_PUBLISH_RESULT ToString(MsgId::kChannelPublishResult)
 #define MSG_ID_SHELL_REQUEST ToString(MsgId::kShellRequest)
 #define MSG_ID_SHELL_OUTPUT ToString(MsgId::kShellOutput)
 #define MSG_ID_SHELL_STATUS ToString(MsgId::kShellStatus)

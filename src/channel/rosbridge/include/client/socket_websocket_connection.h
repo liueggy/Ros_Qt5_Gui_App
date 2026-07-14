@@ -41,6 +41,7 @@ namespace rosbridge2cpp{
       void SetTransportMode(ITransportLayer::TransportMode mode);
       void Disconnect();
       bool IsConnected() const { return is_connected_.load(); }
+      bool IsHealthy() const override;
 
     private:
       typedef websocketpp::client<websocketpp::config::asio> client;
@@ -59,6 +60,8 @@ namespace rosbridge2cpp{
       std::atomic_bool terminate_receiver_thread_ = {false};
       std::atomic_bool is_connected_ = {false};
       std::atomic_bool shutting_down_ = {false};
+      std::atomic<long long> last_receive_ms_{0};
+      std::atomic_bool heartbeat_error_reported_{false};
       bool callback_function_defined_ = false;
       
       std::function<void(json&)> incoming_message_callback_;
@@ -73,5 +76,6 @@ namespace rosbridge2cpp{
       void on_close(connection_hdl hdl);
       void on_fail(connection_hdl hdl);
       void on_message(connection_hdl hdl, message_ptr msg);
+      bool on_pong(connection_hdl hdl, std::string payload);
   };
 }

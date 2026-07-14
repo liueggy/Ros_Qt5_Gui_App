@@ -5,6 +5,8 @@
  */
 
 #include "rosbridge_comm.h"
+#include "include/rosbridge_contract.h"
+#include "include/protocol_validation.h"
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
 #include <boost/asio.hpp>
@@ -83,15 +85,15 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_RELOC_POSE, "/initialpose")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE, "/amcl_pose")
   SET_DEFAULT_TOPIC_NAME(DISPLAY_MAP, "/map")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP, "/local_costmap/costmap")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP, "/global_costmap/costmap")
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP, contract::kLocalCostMapTopic)
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP, contract::kGlobalCostMapTopic)
   SET_DEFAULT_TOPIC_NAME(DISPLAY_LASER, "/scan")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_PATH, "/plan")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_PATH, "/local_plan")
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_GLOBAL_PATH, contract::kGlobalPathTopic)
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_LOCAL_PATH, contract::kLocalPathTopic)
   SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT, "/odom")
-  SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED, "/cmd_vel")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_SET_ROBOT_SPEED, contract::kManualCmdVelTopic)
   SET_DEFAULT_TOPIC_NAME(MSG_ID_BATTERY_STATE, "/battery")
-  SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT, "/local_costmap/published_footprint")
+  SET_DEFAULT_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT, contract::kFootprintTopic)
   SET_DEFAULT_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP, "/map/topology")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE, "/map/topology/update")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DIAGNOSTIC, "/diagnostics")
@@ -106,6 +108,7 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_HUMI, "/stm32/dht11/humidity")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_VOICE_COMMAND, "/stm32/voice_command")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_NETWORK_STATUS, "/eggy/network/status")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_CMD_VEL_CONTROL, "/eggy/cmd_vel/control")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_REQUEST, "/eggy/shell/request")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_OUTPUT, "/eggy/shell/output")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_SHELL_STATUS, "/eggy/shell/status")
@@ -119,14 +122,24 @@ RosbridgeComm::RosbridgeComm() {
     if (config.channel_config.channel_type.empty()) config.channel_config.channel_type = "rosbridge";
     if (config.channel_config.rosbridge_config.ip.empty()) config.channel_config.rosbridge_config.ip = "192.168.31.50";
     if (config.channel_config.rosbridge_config.port.empty()) config.channel_config.rosbridge_config.port = "9090";
-    auto front = std::find_if(config.images.begin(), config.images.end(),
-                              [](const auto& image) { return image.location == "front"; });
-    if (front == config.images.end()) {
-      config.images.push_back({"front", "/camera/front/image/compressed", true});
-    } else {
-      if (front->topic.empty()) front->topic = "/camera/front/image/compressed";
-      front->enable = true;
-    }
+    contract::MigrateLegacyTopic(config.display_config, DISPLAY_LOCAL_COST_MAP,
+                                 "/local_costmap/costmap",
+                                 contract::kLocalCostMapTopic);
+    contract::MigrateLegacyTopic(config.display_config, DISPLAY_GLOBAL_COST_MAP,
+                                 "/global_costmap/costmap",
+                                 contract::kGlobalCostMapTopic);
+    contract::MigrateLegacyTopic(config.display_config, DISPLAY_GLOBAL_PATH,
+                                 "/plan", contract::kGlobalPathTopic);
+    contract::MigrateLegacyTopic(config.display_config, DISPLAY_LOCAL_PATH,
+                                 "/local_plan", contract::kLocalPathTopic);
+    contract::MigrateLegacyTopic(
+        config.display_config, DISPLAY_ROBOT_FOOTPRINT,
+        "/local_costmap/published_footprint", contract::kFootprintTopic);
+    contract::MigrateLegacyTopic(config.display_config,
+                                 MSG_ID_SET_ROBOT_SPEED, "/cmd_vel",
+                                 contract::kManualCmdVelTopic);
+    contract::MigrateLegacyCameraTopic(config.images);
+    contract::EnsureStableCameraContracts(config.images);
   });
 }
 
@@ -162,6 +175,10 @@ bool RosbridgeComm::Start() {
   connected_ = false;
   connecting_ = true;
   reconnect_enabled_ = true;
+  image_jobs_.Reset();
+  if (!image_worker_thread_.joinable()) {
+    image_worker_thread_ = std::thread(&RosbridgeComm::ImageWorkerLoop, this);
+  }
   {
     std::lock_guard<std::mutex> lock(error_msg_mutex_);
     connection_error_msg_.clear();
@@ -207,6 +224,9 @@ void RosbridgeComm::ConnectAsync() {
       } else if (err == TransportError::R2C_SOCKET_ERROR) {
         connection_error_msg_ = "ROSBridge socket error";
         LOG_ERROR("ROSBridge socket error");
+      } else if (err == TransportError::R2C_HEARTBEAT_TIMEOUT) {
+        connection_error_msg_ = "ROSBridge heartbeat timeout";
+        LOG_ERROR("ROSBridge heartbeat timeout (half-open connection)");
       }
     }
     connection_failed_ = true;
@@ -366,7 +386,8 @@ void RosbridgeComm::ConnectAsync() {
       [this](const ROSBridgePublishMsg& msg) { CommandStatusCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_COMMAND_STATUS)] = std::move(command_status_topic);
 
-  for (const MsgId id : {MsgId::kNetworkStatus, MsgId::kShellOutput,
+  for (const MsgId id : {MsgId::kNetworkStatus, MsgId::kCmdVelControl,
+                         MsgId::kShellOutput,
                          MsgId::kShellStatus}) {
     const std::string topic_name = GET_TOPIC_NAME(ToString(id));
     auto topic = std::make_unique<ROSTopic>(*ros_bridge_, topic_name, "std_msgs/String", 10);
@@ -543,6 +564,8 @@ bool RosbridgeComm::Stop() {
   connected_ = false;
   connecting_ = false;
   reconnect_enabled_ = false;
+  image_jobs_.Close();
+  if (image_worker_thread_.joinable()) image_worker_thread_.join();
 
   std::thread reconnect_thread;
   {
@@ -758,6 +781,11 @@ void RosbridgeComm::MapCallback(const ROSBridgePublishMsg& msg) {
   if (msg.msg_json_.IsNull()) return;
 
   const auto& msg_json = msg.msg_json_;
+  std::string validation_error;
+  if (!validation::ValidateOccupancyGrid(msg_json, &validation_error)) {
+    LOG_ERROR("Rejected map: " << validation_error);
+    return;
+  }
   if (!msg_json.HasMember("info") || !msg_json.HasMember("data")) return;
 
   const auto& info = msg_json["info"];
@@ -800,6 +828,11 @@ void RosbridgeComm::LocalCostMapCallback(const ROSBridgePublishMsg& msg) {
   if (msg.msg_json_.IsNull() || occ_map_.cols == 0 || occ_map_.rows == 0) return;
 
   const auto& msg_json = msg.msg_json_;
+  std::string validation_error;
+  if (!validation::ValidateOccupancyGrid(msg_json, &validation_error)) {
+    LOG_ERROR("Rejected local costmap: " << validation_error);
+    return;
+  }
   if (!msg_json.HasMember("info") || !msg_json.HasMember("data")) return;
 
   const auto& info = msg_json["info"];
@@ -879,7 +912,7 @@ void RosbridgeComm::LocalCostMapCallback(const ROSBridgePublishMsg& msg) {
         sized_cost_map(x, y) = 0;
       }
     }
-  PUBLISH(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
+  PUBLISH_LATEST(MSG_ID_LOCAL_COST_MAP, sized_cost_map);
 }
 
 /**
@@ -890,6 +923,11 @@ void RosbridgeComm::GlobalCostMapCallback(const ROSBridgePublishMsg& msg) {
   if (msg.msg_json_.IsNull()) return;
 
   const auto& msg_json = msg.msg_json_;
+  std::string validation_error;
+  if (!validation::ValidateOccupancyGrid(msg_json, &validation_error)) {
+    LOG_ERROR("Rejected global costmap: " << validation_error);
+    return;
+  }
   if (!msg_json.HasMember("info") || !msg_json.HasMember("data")) return;
 
   const auto& info = msg_json["info"];
@@ -919,7 +957,7 @@ void RosbridgeComm::GlobalCostMapCallback(const ROSBridgePublishMsg& msg) {
     }
   }
   cost_map.SetFlip();
-  PUBLISH(MSG_ID_GLOBAL_COST_MAP, cost_map);
+  PUBLISH_LATEST(MSG_ID_GLOBAL_COST_MAP, cost_map);
 }
 
 /**
@@ -958,7 +996,7 @@ void RosbridgeComm::LaserCallback(const ROSBridgePublishMsg& msg) {
     }
   }
   laser_points.id = 0;
-  PUBLISH(MSG_ID_LASER_SCAN, laser_points);
+  PUBLISH_LATEST(MSG_ID_LASER_SCAN, laser_points);
 }
 
 /**
@@ -983,7 +1021,7 @@ void RosbridgeComm::PathCallback(const ROSBridgePublishMsg& msg) {
       path.push_back(point);
     }
   }
-  PUBLISH(MSG_ID_GLOBAL_PATH, path);
+  PUBLISH_LATEST(MSG_ID_GLOBAL_PATH, path);
 }
 
 /**
@@ -1022,7 +1060,7 @@ void RosbridgeComm::LocalPathCallback(const ROSBridgePublishMsg& msg) {
       path.push_back(point);
     }
   }
-  PUBLISH(MSG_ID_LOCAL_PATH, path);
+  PUBLISH_LATEST(MSG_ID_LOCAL_PATH, path);
 }
 
 /**
@@ -1481,97 +1519,97 @@ void RosbridgeComm::ImageCallback(const ROSBridgePublishMsg& msg, const std::str
   if (msg.msg_json_.IsNull()) return;
 
   const auto& msg_json = msg.msg_json_;
-  if (!msg_json.HasMember("data")) return;
-
-  cv::Mat conversion_mat_;
-
-  // ── sensor_msgs/CompressedImage（JPEG/PNG 压缩数据）──
-  if (msg_json.HasMember("format") && !msg_json.HasMember("encoding")) {
-    const auto& data = msg_json["data"];
-    std::vector<uint8_t> compressed_data;
-    if (data.IsArray()) {
-      compressed_data.reserve(data.Size());
-      for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
-        compressed_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
-      }
-    } else if (data.IsString()) {
-      compressed_data = DecodeBase64(data.GetString(), data.GetStringLength());
-    }
-    if (compressed_data.empty()) {
-      LOG_ERROR("Empty compressed image data");
-      return;
-    }
-    conversion_mat_ = cv::imdecode(compressed_data, cv::IMREAD_COLOR);
-    if (conversion_mat_.empty()) {
-      LOG_ERROR("Failed to decode compressed image");
-      return;
-    }
-    // imdecode 输出 BGR，转为 RGB
-    cv::cvtColor(conversion_mat_, conversion_mat_, cv::COLOR_BGR2RGB);
-  }
-  // ── sensor_msgs/Image（原始像素数据）──
-  else if (msg_json.HasMember("encoding")) {
-    std::string encoding = msg_json["encoding"].GetString();
-    const auto& data = msg_json["data"];
-    int width = msg_json.HasMember("width") ? msg_json["width"].GetInt() : 0;
-    int height = msg_json.HasMember("height") ? msg_json["height"].GetInt() : 0;
-
-    if (width <= 0 || height <= 0) {
-      LOG_ERROR("Invalid image size: " << width << "x" << height);
-      return;
-    }
-
-    std::vector<uint8_t> image_data;
-    if (data.IsArray()) {
-      image_data.reserve(data.Size());
-      for (rapidjson::SizeType i = 0; i < data.Size(); i++) {
-        image_data.push_back(static_cast<uint8_t>(data[i].GetInt()));
-      }
-    } else if (data.IsString()) {
-      image_data = DecodeBase64(data.GetString(), data.GetStringLength());
-    } else {
-      LOG_ERROR("Unsupported image data type");
-      return;
-    }
-
-    if (image_data.empty()) {
-      LOG_ERROR("Empty image data");
-      return;
-    }
-
-    if (encoding == "rgb8" || encoding == "RGB8") {
-      cv::Mat img(height, width, CV_8UC3, image_data.data());
-      conversion_mat_ = img.clone();
-    } else if (encoding == "bgr8" || encoding == "BGR8" || encoding == "CV_8UC3") {
-      cv::Mat img(height, width, CV_8UC3, image_data.data());
-      cv::cvtColor(img, conversion_mat_, cv::COLOR_BGR2RGB);
-    } else if (encoding == "8UC1" || encoding == "mono8") {
-      cv::Mat img(height, width, CV_8UC1, image_data.data());
-      cv::cvtColor(img, conversion_mat_, cv::COLOR_GRAY2RGB);
-    } else if (encoding == "16UC1") {
-      cv::Mat img(height, width, CV_16UC1, image_data.data());
-      double min = 0;
-      double max = 10000;
-      cv::Mat img_scaled_8u;
-      cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-      cv::cvtColor(img_scaled_8u, conversion_mat_, cv::COLOR_GRAY2RGB);
-    } else if (encoding == "32FC1") {
-      cv::Mat img(height, width, CV_32FC1, image_data.data());
-      double min = 0;
-      double max = 10;
-      cv::Mat img_scaled_8u;
-      cv::Mat(img - min).convertTo(img_scaled_8u, CV_8UC1, 255. / (max - min));
-      cv::cvtColor(img_scaled_8u, conversion_mat_, cv::COLOR_GRAY2RGB);
-    } else {
-      LOG_ERROR("Unsupported image encoding: " << encoding);
-      return;
-    }
-  } else {
+  std::string error;
+  if (!validation::ValidateImageMetadata(msg_json, &error)) {
+    LOG_ERROR("Rejected image metadata: " << error);
     return;
   }
 
-  if (conversion_mat_.empty()) return;
-  PUBLISH(MSG_ID_IMAGE, (std::pair<std::string, std::shared_ptr<cv::Mat>>(location, std::make_shared<cv::Mat>(conversion_mat_))));
+  ImageJob job;
+  job.compressed = msg_json.HasMember("format") && !msg_json.HasMember("encoding");
+  if (!job.compressed) {
+    job.encoding.assign(msg_json["encoding"].GetString(),
+                        msg_json["encoding"].GetStringLength());
+    job.width = msg_json["width"].GetUint();
+    job.height = msg_json["height"].GetUint();
+    job.step = msg_json["step"].GetUint();
+  }
+  const auto& data = msg_json["data"];
+  if (data.IsString()) {
+    job.base64_encoded = true;
+    job.encoded_data.assign(data.GetString(), data.GetStringLength());
+  } else {
+    job.bytes.reserve(data.Size());
+    for (rapidjson::SizeType i = 0; i < data.Size(); ++i) {
+      if (!data[i].IsUint() || data[i].GetUint() > 255U) {
+        LOG_ERROR("Rejected image byte array value");
+        return;
+      }
+      job.bytes.push_back(static_cast<uint8_t>(data[i].GetUint()));
+    }
+  }
+  image_jobs_.Push(location, std::move(job));
+}
+
+void RosbridgeComm::ImageWorkerLoop() {
+  std::string location;
+  ImageJob job;
+  while (image_jobs_.WaitPop(&location, &job)) {
+    std::vector<uint8_t> data = job.base64_encoded
+                                    ? DecodeBase64(job.encoded_data.data(),
+                                                   job.encoded_data.size())
+                                    : std::move(job.bytes);
+    if (data.empty() || data.size() > validation::kMaxImageBytes) continue;
+
+    cv::Mat converted;
+    if (job.compressed) {
+      cv::Mat decoded = cv::imdecode(data, cv::IMREAD_COLOR);
+      if (decoded.empty()) continue;
+      if (decoded.cols <= 0 || decoded.rows <= 0 ||
+          decoded.cols > static_cast<int>(validation::kMaxImageDimension) ||
+          decoded.rows > static_cast<int>(validation::kMaxImageDimension) ||
+          decoded.total() > validation::kMaxImageBytes / 3U) {
+        LOG_ERROR("Rejected decoded compressed image dimensions");
+        continue;
+      }
+      cv::cvtColor(decoded, converted, cv::COLOR_BGR2RGB);
+    } else {
+      std::size_t expected = 0;
+      if (!validation::CheckedMultiply(job.height, job.step, &expected) ||
+          data.size() != expected) {
+        LOG_ERROR("Rejected decoded image size");
+        continue;
+      }
+      const int rows = static_cast<int>(job.height);
+      const int cols = static_cast<int>(job.width);
+      if (job.encoding == "rgb8" || job.encoding == "RGB8") {
+        converted = cv::Mat(rows, cols, CV_8UC3, data.data(), job.step).clone();
+      } else if (job.encoding == "bgr8" || job.encoding == "BGR8" ||
+                 job.encoding == "CV_8UC3") {
+        cv::Mat input(rows, cols, CV_8UC3, data.data(), job.step);
+        cv::cvtColor(input, converted, cv::COLOR_BGR2RGB);
+      } else if (job.encoding == "8UC1" || job.encoding == "mono8") {
+        cv::Mat input(rows, cols, CV_8UC1, data.data(), job.step);
+        cv::cvtColor(input, converted, cv::COLOR_GRAY2RGB);
+      } else if (job.encoding == "16UC1") {
+        cv::Mat input(rows, cols, CV_16UC1, data.data(), job.step);
+        cv::Mat scaled;
+        input.convertTo(scaled, CV_8UC1, 255.0 / 10000.0);
+        cv::cvtColor(scaled, converted, cv::COLOR_GRAY2RGB);
+      } else if (job.encoding == "32FC1") {
+        cv::Mat input(rows, cols, CV_32FC1, data.data(), job.step);
+        cv::Mat scaled;
+        input.convertTo(scaled, CV_8UC1, 255.0 / 10.0);
+        cv::cvtColor(scaled, converted, cv::COLOR_GRAY2RGB);
+      }
+    }
+    if (!converted.empty()) {
+      PUBLISH_LATEST(
+          MSG_ID_IMAGE,
+          (std::pair<std::string, std::shared_ptr<cv::Mat>>(
+              location, std::make_shared<cv::Mat>(std::move(converted)))));
+    }
+  }
 }
 
 /**
@@ -1727,29 +1765,36 @@ void RosbridgeComm::PubRobotSpeed(const basic::RobotSpeed& speed) {
  * @brief 发布 Eggy 命令中心 JSON 请求
  */
 void RosbridgeComm::PubCommandRequest(const std::string& json_request) {
-  rapidjson::Document msg;
-  msg.SetObject();
-  auto& allocator = msg.GetAllocator();
-  msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
-
-  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
-  auto it = publishers_.find(GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST));
-  if (it != publishers_.end()) {
-    it->second->Publish(msg);
-  }
+  PubStringRequest(MsgId::kCommandRequest, json_request);
 }
 
-void RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_request) {
+bool RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_request) {
   rapidjson::Document msg;
   msg.SetObject();
   auto& allocator = msg.GetAllocator();
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
-  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
-  auto it = publishers_.find(GET_TOPIC_NAME(ToString(id)));
-  if (it != publishers_.end()) {
-    it->second->Publish(msg);
+  bool success = false;
+  {
+    std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+    auto it = publishers_.find(GET_TOPIC_NAME(ToString(id)));
+    if (it != publishers_.end()) {
+      success = it->second->Publish(msg);
+    }
   }
+  basic::ChannelPublishResult result;
+  result.message_id = ToString(id);
+  rapidjson::Document request;
+  request.Parse(json_request.c_str(), json_request.size());
+  if (!request.HasParseError() && request.IsObject() &&
+      request.HasMember("request_id") && request["request_id"].IsString()) {
+    result.request_id.assign(request["request_id"].GetString(),
+                             request["request_id"].GetStringLength());
+  }
+  result.success = success;
+  result.message = success ? "published" : "ROS topic is unavailable or disconnected";
+  PUBLISH(MSG_ID_CHANNEL_PUBLISH_RESULT, result);
+  return success;
 }
 
 /**

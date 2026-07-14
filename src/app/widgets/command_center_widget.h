@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <string>
 
+#include "app/mission_contract.h"
 #include "msg/diagnostic_snapshot.h"
 
 class DiagnosticDockWidget;
@@ -26,6 +27,7 @@ class CommandCenterWidget : public QWidget {
  public slots:
   void AppendResponse(const std::string& json);
   void UpdateStatus(const std::string& json);
+  void UpdateMotionOwner(const std::string& json);
 
  private slots:
   void SendStatusRequest();
@@ -38,10 +40,12 @@ class CommandCenterWidget : public QWidget {
  signals:
   void CameraViewRequested(bool visible);
   void WorkspaceModeRequested(const QString& mode);
+  void InspectionCapabilityChanged(bool ready);
 
  private:
   QString MakeRequestJson(const QString& command, const QString& target,
-                          const QString& paramsJson = "{}") const;
+                          const QString& paramsJson = "{}",
+                          const QString& requestId = QString()) const;
   void PublishJson(const QString& json);
   void AppendLog(const QString& prefix, const QString& text);
   void SetCameraStateText(const QString& text);
@@ -52,11 +56,13 @@ class CommandCenterWidget : public QWidget {
                        const QString& color, const QString& bg, const QString& border);
   void SetConnectionOverview(bool online, const QString& detail);
   void SetDiagnosticOverview(int total, int abnormal, int worstLevel);
+  void SetMotionOwnerStatus(const AppContract::MotionOwnerStatus& status);
 
   QLabel* connection_overview_label_{nullptr};
   QLabel* nav_overview_label_{nullptr};
   QLabel* task_overview_label_{nullptr};
   QLabel* diagnostic_overview_label_{nullptr};
+  QLabel* motion_owner_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
   QLabel* camera_inspection_label_{nullptr};
   QPushButton* camera_start_btn_{nullptr};
@@ -71,7 +77,8 @@ class CommandCenterWidget : public QWidget {
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
   QString active_workspace_mode_;
-  QString pending_profile_;
+  AppContract::ProfileSwitchTracker profile_switch_tracker_;
+  int motion_owner_generation_{0};
   bool mapping_profile_available_{false};
   bool navigation_profile_available_{false};
   bool inspection_profile_available_{false};

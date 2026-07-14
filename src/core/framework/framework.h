@@ -23,6 +23,9 @@ namespace Framework {
 #define PUBLISH(topic, data) \
   GetMessageBusInstance()->Publish(topic, data)
 
+#define PUBLISH_LATEST(topic, data) \
+  GetMessageBusInstance()->PublishLatest(topic, data)
+
 /**
  * @brief 订阅消息宏（自动类型推导）
  * @param topic 主题名称（字符串）

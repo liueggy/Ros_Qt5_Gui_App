@@ -4,6 +4,7 @@
 #include <QHeaderView>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QSignalBlocker>
 #include <QSize>
 #include <QToolButton>
 #include <QUuid>
@@ -13,6 +14,7 @@
 #include "algorithm.h"
 #include "config/config_manager.h"
 #include "logger/logger.h"
+#include "mission_contract.h"
 #include "widgets/ui_style.h"
 
 namespace {
@@ -22,25 +24,6 @@ constexpr int kTargetColumn = 2;
 constexpr int kStateColumn = 3;
 constexpr int kActionColumn = 4;
 
-std::string BuildMissionJson(const nlohmann::json& route, bool loop,
-                             bool return_home, bool inspection_enabled) {
-  const nlohmann::json request = {
-      {"schema_version", 1},
-      {"request_id",
-       QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString()},
-      {"command", "start"},
-      {"mission_type", "navigation"},
-      {"loop", loop},
-      {"return_home", return_home},
-      {"on_nav_failure", "stop"},
-      {"inspection",
-       {{"enabled", inspection_enabled},
-        {"vision_search", inspection_enabled},
-        {"ai_analysis", inspection_enabled}}},
-      {"route", route},
-  };
-  return request.dump();
-}
 }  // namespace
 
 NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
@@ -89,6 +72,25 @@ void NavGoalTableView::onItemChanged(QStandardItem* item) {
   }
 }
 void NavGoalTableView::UpdateTopologyMap(const TopologyMap& _topology_map) {
+  QStringList point_names;
+  point_names.reserve(static_cast<int>(_topology_map.points.size()));
+  for (const auto& point : _topology_map.points) {
+    point_names.push_back(QString::fromStdString(point.name));
+  }
+  for (int row = 0; row < table_model_->rowCount(); ++row) {
+    auto* combo = qobject_cast<QComboBox*>(
+        indexWidget(model()->index(row, kPointColumn)));
+    if (!combo) {
+      continue;
+    }
+    const QString selected =
+        AppContract::ReconcilePointSelection(combo->currentText(), point_names);
+    const QSignalBlocker blocker(combo);
+    combo->clear();
+    combo->addItems(point_names);
+    combo->addItem(QString());
+    combo->setCurrentText(selected);
+  }
   topologyMap_ = _topology_map;
   emit signalRouteChanged(table_model_->rowCount());
 }
@@ -188,7 +190,10 @@ void NavGoalTableView::InsertRow(const QString& point_name,
           {"expected_class", targetType->currentData().toString().toStdString()},
       });
       emit signalMissionRequest(
-          BuildMissionJson(route, false, false, inspection_enabled_));
+          AppContract::BuildMissionRequest(
+              route, QUuid::createUuid().toString(QUuid::WithoutBraces), false,
+              false, inspection_enabled_)
+              .dump());
     }
   });
   table_model_->insertRow(row);
@@ -297,7 +302,10 @@ std::string NavGoalTableView::BuildMissionRequest(bool is_loop,
          targetType ? targetType->currentData().toString().toStdString() : "any"},
     });
   }
-  return BuildMissionJson(route, is_loop, return_home, inspection_enabled_);
+  return AppContract::BuildMissionRequest(
+             route, QUuid::createUuid().toString(QUuid::WithoutBraces), is_loop,
+             return_home, inspection_enabled_)
+      .dump();
 }
 
 int NavGoalTableView::RowCount() const {

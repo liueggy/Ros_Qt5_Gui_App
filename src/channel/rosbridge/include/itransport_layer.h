@@ -28,6 +28,7 @@ namespace rosbridge2cpp {
 
 		// Send a string over the underlying transport mechanism to the rosbridge server
 		virtual bool SendMessage(std::string data) = 0;
+		virtual bool IsHealthy() const = 0;
 
 		// Register a std::function that will be called whenever a new data packet has been received by this TransportLayer.
 		virtual void RegisterIncomingMessageCallback(std::function<void(json&)>) = 0;

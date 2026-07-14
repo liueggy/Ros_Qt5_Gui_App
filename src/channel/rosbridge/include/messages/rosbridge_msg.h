@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "helper.h"
+#include "protocol_validation.h"
 
 
 /*
@@ -81,7 +82,9 @@ public:
 	// 'op' is mandatory, while 'id' is optional
 	bool FromJSON(const rapidjson::Document &data)
 	{
-		if (!data.HasMember("op")) {
+		if (!data.IsObject() || !data.HasMember("op") || !data["op"].IsString() ||
+		    data["op"].GetStringLength() == 0 ||
+		    data["op"].GetStringLength() > rosbridge2cpp::validation::kMaxOpLength) {
 			std::cerr << "[ROSBridgeMsg] Received message without 'op' field" << std::endl;
 			return false;
 		}
@@ -98,7 +101,12 @@ public:
 		if (!data.HasMember("id"))
 			return true; // return true, because id is only optional
 
-		id_ = data["id"].GetString();
+		if (!data["id"].IsString() || data["id"].GetStringLength() == 0 ||
+		    data["id"].GetStringLength() > rosbridge2cpp::validation::kMaxIdLength) {
+			std::cerr << "[ROSBridgeMsg] Invalid 'id' field" << std::endl;
+			return false;
+		}
+		id_.assign(data["id"].GetString(), data["id"].GetStringLength());
 
 		return true;
 	}

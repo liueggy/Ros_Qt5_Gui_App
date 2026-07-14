@@ -1,4 +1,15 @@
 #include "client/socket_websocket_connection.h"
+#include "protocol_validation.h"
+
+namespace {
+long long SteadyMillisecondsNow() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+constexpr auto kHeartbeatInterval = std::chrono::seconds(5);
+constexpr auto kReceiveDeadline = std::chrono::seconds(15);
+}  // namespace
 
 namespace rosbridge2cpp {
 
@@ -7,6 +18,8 @@ bool SocketWebSocketConnection::Init(std::string p_ip_addr, int p_port) {
   shutting_down_ = false;
   terminate_receiver_thread_ = false;
   is_connected_ = false;
+  last_receive_ms_ = 0;
+  heartbeat_error_reported_ = false;
   ip_addr_ = p_ip_addr;
   port_ = p_port;
 
@@ -29,6 +42,7 @@ bool SocketWebSocketConnection::Init(std::string p_ip_addr, int p_port) {
     c_.set_open_handler(bind(&SocketWebSocketConnection::on_open, this, ::_1));
     c_.set_close_handler(bind(&SocketWebSocketConnection::on_close, this, ::_1));
     c_.set_fail_handler(bind(&SocketWebSocketConnection::on_fail, this, ::_1));
+    c_.set_pong_handler(bind(&SocketWebSocketConnection::on_pong, this, ::_1, ::_2));
 
     // Create a connection to the given URI and queue it for connection once
     // the event loop starts
@@ -96,14 +110,42 @@ bool SocketWebSocketConnection::SendMessage(std::string data) {
 int SocketWebSocketConnection::ReceiverThreadFunction() {
   std::cout << "[WebSocketConnection] Receiver thread started" << std::endl;
 
-  // The WebSocket client handles message reception in the on_message callback
-  // This thread just waits for termination
+  auto next_ping = std::chrono::steady_clock::now();
   while (!terminate_receiver_thread_) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    const auto now = std::chrono::steady_clock::now();
+    if (!is_connected_ || now < next_ping) continue;
+    next_ping = now + kHeartbeatInterval;
+    const long long last = last_receive_ms_.load();
+    if (last > 0 &&
+        !validation::IsReceiveFresh(std::chrono::milliseconds(last),
+                                    std::chrono::milliseconds(SteadyMillisecondsNow()),
+                                    kReceiveDeadline)) {
+      is_connected_ = false;
+      if (!heartbeat_error_reported_.exchange(true)) {
+        ReportError(TransportError::R2C_HEARTBEAT_TIMEOUT);
+      }
+      break;
+    }
+    websocketpp::lib::error_code ec;
+    c_.ping(hdl_, "qt-rosbridge-heartbeat", ec);
+    if (ec) {
+      is_connected_ = false;
+      ReportError(TransportError::R2C_SOCKET_ERROR);
+      break;
+    }
   }
 
   std::cout << "[WebSocketConnection] Receiver thread terminated" << std::endl;
   return 0;
+}
+
+bool SocketWebSocketConnection::IsHealthy() const {
+  const long long last = last_receive_ms_.load();
+  return is_connected_.load() && last > 0 &&
+         validation::IsReceiveFresh(std::chrono::milliseconds(last),
+                                    std::chrono::milliseconds(SteadyMillisecondsNow()),
+                                    kReceiveDeadline);
 }
 
 void SocketWebSocketConnection::RegisterIncomingMessageCallback(std::function<void(json&)> fun) {
@@ -165,6 +207,8 @@ void SocketWebSocketConnection::on_open(connection_hdl hdl) {
   std::cout << "[WebSocketConnection] Connection opened" << std::endl;
   std::unique_lock<std::mutex> lock(connection_mutex_);
   is_connected_ = true;
+  last_receive_ms_ = SteadyMillisecondsNow();
+  heartbeat_error_reported_ = false;
   connection_cv_.notify_all();
 }
 
@@ -190,6 +234,10 @@ void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) 
   if (shutting_down_) return;
   // Handle JSON messages
   const std::string& payload = msg->get_payload();
+  if (payload.size() > validation::kMaxEnvelopeBytes) {
+    std::cout << "[WebSocketConnection] Oversized JSON envelope - Ignoring message" << std::endl;
+    return;
+  }
 
   json j;
   j.Parse(payload.c_str());
@@ -198,6 +246,13 @@ void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) 
     std::cout << "[WebSocketConnection] JSON parse error - Ignoring message" << std::endl;
     return;
   }
+  std::string validation_error;
+  if (!validation::ValidateEnvelope(j, &validation_error)) {
+    std::cout << "[WebSocketConnection] Invalid rosbridge envelope: "
+              << validation_error << std::endl;
+    return;
+  }
+  last_receive_ms_ = SteadyMillisecondsNow();
 
   std::function<void(json&)> callback;
   {
@@ -205,5 +260,11 @@ void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) 
     callback = incoming_message_callback_;
   }
   if (callback && !shutting_down_) callback(j);
+}
+
+bool SocketWebSocketConnection::on_pong(connection_hdl, std::string) {
+  if (shutting_down_) return false;
+  last_receive_ms_ = SteadyMillisecondsNow();
+  return true;
 }
 }  // namespace rosbridge2cpp

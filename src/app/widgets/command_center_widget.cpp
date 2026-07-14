@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QFrame>
 #include <QGridLayout>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QJsonArray>
@@ -24,6 +25,7 @@
 #include <QVBoxLayout>
 
 #include "core/framework/framework.h"
+#include "msg/channel_publish_result.h"
 #include "msg/msg_info.h"
 #include "widgets/diagnostic_dock_widget.h"
 #include "widgets/ui_style.h"
@@ -70,10 +72,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   nav_overview_label_ = new QLabel(overview_group);
   task_overview_label_ = new QLabel(overview_group);
   diagnostic_overview_label_ = new QLabel(overview_group);
+  motion_owner_label_ = new QLabel(overview_group);
   overview_layout->addWidget(connection_overview_label_, 0, 0);
   overview_layout->addWidget(nav_overview_label_, 0, 1);
   overview_layout->addWidget(task_overview_label_, 1, 0);
   overview_layout->addWidget(diagnostic_overview_label_, 1, 1);
+  overview_layout->addWidget(motion_owner_label_, 2, 0, 1, 2);
   root->addWidget(overview_group);
   SetConnectionOverview(false, tr("未连接"));
   SetOverviewPill(nav_overview_label_, tr("导航"), tr("未连接"),
@@ -81,6 +85,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   SetOverviewPill(task_overview_label_, tr("任务"), tr("空闲"),
                   UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
   SetDiagnosticOverview(0, 0, 0);
+  SetMotionOwnerStatus({AppContract::MotionOwnerState::Unknown, {}});
   auto* camera_group = new QFrame(this);
   camera_group->setProperty("uiCard", true);
   camera_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -270,6 +275,31 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_STATUS, [this](const std::string& json) {
     QMetaObject::invokeMethod(this, [this, json]() { UpdateStatus(json); }, Qt::QueuedConnection);
   });
+  SUBSCRIBE_QOBJECT(this, MSG_ID_CMD_VEL_CONTROL, [this](const std::string& json) {
+    QMetaObject::invokeMethod(this, [this, json]() { UpdateMotionOwner(json); },
+                              Qt::QueuedConnection);
+  });
+  SUBSCRIBE_QOBJECT(
+      this, MSG_ID_CHANNEL_PUBLISH_RESULT,
+      [this](const basic::ChannelPublishResult& result) {
+        if (result.success || result.message_id != MSG_ID_COMMAND_REQUEST) {
+          return;
+        }
+        QMetaObject::invokeMethod(
+            this,
+            [this, result]() {
+              const QString request_id =
+                  QString::fromStdString(result.request_id);
+              if (!profile_switch_tracker_.Timeout(request_id)) {
+                return;
+              }
+              SetNavigationModeText(active_workspace_mode_);
+              SetStatusSummary(tr("模式切换请求发送失败"),
+                               QString::fromStdString(result.message));
+              AppendLog(tr("失败"), tr("命令未发送到小车端，请检查连接。"));
+            },
+            Qt::QueuedConnection);
+      });
 }
 
 void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot) {
@@ -419,7 +449,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   if (mapping_btn_) {
     const bool active = normalized == QStringLiteral("mapping_slam");
     mapping_btn_->setText(active ? tr("建图中") : tr("建图模式"));
-    mapping_btn_->setEnabled(pending_profile_.isEmpty() &&
+    mapping_btn_->setEnabled(!profile_switch_tracker_.pending() &&
                              mapping_profile_available_ && !active);
     mapping_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                        : UiStyle::SecondaryButtonStyleSheet());
@@ -427,7 +457,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   if (amcl_btn_) {
     const bool active = normalized == QStringLiteral("static_nav");
     amcl_btn_->setText(active ? tr("AMCL运行中") : tr("AMCL导航"));
-    amcl_btn_->setEnabled(pending_profile_.isEmpty() &&
+    amcl_btn_->setEnabled(!profile_switch_tracker_.pending() &&
                           navigation_profile_available_ && !active);
     amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                      : UiStyle::SecondaryButtonStyleSheet());
@@ -435,7 +465,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   if (inspection_btn_) {
     const bool active = normalized == QStringLiteral("inspection");
     inspection_btn_->setText(active ? tr("巡检运行中") : tr("巡检模式"));
-    inspection_btn_->setEnabled(pending_profile_.isEmpty() &&
+    inspection_btn_->setEnabled(!profile_switch_tracker_.pending() &&
                                 inspection_profile_available_ && !active);
     inspection_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                            : UiStyle::SecondaryButtonStyleSheet());
@@ -451,7 +481,8 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
 }
 
 QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
-                                             const QString& paramsJson) const {
+                                             const QString& paramsJson,
+                                             const QString& requestId) const {
   QJsonParseError err;
   QJsonDocument params_doc = QJsonDocument::fromJson(paramsJson.toUtf8(), &err);
   QJsonObject params;
@@ -460,9 +491,11 @@ QString CommandCenterWidget::MakeRequestJson(const QString& command, const QStri
   }
 
   QJsonObject root;
-  root["request_id"] = QString("qt-%1-%2")
-                           .arg(QDateTime::currentMSecsSinceEpoch())
-                           .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+  root["request_id"] = requestId.isEmpty()
+                           ? QString("qt-%1-%2")
+                                 .arg(QDateTime::currentMSecsSinceEpoch())
+                                 .arg(QUuid::createUuid().toString(QUuid::WithoutBraces))
+                           : requestId;
   root["command"] = command;
   root["target"] = target;
   root["params"] = params;
@@ -502,21 +535,19 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
     const QJsonObject obj = doc.object();
     const bool success = obj.value("success").toBool(false);
     const QString command = obj.value("command").toString();
+    const QString request_id = obj.value("request_id").toString();
     const QJsonObject details = obj.value("details").toObject();
     const bool profile_command = command == QStringLiteral("switch_nav_mode") ||
                                  command == QStringLiteral("switch_profile");
+    AppContract::ProfileResponse profile_response =
+        AppContract::ProfileResponse::Ignored;
 
-    if (success && profile_command) {
-      const QJsonObject status = details.value(QStringLiteral("status")).toObject();
-      if (!status.isEmpty() &&
-          status.value(QStringLiteral("state")).toString(QStringLiteral("ready")) !=
-              QStringLiteral("switching")) {
-        SetNavigationModeText(status.value(QStringLiteral("mode")).toString());
+    if (profile_command) {
+      profile_response = profile_switch_tracker_.HandleResponse(request_id, success);
+      if (profile_response == AppContract::ProfileResponse::Rejected) {
+        SetNavigationModeText(active_workspace_mode_);
+        SetStatusSummary(obj.value("message").toString(tr("模式切换失败")));
       }
-    } else if (!success && profile_command) {
-      pending_profile_.clear();
-      SetNavigationModeText(active_workspace_mode_);
-      SetStatusSummary(obj.value("message").toString(tr("模式切换失败")));
     }
 
     QString text = QString("%1\n命令: %2  目标: %3")
@@ -555,7 +586,7 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
-    if (success && profile_command) {
+    if (profile_response == AppContract::ProfileResponse::Accepted) {
       QTimer::singleShot(1500, this, &CommandCenterWidget::SendStatusRequest);
     }
     return;
@@ -593,27 +624,26 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   }
 
   const QJsonObject capabilities = obj.value("capabilities").toObject();
-  const QJsonObject profiles = capabilities.value("profiles").toObject();
-  if (profiles.isEmpty()) {
-    // Older board software did not advertise switchable profiles.
-    mapping_profile_available_ = true;
-    navigation_profile_available_ = true;
-    inspection_profile_available_ = true;
-  } else {
-    mapping_profile_available_ = profiles.value("mapping").toBool(false);
-    navigation_profile_available_ = profiles.value("navigation").toBool(false);
-    inspection_profile_available_ = profiles.value("inspection").toBool(false);
-  }
-  const QString state = obj.value("state").toString(QStringLiteral("ready"));
+  const auto available = AppContract::ParseProfileAvailability(capabilities);
+  mapping_profile_available_ = available.mapping;
+  navigation_profile_available_ = available.navigation;
+  inspection_profile_available_ = available.inspection;
+  const QString state =
+      obj.value("state").toString(QStringLiteral("degraded"));
+  emit InspectionCapabilityChanged(
+      state == QStringLiteral("ready") &&
+      capabilities.value(QStringLiteral("inspection")).toBool(false));
   const QString mode = obj.value("mode").toString(tr("未知"));
   const QString profile = obj.value("profile").toString();
-  if (state == QStringLiteral("switching")) {
+  if (profile_switch_tracker_.pending()) {
+    if (profile_switch_tracker_.CompleteFromStatus(state, profile)) {
+      SetNavigationModeText(mode);
+    } else {
+      SetNavigationModeText(QStringLiteral("switching"));
+    }
+  } else if (state == QStringLiteral("switching")) {
     SetNavigationModeText(QStringLiteral("switching"));
   } else {
-    if (!pending_profile_.isEmpty() && state == QStringLiteral("ready") &&
-        profile == pending_profile_) {
-      pending_profile_.clear();
-    }
     SetNavigationModeText(mode);
   }
   QString load_text = tr("-");
@@ -657,6 +687,27 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                   online_count == core_nodes.size() ? UiStyle::Palette::Success : UiStyle::Palette::Warning,
                   online_count == core_nodes.size() ? UiStyle::Palette::SuccessBg : UiStyle::Palette::WarningBg,
                   online_count == core_nodes.size() ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::WarningBorder);
+}
+
+void CommandCenterWidget::UpdateMotionOwner(const std::string& json) {
+  QJsonParseError error;
+  const QJsonDocument document =
+      QJsonDocument::fromJson(QString::fromStdString(json).toUtf8(), &error);
+  AppContract::MotionOwnerStatus status;
+  if (error.error == QJsonParseError::NoError && document.isObject()) {
+    status = AppContract::ParseMotionOwner(
+        document.object(), QDateTime::currentMSecsSinceEpoch() / 1000.0, 5.0);
+  }
+  SetMotionOwnerStatus(status);
+
+  const int generation = ++motion_owner_generation_;
+  const QString last_owner = status.owner;
+  QTimer::singleShot(6000, this, [this, generation, last_owner]() {
+    if (generation != motion_owner_generation_) {
+      return;
+    }
+    SetMotionOwnerStatus({AppContract::MotionOwnerState::Stale, last_owner});
+  });
 }
 
 void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
@@ -768,6 +819,36 @@ void CommandCenterWidget::StartAmclNavigation() {
   BeginProfileSwitch(QStringLiteral("navigation"), QStringLiteral("navigation"));
 }
 
+void CommandCenterWidget::SetMotionOwnerStatus(
+    const AppContract::MotionOwnerStatus& status) {
+  if (status.state == AppContract::MotionOwnerState::Known) {
+    const QHash<QString, QString> owner_labels = {
+        {QStringLiteral("navigation"), tr("导航栈")},
+        {QStringLiteral("mission"), tr("任务执行器")},
+        {QStringLiteral("manual"), tr("手动控制")},
+        {QStringLiteral("safety"), tr("安全控制")},
+        {QStringLiteral("none"), tr("无（小车静止）")},
+    };
+    const QString owner = owner_labels.value(status.owner, status.owner);
+    SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), owner,
+                    UiStyle::Palette::Info, UiStyle::Palette::InfoBg,
+                    UiStyle::Palette::InfoBorder);
+    return;
+  }
+  if (status.state == AppContract::MotionOwnerState::Stale) {
+    const QString value = status.owner.isEmpty()
+                              ? tr("状态过期")
+                              : tr("%1（状态过期）").arg(status.owner);
+    SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), value,
+                    UiStyle::Palette::Warning, UiStyle::Palette::WarningBg,
+                    UiStyle::Palette::WarningBorder);
+    return;
+  }
+  SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), tr("未知（板端未报告）"),
+                  UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
+                  UiStyle::Palette::Border);
+}
+
 void CommandCenterWidget::SwitchToMapping() {
   BeginProfileSwitch(QStringLiteral("mapping"), QStringLiteral("mapping"));
 }
@@ -778,20 +859,21 @@ void CommandCenterWidget::StartInspection() {
 
 void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
                                              const QString& target) {
-  if (!pending_profile_.isEmpty()) {
+  const QString request_id = QStringLiteral("qt-profile-%1").arg(
+      QUuid::createUuid().toString(QUuid::WithoutBraces));
+  if (!profile_switch_tracker_.Begin(profile, request_id)) {
     return;
   }
-  pending_profile_ = profile;
   QJsonObject params;
   params[QStringLiteral("profile")] = profile;
   PublishJson(MakeRequestJson("switch_profile", target,
-                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
+                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact)),
+                              request_id));
   SetNavigationModeText(QStringLiteral("switching"));
-  QTimer::singleShot(30000, this, [this, profile]() {
-    if (pending_profile_ != profile) {
+  QTimer::singleShot(30000, this, [this, request_id]() {
+    if (!profile_switch_tracker_.Timeout(request_id)) {
       return;
     }
-    pending_profile_.clear();
     SetNavigationModeText(active_workspace_mode_);
     SetStatusSummary(tr("模式切换超时，请检查板端状态后重试"));
   });

@@ -47,11 +47,13 @@
 #include "algorithm.h"
 #include "config/config_manager.h"
 #include "logger/logger.h"
+#include "mission_contract.h"
 #include "ui_mainwindow.h"
 
 #include <QTimer>
 #include <nlohmann/json.hpp>
 #include "display/manager/view_manager.h"
+#include "msg/channel_publish_result.h"
 #include "msg/diagnostic_snapshot.h"
 #include "widgets/command_center_widget.h"
 #include "widgets/display_config_widget.h"
@@ -764,6 +766,11 @@ void MainWindow::registerChannel() {
       AppendInspectionLogLine(line);
       std::string stage;
       stage = data.value("stage", data.value("state", std::string()));
+      const QString request_id =
+          QString::fromStdString(data.value("request_id", std::string()));
+      if (stage == "accepted") {
+        mission_tracker_.Accept(request_id);
+      }
       UpdateInspectionProgress(data);
       if (stage == "error") {
         inspection_status_label_->setStyleSheet(UiStyle::StatusDangerStyleSheet());
@@ -775,15 +782,46 @@ void MainWindow::registerChannel() {
       } else {
         inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
       }
-      if (stage == "rejected" || stage == "bad_request" || stage == "busy" ||
-          stage == "cancel_ignored") {
+      if (stage == "cancel_ignored") {
+        mission_tracker_.CancelTimedOut(request_id);
+        SetInspectionRunning(true);
+      } else if (stage == "rejected" || stage == "bad_request" ||
+                 stage == "busy") {
+        mission_tracker_.Finish(request_id);
         SetInspectionRunning(false);
-        active_mission_request_id_.clear();
         active_mission_point_count_ = 0;
         active_mission_inspection_enabled_ = false;
       }
     }, Qt::QueuedConnection);
   });
+
+  SUBSCRIBE_QOBJECT(
+      this, MSG_ID_CHANNEL_PUBLISH_RESULT,
+      [this](const basic::ChannelPublishResult& result) {
+        if (result.success || result.message_id != MSG_ID_MISSION_REQUEST) {
+          return;
+        }
+        QMetaObject::invokeMethod(
+            this,
+            [this, result]() {
+              const QString request_id =
+                  QString::fromStdString(result.request_id);
+              if (!mission_tracker_.Matches(request_id)) {
+                return;
+              }
+              mission_tracker_.Finish(request_id);
+              active_mission_point_count_ = 0;
+              active_mission_inspection_enabled_ = false;
+              SetInspectionRunning(false);
+              if (inspection_status_label_) {
+                inspection_status_label_->setText(
+                    QStringLiteral("任务请求发送失败，请检查连接后重试。"));
+                inspection_status_label_->setStyleSheet(
+                    UiStyle::StatusDangerStyleSheet());
+              }
+            },
+            Qt::QueuedConnection);
+      });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_MISSION_RESULT, [this](const std::string& json_str) {
     QMetaObject::invokeMethod(this, [this, json_str]() {
@@ -796,6 +834,8 @@ void MainWindow::registerChannel() {
       if (!IsCurrentMissionMessage(mission_result)) {
         return;
       }
+      const QString request_id = QString::fromStdString(
+          mission_result.value("request_id", std::string()));
       if (inspection_result_view_) {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
       }
@@ -908,7 +948,7 @@ void MainWindow::registerChannel() {
             all_points_ok ? UiStyle::StatusSuccessStyleSheet()
                           : UiStyle::StatusWarningStyleSheet());
       }
-      active_mission_request_id_.clear();
+      mission_tracker_.Finish(request_id);
       active_mission_point_count_ = 0;
       active_mission_inspection_enabled_ = false;
     }, Qt::QueuedConnection);
@@ -1435,6 +1475,7 @@ void MainWindow::setupUi() {
   inspection_ai_checkbox_->setToolTip(
       QStringLiteral("开启后，每个点到达后执行视觉搜索与 AI 分析；需要先进入巡检模式"));
   inspection_ai_checkbox_->setChecked(false);
+  inspection_ai_checkbox_->setEnabled(false);
 
   inspection_return_home_checkbox_ = new QCheckBox("任务结束返航");
   inspection_return_home_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
@@ -1592,11 +1633,15 @@ void MainWindow::setupUi() {
                       inspection_return_home_checkbox_->isChecked());
               StartMissionRequest(request);
             } else {
+              const QString request_id = mission_tracker_.requestId();
+              if (!mission_tracker_.BeginCancellation(request_id)) {
+                return;
+              }
               btn_start_task_chain->setText(QStringLiteral("正在停止…"));
               btn_start_task_chain->setEnabled(false);
               const nlohmann::json cancel_request = {
                   {"schema_version", 1},
-                  {"request_id", active_mission_request_id_.toStdString()},
+                  {"request_id", request_id.toStdString()},
                   {"command", "cancel"},
                   {"mission_type", "navigation"},
               };
@@ -1605,6 +1650,18 @@ void MainWindow::setupUi() {
                 inspection_status_label_->setText(QStringLiteral("正在安全停止导航任务…"));
                 inspection_status_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
               }
+              QTimer::singleShot(10000, this, [this, request_id]() {
+                if (!mission_tracker_.CancelTimedOut(request_id)) {
+                  return;
+                }
+                SetInspectionRunning(true);
+                if (inspection_status_label_) {
+                  inspection_status_label_->setText(
+                      QStringLiteral("停止请求超时，任务状态仍未确认；可重试停止。"));
+                  inspection_status_label_->setStyleSheet(
+                      UiStyle::StatusWarningStyleSheet());
+                }
+              });
             }
           });
   UpdateInspectionRouteSummary();
@@ -1636,6 +1693,21 @@ void MainWindow::setupUi() {
           });
   connect(command_center_widget_, &CommandCenterWidget::WorkspaceModeRequested,
           this, &MainWindow::ApplyWorkspaceMode);
+  connect(command_center_widget_,
+          &CommandCenterWidget::InspectionCapabilityChanged, this,
+          [this](bool ready) {
+            inspection_capability_ready_ = ready;
+            if (!inspection_ai_checkbox_) {
+              return;
+            }
+            inspection_ai_checkbox_->setEnabled(!inspection_running_ && ready);
+            inspection_ai_checkbox_->setToolTip(
+                ready ? tr("开启后，每个点位导航完成都会执行视觉搜索和 AI 分析。")
+                      : tr("当前巡检能力尚未就绪，请切换巡检模式并等待状态就绪。"));
+            if (!ready) {
+              inspection_ai_checkbox_->setChecked(false);
+            }
+          });
 
   //////////////////////////////////////////////////////小车终端
   terminal_widget_ = new TerminalWidget();
@@ -2091,11 +2163,15 @@ void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
         tr("当前静态地图尚未完成重定位确认。请先在地图上标定小车的真实位置和朝向。"));
     return;
   }
-  PUBLISH(MSG_ID_SET_NAV_GOAL_POSE, pose);
+  const QString request_id =
+      QStringLiteral("qt-goal-%1").arg(
+          QUuid::createUuid().toString(QUuid::WithoutBraces));
+  StartMissionRequest(
+      AppContract::BuildSingleGoalMission(pose, request_id).dump());
 }
 
 void MainWindow::StartMissionRequest(const std::string& request) {
-  if (inspection_running_) {
+  if (inspection_running_ || mission_tracker_.active()) {
     return;
   }
 
@@ -2127,14 +2203,17 @@ void MainWindow::StartMissionRequest(const std::string& request) {
         tr("导航任务会驱动小车移动。请先完成手动重定位并等待 AMCL 定位确认。"));
     return;
   }
-  if (inspection_enabled && !inspection_workspace_active_) {
+  if (inspection_enabled && !inspection_capability_ready_) {
     QMessageBox::warning(
         this, tr("AI 巡检服务未启用"),
         tr("当前运行模式未启动巡检执行器、视觉识别和 AI 服务。请先在命令中心切换到“巡检模式”，再启动启用了 AI 巡检的任务。"));
     return;
   }
 
-  active_mission_request_id_ = QString::fromStdString(request_id);
+  const QString correlated_request_id = QString::fromStdString(request_id);
+  if (!mission_tracker_.Begin(correlated_request_id)) {
+    return;
+  }
   active_mission_inspection_enabled_ = inspection_enabled;
   active_mission_point_count_ = static_cast<int>(route.size());
   SetInspectionRunning(true);
@@ -2162,15 +2241,29 @@ void MainWindow::StartMissionRequest(const std::string& request) {
     AppendInspectionLogLine(pending_text);
   }
   PUBLISH(MSG_ID_MISSION_REQUEST, request);
+  QTimer::singleShot(8000, this, [this, correlated_request_id]() {
+    if (!mission_tracker_.AcceptanceTimedOut(correlated_request_id)) {
+      return;
+    }
+    active_mission_point_count_ = 0;
+    active_mission_inspection_enabled_ = false;
+    SetInspectionRunning(false);
+    if (inspection_status_label_) {
+      inspection_status_label_->setText(
+          QStringLiteral("任务启动超时：小车端未确认接受，请检查连接后重试。"));
+      inspection_status_label_->setStyleSheet(
+          UiStyle::StatusDangerStyleSheet());
+    }
+  });
 }
 
 bool MainWindow::IsCurrentMissionMessage(const nlohmann::json& data) const {
-  if (!inspection_running_ || active_mission_request_id_.isEmpty()) {
+  if (!inspection_running_ || !mission_tracker_.active()) {
     return false;
   }
   const std::string request_id = data.value("request_id", std::string());
   return !request_id.empty() &&
-         QString::fromStdString(request_id) == active_mission_request_id_;
+         mission_tracker_.Matches(QString::fromStdString(request_id));
 }
 
 void MainWindow::AppendInspectionLogLine(const QString& line) {
@@ -2296,7 +2389,10 @@ void MainWindow::SetInspectionRunning(bool running) {
   if (inspection_add_button_) inspection_add_button_->setEnabled(!running);
   if (inspection_load_button_) inspection_load_button_->setEnabled(!running);
   if (inspection_save_button_) inspection_save_button_->setEnabled(!running);
-  if (inspection_ai_checkbox_) inspection_ai_checkbox_->setEnabled(!running);
+  if (inspection_ai_checkbox_) {
+    inspection_ai_checkbox_->setEnabled(!running &&
+                                         inspection_capability_ready_);
+  }
   if (inspection_loop_checkbox_) inspection_loop_checkbox_->setEnabled(!running);
   if (inspection_return_home_checkbox_) {
     inspection_return_home_checkbox_->setEnabled(!running);

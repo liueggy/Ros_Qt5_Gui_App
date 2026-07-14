@@ -25,15 +25,18 @@ public:
 	bool FromJSON(rapidjson::Document &data) {
 		if (!ROSBridgeMsg::FromJSON(data))
 			return false;
+		if (op_ != ROSBridgeMsg::PUBLISH) return false;
 
-		if (!data.HasMember("topic")) {
+		if (!data.HasMember("topic") || !data["topic"].IsString() ||
+		    data["topic"].GetStringLength() == 0 ||
+		    data["topic"].GetStringLength() > rosbridge2cpp::validation::kMaxTopicLength) {
 			std::cerr << "[ROSBridgePublishMsg] Received 'publish' message without 'topic' field." << std::endl; // TODO: use generic logging
 			return false;
 		}
 
-		topic_ = data["topic"].GetString();
+		topic_.assign(data["topic"].GetString(), data["topic"].GetStringLength());
 
-		if (!data.HasMember("msg")) {
+		if (!data.HasMember("msg") || !data["msg"].IsObject()) {
 			std::cerr << "[ROSBridgePublishMsg] Received 'publish' message without 'msg' field." << std::endl;
 			return false;
 		}

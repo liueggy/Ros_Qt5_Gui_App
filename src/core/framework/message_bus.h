@@ -8,6 +8,7 @@
 #include <atomic>
 #include <type_traits>
 #include <typeinfo>
+#include <optional>
 #include "logger/logger.h"
 
 #include "callback_executor.h"
@@ -190,6 +191,45 @@ class MessageBus {
               << ", type: " << typeid(T).name() 
               << ", callback_id: " << id);
     return id;
+  }
+
+  // High-rate telemetry keeps at most one pending GUI delivery per topic and
+  // type. A newer sample replaces an older sample that has not run yet.
+  template<typename T>
+  void PublishLatest(const std::string& topic, T data) {
+    struct State {
+      std::mutex mutex;
+      std::optional<T> latest;
+      bool scheduled{false};
+    };
+    static std::mutex registry_mutex;
+    static std::map<std::string, std::weak_ptr<State>> registry;
+
+    std::shared_ptr<State> state;
+    {
+      std::lock_guard<std::mutex> lock(registry_mutex);
+      state = registry[topic].lock();
+      if (!state) {
+        state = std::make_shared<State>();
+        registry[topic] = state;
+      }
+    }
+    {
+      std::lock_guard<std::mutex> lock(state->mutex);
+      state->latest = std::move(data);
+      if (state->scheduled) return;
+      state->scheduled = true;
+    }
+    detail::ThreadSafeCallbackExecutor::Execute([this, topic, state]() {
+      std::optional<T> latest;
+      {
+        std::lock_guard<std::mutex> lock(state->mutex);
+        latest = std::move(state->latest);
+        state->latest.reset();
+        state->scheduled = false;
+      }
+      if (latest) Publish(topic, *latest);
+    });
   }
 
   template<typename T>

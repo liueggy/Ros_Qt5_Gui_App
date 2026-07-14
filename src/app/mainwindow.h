@@ -39,6 +39,7 @@
 #include "config/config_manager.h"
 #include "core/framework/framework.h"
 #include "display/manager/display_manager.h"
+#include "mission_contract.h"
 #include "point_type.h"
 #include "widgets/nav_goal_table_view.h"
 #include "widgets/ratio_layouted_frame.h"
@@ -142,10 +143,11 @@ class MainWindow : public QMainWindow {
   bool relocation_pending_ = {false};
   bool localization_confirmed_ = {false};
   bool inspection_workspace_active_{false};
+  bool inspection_capability_ready_{false};
   bool inspection_running_{false};
   bool active_mission_inspection_enabled_{false};
   int active_mission_point_count_{0};
-  QString active_mission_request_id_;
+  AppContract::MissionTracker mission_tracker_;
   bool previous_settings_visible_{true};
   bool previous_speed_visible_{true};
   bool previous_command_center_visible_{true};
