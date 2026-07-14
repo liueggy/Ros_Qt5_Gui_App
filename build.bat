@@ -12,27 +12,21 @@ set "BUILD_DIR=build"
 set "INSTALL_DIR=%BUILD_DIR%\install"
 set "TRIPLET=x64-windows"
 set "CONFIG=Release"
-set "PREFERRED_VCPKG_ROOT=C:\Users\chengyangkj\vcpkg"
 set "SELECTED_VCPKG_ROOT="
 
-if exist "%PREFERRED_VCPKG_ROOT%\vcpkg.exe" (
-  if defined VCPKG_ROOT (
-    echo [INFO] Override existing VCPKG_ROOT.
-  )
-  echo [INFO] Use preferred vcpkg path: "%PREFERRED_VCPKG_ROOT%"
-  set "SELECTED_VCPKG_ROOT=%PREFERRED_VCPKG_ROOT%"
-) else if defined VCPKG_ROOT if exist "%VCPKG_ROOT%\vcpkg.exe" (
+if defined VCPKG_ROOT if exist "%VCPKG_ROOT%\vcpkg.exe" (
   echo [INFO] Use VCPKG_ROOT from environment: "%VCPKG_ROOT%"
   set "SELECTED_VCPKG_ROOT=%VCPKG_ROOT%"
-) else if exist "%USERPROFILE%\vcpkg\vcpkg.exe" (
+)
+if not defined SELECTED_VCPKG_ROOT if exist "%USERPROFILE%\vcpkg\vcpkg.exe" (
   echo [INFO] Use vcpkg from user profile: "%USERPROFILE%\vcpkg"
   set "SELECTED_VCPKG_ROOT=%USERPROFILE%\vcpkg"
-) else (
+)
+if not defined SELECTED_VCPKG_ROOT (
   echo [ERROR] No usable vcpkg root found.
   echo [ERROR] Checked:
-  echo [ERROR]   1. "%PREFERRED_VCPKG_ROOT%"
-  echo [ERROR]   2. VCPKG_ROOT environment variable
-  echo [ERROR]   3. "%USERPROFILE%\vcpkg"
+  echo [ERROR]   1. VCPKG_ROOT environment variable
+  echo [ERROR]   2. "%USERPROFILE%\vcpkg"
   exit /b 1
 )
 

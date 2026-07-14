@@ -86,7 +86,6 @@ bool SocketWebSocketConnection::SendMessage(std::string data) {
       std::cout << "[WebSocketConnection] Send failed: " << ec.message() << std::endl;
       return false;
     }
-    std::cout << "[WebSocketConnection] Data sent: " << data << std::endl;
     return true;
   } catch (websocketpp::exception const& e) {
     std::cout << "[WebSocketConnection] Send exception: " << e.what() << std::endl;

@@ -1482,7 +1482,10 @@ void MainWindow::setupUi() {
     // 如果用户选择了文件，则输出文件名
     if (!fileName.isEmpty()) {
       qDebug() << "Selected file:" << fileName;
-      nav_goal_table_view_->LoadTaskChain(fileName.toStdString());
+      if (!nav_goal_table_view_->LoadTaskChain(fileName.toStdString())) {
+        QMessageBox::warning(this, tr("加载失败"),
+                             tr("无法读取或解析巡检方案：\n%1").arg(fileName));
+      }
     }
   });
   connect(inspection_save_button_, &QPushButton::clicked, [this]() {
@@ -1496,12 +1499,14 @@ void MainWindow::setupUi() {
       if (!fileName.endsWith(".json")) {
         fileName += ".json";
       }
-      nav_goal_table_view_->SaveTaskChain(fileName.toStdString());
-
-      // 显示保存成功对话框
-      QMessageBox::information(this, "保存成功",
-                               "任务链文件已成功保存到:\n" + fileName,
-                               QMessageBox::Ok);
+      if (nav_goal_table_view_->SaveTaskChain(fileName.toStdString())) {
+        QMessageBox::information(this, tr("保存成功"),
+                                 tr("任务链文件已成功保存到:\n%1").arg(fileName),
+                                 QMessageBox::Ok);
+      } else {
+        QMessageBox::warning(this, tr("保存失败"),
+                             tr("无法写入巡检方案：\n%1").arg(fileName));
+      }
     }
   });
 

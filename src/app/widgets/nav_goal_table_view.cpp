@@ -24,7 +24,7 @@ constexpr int kActionColumn = 4;
 
 NavGoalTableView::NavGoalTableView(QWidget* _parent_widget)
     : QTableView(_parent_widget) {
-  table_model_ = new QStandardItemModel();
+  table_model_ = new QStandardItemModel(this);
   setModel(table_model_);
   QStringList table_h_headers;
   table_h_headers << "顺序"
@@ -171,19 +171,24 @@ void NavGoalTableView::InsertRow(const QString& point_name,
   emit signalRouteChanged(table_model_->rowCount());
 }
 bool NavGoalTableView::LoadTaskChain(const std::string& name) {
-  // 清空模型
-  table_model_->removeRows(0, table_model_->rowCount());
   std::ifstream file(name);
+  if (!file.is_open()) {
+    LOG_ERROR("Unable to open task chain file: " << name);
+    return false;
+  }
+  TaskChain loaded_task_chain;
   try {
     nlohmann::json j;
     file >> j;
-    task_chain_ = j.get<TaskChain>();
+    loaded_task_chain = j.get<TaskChain>();
   } catch (const std::exception& e) {
     fprintf(stderr, "Error parsing struct %s\n", e.what());
     file.close();
     return false;
   }
   file.close();
+  task_chain_ = std::move(loaded_task_chain);
+  table_model_->removeRows(0, table_model_->rowCount());
   for (auto point : task_chain_.points) {
     bool find_point = false;
     for (auto p : topologyMap_.points) {

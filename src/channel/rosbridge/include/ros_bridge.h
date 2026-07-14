@@ -6,6 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include <list>
+#include <mutex>
 #include <queue>
 #include <chrono>
 
@@ -119,6 +120,7 @@ namespace rosbridge2cpp {
 		spinlock transport_layer_access_mutex_;
 
 		spinlock change_topics_mutex_;
+		std::mutex service_callbacks_mutex_;
 	};
 }
 

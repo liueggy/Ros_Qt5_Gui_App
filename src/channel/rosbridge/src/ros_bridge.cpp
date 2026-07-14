@@ -58,45 +58,41 @@ namespace rosbridge2cpp {
 	void ROSBridge::HandleIncomingServiceResponseMessage(ROSBridgeServiceResponseMsg &data)
 	{
 		std::string &incoming_service_id = data.id_;
-
-		auto service_response_callback_it = registered_service_callbacks_.find(incoming_service_id);
-
-		if (service_response_callback_it == registered_service_callbacks_.end()) {
-			std::cerr << "[ROSBridge] Received response for service id " << incoming_service_id << "where no callback has been registered before" << std::endl;
-			return;
+		FunVrROSServiceResponseMsg callback;
+		{
+			std::lock_guard<std::mutex> lock(service_callbacks_mutex_);
+			auto it = registered_service_callbacks_.find(incoming_service_id);
+			if (it == registered_service_callbacks_.end()) {
+				std::cerr << "[ROSBridge] Received response for service id " << incoming_service_id << " where no callback has been registered before" << std::endl;
+				return;
+			}
+			callback = std::move(it->second);
+			registered_service_callbacks_.erase(it);
 		}
-
-		// Execute the callback for the given service id
-		service_response_callback_it->second(data);
-
-		// Delete the callback.
-		// Every call_service will create a new id
-		registered_service_callbacks_.erase(service_response_callback_it);
-
+		callback(data);
 	}
 
 	void ROSBridge::HandleIncomingServiceRequestMessage(ROSBridgeCallServiceMsg &data)
 	{
 		std::string &incoming_service = data.service_;
-
-		auto service_request_callback_it = registered_service_request_callbacks_.find(incoming_service);
-
-		if (service_request_callback_it == registered_service_request_callbacks_.end()) {
-			std::cerr << "[ROSBridge] Received service request for service :" << incoming_service << " where no callback has been registered before" << std::endl;
-			return;
+		FunVrROSCallServiceMsgrROSServiceResponseMsgrAllocator callback;
+		{
+			std::lock_guard<std::mutex> lock(service_callbacks_mutex_);
+			auto it = registered_service_request_callbacks_.find(incoming_service);
+			if (it == registered_service_request_callbacks_.end()) {
+				std::cerr << "[ROSBridge] Received service request for service :" << incoming_service << " where no callback has been registered before" << std::endl;
+				return;
+			}
+			callback = it->second;
 		}
 		rapidjson::Document response_allocator;
-
-		// Execute the callback for the given service id
-		service_request_callback_it->second(data, response_allocator.GetAllocator());
+		callback(data, response_allocator.GetAllocator());
 	}
 
 	// void ROSBridge::HandleIncomingMessage(ROSBridgeMsg &msg) {}
 
 	void ROSBridge::IncomingMessageCallback(json &data)
 	{
-		std::string str_repr = Helper::get_string_from_rapidjson(data);
-
 		// Check the message type and dispatch the message properly
 		//
 		// Incoming Topic messages
@@ -150,16 +146,19 @@ namespace rosbridge2cpp {
 
 	void ROSBridge::RegisterServiceCallback(std::string service_call_id, FunVrROSServiceResponseMsg fun)
 	{
+		std::lock_guard<std::mutex> lock(service_callbacks_mutex_);
 		registered_service_callbacks_[service_call_id] = fun;
 	}
 
 	void ROSBridge::RegisterServiceRequestCallback(std::string service_name, FunVrROSCallServiceMsgrROSServiceResponseMsgrAllocator fun)
 	{
+		std::lock_guard<std::mutex> lock(service_callbacks_mutex_);
 		registered_service_request_callbacks_[service_name] = fun;
 	}
 
 	void ROSBridge::RegisterServiceRequestCallback(std::string service_name, FunVrROSCallServiceMsgrROSServiceResponseMsg fun)
 	{
+		std::lock_guard<std::mutex> lock(service_callbacks_mutex_);
 		registered_service_request_callbacks_[service_name] =
 			[fun](ROSBridgeCallServiceMsg& msg, rapidjson::Document::AllocatorType&) { fun(msg); };
 	}

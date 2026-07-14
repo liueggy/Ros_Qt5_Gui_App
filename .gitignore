@@ -1,4 +1,5 @@
 build/*
+build_output/
 .codegraph/
 .omx/
 *.log

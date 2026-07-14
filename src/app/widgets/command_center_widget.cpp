@@ -198,6 +198,9 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   connect(mapping_btn_, &QPushButton::clicked, this, &CommandCenterWidget::SwitchToMapping);
   connect(amcl_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartAmclNavigation);
   connect(inspection_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartInspection);
+  mapping_btn_->setEnabled(false);
+  amcl_btn_->setEnabled(false);
+  inspection_btn_->setEnabled(false);
 
   auto* status_group = new QFrame(this);
   status_group->setProperty("uiCard", true);
@@ -375,8 +378,19 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   QString color = UiStyle::Palette::TextSecondary;
   QString bg = UiStyle::Palette::SurfaceAlt;
   QString border = UiStyle::Palette::Border;
-  const QString normalized = mode.trimmed();
-  if (normalized == QStringLiteral("mapping_slam")) {
+  const QString reported_mode = mode.trimmed();
+  QString normalized = reported_mode;
+  if (reported_mode == QStringLiteral("mapping")) {
+    normalized = QStringLiteral("mapping_slam");
+  } else if (reported_mode == QStringLiteral("navigation")) {
+    normalized = QStringLiteral("static_nav");
+  }
+  if (reported_mode == QStringLiteral("switching")) {
+    text = tr("切换中");
+    color = UiStyle::Palette::Info;
+    bg = UiStyle::Palette::InfoBg;
+    border = UiStyle::Palette::InfoBorder;
+  } else if (normalized == QStringLiteral("mapping_slam")) {
     text = tr("建图模式");
     color = UiStyle::Palette::Warning;
     bg = UiStyle::Palette::WarningBg;
@@ -405,21 +419,24 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
   if (mapping_btn_) {
     const bool active = normalized == QStringLiteral("mapping_slam");
     mapping_btn_->setText(active ? tr("建图中") : tr("建图模式"));
-    mapping_btn_->setEnabled(!active);
+    mapping_btn_->setEnabled(pending_profile_.isEmpty() &&
+                             mapping_profile_available_ && !active);
     mapping_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                        : UiStyle::SecondaryButtonStyleSheet());
   }
   if (amcl_btn_) {
     const bool active = normalized == QStringLiteral("static_nav");
     amcl_btn_->setText(active ? tr("AMCL运行中") : tr("AMCL导航"));
-    amcl_btn_->setEnabled(!active);
+    amcl_btn_->setEnabled(pending_profile_.isEmpty() &&
+                          navigation_profile_available_ && !active);
     amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                      : UiStyle::SecondaryButtonStyleSheet());
   }
   if (inspection_btn_) {
     const bool active = normalized == QStringLiteral("inspection");
     inspection_btn_->setText(active ? tr("巡检运行中") : tr("巡检模式"));
-    inspection_btn_->setEnabled(!active);
+    inspection_btn_->setEnabled(pending_profile_.isEmpty() &&
+                                inspection_profile_available_ && !active);
     inspection_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                            : UiStyle::SecondaryButtonStyleSheet());
   }
@@ -486,13 +503,20 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
     const bool success = obj.value("success").toBool(false);
     const QString command = obj.value("command").toString();
     const QJsonObject details = obj.value("details").toObject();
+    const bool profile_command = command == QStringLiteral("switch_nav_mode") ||
+                                 command == QStringLiteral("switch_profile");
 
-    if (success && (command == QStringLiteral("switch_nav_mode") ||
-                    command == QStringLiteral("switch_profile"))) {
+    if (success && profile_command) {
       const QJsonObject status = details.value(QStringLiteral("status")).toObject();
-      if (!status.isEmpty()) {
+      if (!status.isEmpty() &&
+          status.value(QStringLiteral("state")).toString(QStringLiteral("ready")) !=
+              QStringLiteral("switching")) {
         SetNavigationModeText(status.value(QStringLiteral("mode")).toString());
       }
+    } else if (!success && profile_command) {
+      pending_profile_.clear();
+      SetNavigationModeText(active_workspace_mode_);
+      SetStatusSummary(obj.value("message").toString(tr("模式切换失败")));
     }
 
     QString text = QString("%1\n命令: %2  目标: %3")
@@ -531,9 +555,8 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
       text += QString::fromUtf8(QJsonDocument(details).toJson(QJsonDocument::Compact));
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
-    if (success && (command == QStringLiteral("switch_nav_mode") ||
-                    command == QStringLiteral("switch_profile"))) {
-      QTimer::singleShot(500, this, &CommandCenterWidget::SendStatusRequest);
+    if (success && profile_command) {
+      QTimer::singleShot(1500, this, &CommandCenterWidget::SendStatusRequest);
     }
     return;
   }
@@ -569,9 +592,30 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
     }
   }
 
-  const QString mode = obj.value("mode").toString(tr("未知"));
-  SetNavigationModeText(mode);
   const QJsonObject capabilities = obj.value("capabilities").toObject();
+  const QJsonObject profiles = capabilities.value("profiles").toObject();
+  if (profiles.isEmpty()) {
+    // Older board software did not advertise switchable profiles.
+    mapping_profile_available_ = true;
+    navigation_profile_available_ = true;
+    inspection_profile_available_ = true;
+  } else {
+    mapping_profile_available_ = profiles.value("mapping").toBool(false);
+    navigation_profile_available_ = profiles.value("navigation").toBool(false);
+    inspection_profile_available_ = profiles.value("inspection").toBool(false);
+  }
+  const QString state = obj.value("state").toString(QStringLiteral("ready"));
+  const QString mode = obj.value("mode").toString(tr("未知"));
+  const QString profile = obj.value("profile").toString();
+  if (state == QStringLiteral("switching")) {
+    SetNavigationModeText(QStringLiteral("switching"));
+  } else {
+    if (!pending_profile_.isEmpty() && state == QStringLiteral("ready") &&
+        profile == pending_profile_) {
+      pending_profile_.clear();
+    }
+    SetNavigationModeText(mode);
+  }
   QString load_text = tr("-");
   const QJsonArray load = obj.value("loadavg").toArray();
   if (load.size() >= 3) {
@@ -582,8 +626,8 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   }
 
   const QString summary =
-      tr("模式 %1 · 负载 %2 · 摄像头 %3 · 核心节点 %4/%5")
-          .arg(mode, load_text, camera_running ? tr("在线") : tr("离线"))
+      tr("模式 %1 · 状态 %2 · 负载 %3 · 摄像头 %4 · 核心节点 %5/%6")
+          .arg(mode, state, load_text, camera_running ? tr("在线") : tr("离线"))
           .arg(online_count)
           .arg(core_nodes.size());
 
@@ -721,33 +765,36 @@ void CommandCenterWidget::SendStatusRequest() {
 }
 
 void CommandCenterWidget::StartAmclNavigation() {
-  active_workspace_mode_ = QStringLiteral("static_nav");
-  emit WorkspaceModeRequested(QStringLiteral("static_nav"));
-  QJsonObject params;
-  params[QStringLiteral("profile")] = QStringLiteral("navigation");
-  PublishJson(MakeRequestJson("switch_profile", "navigation",
-                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
-  SetNavigationModeText(tr("切换中"));
+  BeginProfileSwitch(QStringLiteral("navigation"), QStringLiteral("navigation"));
 }
 
 void CommandCenterWidget::SwitchToMapping() {
-  active_workspace_mode_ = QStringLiteral("mapping_slam");
-  emit WorkspaceModeRequested(QStringLiteral("mapping_slam"));
-  QJsonObject params;
-  params[QStringLiteral("profile")] = QStringLiteral("mapping");
-  PublishJson(MakeRequestJson("switch_profile", "mapping",
-                              QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
-  SetNavigationModeText(tr("切换中"));
+  BeginProfileSwitch(QStringLiteral("mapping"), QStringLiteral("mapping"));
 }
 
 void CommandCenterWidget::StartInspection() {
-  active_workspace_mode_ = QStringLiteral("inspection");
-  emit WorkspaceModeRequested(QStringLiteral("inspection"));
+  BeginProfileSwitch(QStringLiteral("inspection"), QStringLiteral("inspection"));
+}
+
+void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
+                                             const QString& target) {
+  if (!pending_profile_.isEmpty()) {
+    return;
+  }
+  pending_profile_ = profile;
   QJsonObject params;
-  params[QStringLiteral("profile")] = QStringLiteral("inspection");
-  PublishJson(MakeRequestJson("switch_profile", "inspection",
+  params[QStringLiteral("profile")] = profile;
+  PublishJson(MakeRequestJson("switch_profile", target,
                               QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact))));
-  SetNavigationModeText(tr("切换中"));
+  SetNavigationModeText(QStringLiteral("switching"));
+  QTimer::singleShot(30000, this, [this, profile]() {
+    if (pending_profile_ != profile) {
+      return;
+    }
+    pending_profile_.clear();
+    SetNavigationModeText(active_workspace_mode_);
+    SetStatusSummary(tr("模式切换超时，请检查板端状态后重试"));
+  });
 }
 
 void CommandCenterWidget::StartCamera() {

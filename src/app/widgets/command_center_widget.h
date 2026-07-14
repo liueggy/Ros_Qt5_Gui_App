@@ -46,6 +46,7 @@ class CommandCenterWidget : public QWidget {
   void AppendLog(const QString& prefix, const QString& text);
   void SetCameraStateText(const QString& text);
   void SetNavigationModeText(const QString& mode);
+  void BeginProfileSwitch(const QString& profile, const QString& target);
   void SetStatusSummary(const QString& text, const QString& detail = QString());
   void SetOverviewPill(QLabel* label, const QString& title, const QString& value,
                        const QString& color, const QString& bg, const QString& border);
@@ -70,4 +71,8 @@ class CommandCenterWidget : public QWidget {
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
   QString active_workspace_mode_;
+  QString pending_profile_;
+  bool mapping_profile_available_{false};
+  bool navigation_profile_available_{false};
+  bool inspection_profile_available_{false};
 };

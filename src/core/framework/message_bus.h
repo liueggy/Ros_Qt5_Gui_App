@@ -155,16 +155,15 @@ class MessageBus {
   template<typename T>
   void Publish(const std::string& topic, const T& data) {
     // 在锁外提取订阅者列表，避免递归死锁，且用 shared_ptr 保持回调在异步执行期间存活
-    std::vector<std::pair<std::shared_ptr<CallbackBase>, std::shared_ptr<T>>> callbacks;
+    std::vector<std::pair<std::shared_ptr<CallbackBase>, std::shared_ptr<const T>>> callbacks;
     {
       std::lock_guard<std::mutex> lock(mutex_);
       auto it = subscribers_.find(topic);
       if (it != subscribers_.end()) {
-        const std::type_info& data_type = typeid(T);
-        size_t subscriber_count = it->second.size();
+        const auto data_copy = std::make_shared<const T>(data);
         for (const auto& pair : it->second) {
           if (pair.second) {
-            callbacks.emplace_back(pair.second, std::make_shared<T>(data));
+            callbacks.emplace_back(pair.second, data_copy);
           }
         }
       } else {

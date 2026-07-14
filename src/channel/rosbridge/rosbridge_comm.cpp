@@ -199,29 +199,43 @@ void RosbridgeComm::ConnectAsync() {
   websocket_connection_ = std::make_unique<SocketWebSocketConnection>();
   LOG_INFO("WebSocket connection created");
   websocket_connection_->RegisterErrorCallback([this](TransportError err) {
-    std::lock_guard<std::mutex> lock(error_msg_mutex_);
-    if (err == TransportError::R2C_CONNECTION_CLOSED) {
-      connection_error_msg_ = "ROSBridge connection closed";
-      LOG_ERROR("ROSBridge connection closed");
-    } else if (err == TransportError::R2C_SOCKET_ERROR) {
-      connection_error_msg_ = "ROSBridge socket error";
-      LOG_ERROR("ROSBridge socket error");
+    {
+      std::lock_guard<std::mutex> lock(error_msg_mutex_);
+      if (err == TransportError::R2C_CONNECTION_CLOSED) {
+        connection_error_msg_ = "ROSBridge connection closed";
+        LOG_ERROR("ROSBridge connection closed");
+      } else if (err == TransportError::R2C_SOCKET_ERROR) {
+        connection_error_msg_ = "ROSBridge socket error";
+        LOG_ERROR("ROSBridge socket error");
+      }
     }
     connection_failed_ = true;
     connected_ = false;
     connecting_ = false;
 
-    if (reconnect_enabled_ && init_flag_ && !reconnecting_) {
+    std::thread finished_reconnect_thread;
+    {
       std::lock_guard<std::mutex> reconnect_lock(reconnect_mutex_);
-      if (!reconnecting_) {
-        reconnecting_ = true;
-        if (reconnect_thread_.joinable()) {
-          reconnect_thread_.join();
-        }
-        reconnect_thread_ = std::thread(&RosbridgeComm::ReconnectLoop, this);
-        LOG_INFO("Starting reconnection loop...");
+      if (!reconnect_enabled_ || !init_flag_ || reconnecting_) {
+        return;
+      }
+      reconnecting_ = true;
+      if (reconnect_thread_.joinable()) {
+        finished_reconnect_thread = std::move(reconnect_thread_);
       }
     }
+    if (finished_reconnect_thread.joinable()) {
+      finished_reconnect_thread.join();
+    }
+    {
+      std::lock_guard<std::mutex> reconnect_lock(reconnect_mutex_);
+      if (!reconnect_enabled_ || !init_flag_) {
+        reconnecting_ = false;
+        return;
+      }
+      reconnect_thread_ = std::thread(&RosbridgeComm::ReconnectLoop, this);
+    }
+    LOG_INFO("Starting reconnection loop...");
   });
 
   LOG_INFO("Creating ROSBridge instance");
@@ -535,13 +549,17 @@ bool RosbridgeComm::Stop() {
   connecting_ = false;
   reconnect_enabled_ = false;
 
+  std::thread reconnect_thread;
   {
     std::lock_guard<std::mutex> reconnect_lock(reconnect_mutex_);
     reconnecting_ = false;
+    if (reconnect_thread_.joinable()) {
+      reconnect_thread = std::move(reconnect_thread_);
+    }
   }
 
-  if (reconnect_thread_.joinable()) {
-    reconnect_thread_.join();
+  if (reconnect_thread.joinable()) {
+    reconnect_thread.join();
   }
 
   if (connection_thread_.joinable()) {
