@@ -7,7 +7,8 @@
           OneValue(kLocalPath, ) OneValue(kGlobalPath, ) OneValue(kOdomPose, ) OneValue(kLocalizationPose, ) \
               OneValue(kSetNavGoalPose, ) OneValue(kSetRelocPose, )                                         \
                   OneValue(kSetRobotSpeed, ) OneValue(kBatteryState, ) OneValue(kImage, )                   \
-                      OneValue(kEmergencyStop, )                                                         \
+                      OneValue(kImageStreamVisibility, )                                                   \
+                          OneValue(kEmergencyStop, )                                                       \
                       OneValue(kRobotFootprint, ) OneValue(kOccMap, ) OneValue(kTopologyMap, )              \
                           OneValue(kDiagnostic, ) OneValue(kTopologyMapUpdate, )                            \
                               OneValue(kCommandRequest, ) OneValue(kCommandResponse, )                      \
@@ -39,6 +40,7 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_EMERGENCY_STOP ToString(MsgId::kEmergencyStop)
 #define MSG_ID_BATTERY_STATE ToString(MsgId::kBatteryState)
 #define MSG_ID_IMAGE ToString(MsgId::kImage)
+#define MSG_ID_IMAGE_STREAM_VISIBILITY ToString(MsgId::kImageStreamVisibility)
 #define MSG_ID_ROBOT_FOOTPRINT ToString(MsgId::kRobotFootprint)
 #define MSG_ID_OCC_MAP ToString(MsgId::kOccMap)
 #define MSG_ID_TOPOLOGY_MAP ToString(MsgId::kTopologyMap)

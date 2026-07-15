@@ -168,6 +168,7 @@ class MainWindow : public QMainWindow {
   bool openChannel(const std::string& channel_name);
   void closeChannel();
   void registerChannel();
+  void PublishImageStreamVisibility() const;
   void SaveState();
   void SaveMapToLocalAndRobot();
   bool LoadMap(const std::string& file_path);

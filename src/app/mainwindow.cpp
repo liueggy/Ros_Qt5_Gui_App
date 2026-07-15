@@ -8,6 +8,7 @@
  * 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
 #include "mainwindow.h"
+#include <QAction>
 #include <QApplication>
 #include <QButtonGroup>
 #include <QDateTime>
@@ -36,6 +37,7 @@
 #include <iostream>
 #include <map>
 #include <numeric>
+#include <utility>
 #include <opencv2/opencv.hpp>
 #include "AutoHideDockContainer.h"
 #include "DockAreaTabBar.h"
@@ -531,6 +533,7 @@ bool MainWindow::openChannel() {
         false, true, tr("正在检测小车连接，请稍候…"));
   }
   if (channel_manager_.OpenChannelAuto()) {
+    PublishImageStreamVisibility();
     if (!channel_subscriptions_registered_) {
       registerChannel();
       channel_subscriptions_registered_ = true;
@@ -649,6 +652,7 @@ bool MainWindow::openChannel() {
 }
 bool MainWindow::openChannel(const std::string& channel_name) {
   if (channel_manager_.OpenChannel(channel_name)) {
+    PublishImageStreamVisibility();
     registerChannel();
     return true;
   }
@@ -809,6 +813,18 @@ void MainWindow::registerChannel() {
   SUBSCRIBE_QOBJECT(
       this, MSG_ID_CHANNEL_PUBLISH_RESULT,
       [this](const basic::ChannelPublishResult& result) {
+        if (!result.success &&
+            result.message_id == MSG_ID_TOPOLOGY_MAP_UPDATE) {
+          QMetaObject::invokeMethod(
+              this,
+              [this]() {
+                statusBar()->showMessage(
+                    tr("栅格地图已保存并继续上传；当前 ROS1 车端不支持拓扑关系同步。"),
+                    8000);
+              },
+              Qt::QueuedConnection);
+          return;
+        }
         if (result.success || result.message_id != MSG_ID_MISSION_REQUEST) {
           return;
         }
@@ -1825,6 +1841,12 @@ void MainWindow::setupUi() {
     }
     dock_widget->toggleView(false);
     image_dock_map_[one_image.location] = dock_widget;
+    const std::string image_location = one_image.location;
+    connect(dock_widget->toggleViewAction(), &QAction::toggled, this,
+            [image_location](bool visible) {
+              PUBLISH(MSG_ID_IMAGE_STREAM_VISIBILITY,
+                      std::make_pair(image_location, visible));
+            });
     ConfigureFloatingOnOpen(dock_widget, QSize(760, 560));
   }
 
@@ -2215,6 +2237,15 @@ bool MainWindow::IsRelocationPoseValid(const RobotPose& pose, QString* reason) {
     }
   }
   return true;
+}
+
+void MainWindow::PublishImageStreamVisibility() const {
+  for (const auto& [location, dock] : image_dock_map_) {
+    const bool visible = dock && dock->toggleViewAction() &&
+                         dock->toggleViewAction()->isChecked();
+    PUBLISH(MSG_ID_IMAGE_STREAM_VISIBILITY,
+            std::make_pair(location, visible));
+  }
 }
 
 

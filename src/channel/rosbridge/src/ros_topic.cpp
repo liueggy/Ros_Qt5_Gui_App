@@ -24,6 +24,7 @@ namespace rosbridge2cpp {
 			if (!ros_.SendMessage(cmd))
 			{
 				subscribe_id_ = "";
+				--subscription_counter_;
 			}
 		}
 
@@ -70,6 +71,13 @@ namespace rosbridge2cpp {
 			subscription_counter_ = 0; // shouldn't be necessary ...
 			return true;
 		}
+
+		// Keep local and remote subscription state consistent. A failed send
+		// means the server may still publish, so restore the callback and let
+		// the caller retry the unsubscribe operation.
+		ROSCallbackHandle<FunVrROSPublishMsg> restored_handle(callback_handle);
+		ros_.RegisterTopicCallback(topic_name_, restored_handle);
+		subscription_counter_ = 1;
 		return false;
 	}
 

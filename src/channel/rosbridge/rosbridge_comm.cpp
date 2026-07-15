@@ -7,6 +7,7 @@
 #include "rosbridge_comm.h"
 #include "include/rosbridge_contract.h"
 #include "include/protocol_validation.h"
+#include "include/subscription_policy.h"
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
 #include <boost/asio.hpp>
@@ -23,6 +24,8 @@
 #include "msg/diagnostic_snapshot.h"
 
 namespace {
+namespace policy = rosbridge2cpp::subscription_policy;
+
 bool ProbeTcpEndpoint(const std::string& host, int port,
                       std::chrono::milliseconds timeout) {
   try {
@@ -206,6 +209,13 @@ bool RosbridgeComm::Start() {
     connection_error_msg_.clear();
   }
 
+  lifecycle_subscriptions_.clear();
+  SUBSCRIBE_SCOPED_TO(
+      lifecycle_subscriptions_, MSG_ID_IMAGE_STREAM_VISIBILITY,
+      [this](const std::pair<std::string, bool>& state) {
+        SetImageStreamVisibility(state.first, state.second);
+      });
+
   connection_thread_ = std::thread(&RosbridgeComm::ConnectAsync, this);
   return true;
 }
@@ -321,25 +331,29 @@ void RosbridgeComm::ConnectAsync() {
   // ========== 订阅ROS话题 ==========
 
   // 地图话题订阅
-  auto map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_MAP), "nav_msgs/OccupancyGrid", 1);
+  auto map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_MAP), "nav_msgs/OccupancyGrid", policy::kMap.queue_length);
+  map_topic->SetThrottleRate(policy::kMap.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_MAP)] = map_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { MapCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_MAP)] = std::move(map_topic);
 
   // 局部代价地图话题订阅
-  auto local_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP), "nav_msgs/OccupancyGrid", 1);
+  auto local_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kLocalCostMap.queue_length);
+  local_cost_map_topic->SetThrottleRate(policy::kLocalCostMap.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] = local_cost_map_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { LocalCostMapCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] = std::move(local_cost_map_topic);
 
   // 全局代价地图话题订阅
-  auto global_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP), "nav_msgs/OccupancyGrid", 1);
+  auto global_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kGlobalCostMap.queue_length);
+  global_cost_map_topic->SetThrottleRate(policy::kGlobalCostMap.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = global_cost_map_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { GlobalCostMapCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = std::move(global_cost_map_topic);
 
   // 激光扫描话题订阅
-  auto laser_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LASER), "sensor_msgs/LaserScan", 5);
+  auto laser_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LASER), "sensor_msgs/LaserScan", policy::kLaserScan.queue_length);
+  laser_topic->SetThrottleRate(policy::kLaserScan.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_LASER)] = laser_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { LaserCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LASER)] = std::move(laser_topic);
@@ -351,26 +365,31 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(MSG_ID_BATTERY_STATE)] = std::move(battery_topic);
 
   // 全局路径话题订阅
-  auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", 5);
+  auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", policy::kGlobalPath.queue_length);
+  global_path_topic->SetThrottleRate(policy::kGlobalPath.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = global_path_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { PathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = std::move(global_path_topic);
 
   // 局部路径话题订阅
-  auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", 5);
+  auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", policy::kLocalPath.queue_length);
+  local_path_topic->SetThrottleRate(policy::kLocalPath.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = local_path_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { LocalPathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = std::move(local_path_topic);
 
   // 里程计话题订阅
-  auto odom_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT), "nav_msgs/Odometry", 5);
+  auto odom_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT), "nav_msgs/Odometry", policy::kOdometry.queue_length);
+  odom_topic->SetThrottleRate(policy::kOdometry.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_ROBOT)] = odom_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { OdomCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_ROBOT)] = std::move(odom_topic);
 
   auto localization_pose_topic = std::make_unique<ROSTopic>(
       *ros_bridge_, GET_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE),
-      "geometry_msgs/PoseWithCovarianceStamped", 5);
+      "geometry_msgs/PoseWithCovarianceStamped", policy::kLocalizationPose.queue_length);
+  localization_pose_topic->SetThrottleRate(
+      policy::kLocalizationPose.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(MSG_ID_LOCALIZATION_POSE)] =
       localization_pose_topic->Subscribe(
           [this](const ROSBridgePublishMsg& msg) { LocalizationPoseCallback(msg); });
@@ -378,16 +397,25 @@ void RosbridgeComm::ConnectAsync() {
       std::move(localization_pose_topic);
 
   // 机器人足迹话题订阅
-  auto robot_footprint_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT), "geometry_msgs/PolygonStamped", 20);
+  auto robot_footprint_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT), "geometry_msgs/PolygonStamped", policy::kRobotFootprint.queue_length);
+  robot_footprint_topic->SetThrottleRate(
+      policy::kRobotFootprint.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT)] = robot_footprint_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { RobotFootprintCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_ROBOT_FOOTPRINT)] = std::move(robot_footprint_topic);
 
-  // 拓扑地图话题订阅
-  auto topology_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP), "topology_msgs/TopologyMap", 1);
-  callback_handles_[GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP)] = topology_map_topic->Subscribe(
-      [this](const ROSBridgePublishMsg& msg) { TopologyMapCallback(msg); });
-  subscribers_[GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP)] = std::move(topology_map_topic);
+  if constexpr (policy::kRos1TopologyAvailable) {
+    auto topology_map_topic = std::make_unique<ROSTopic>(
+        *ros_bridge_, GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP),
+        "topology_msgs/TopologyMap", 1);
+    callback_handles_[GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP)] =
+        topology_map_topic->Subscribe(
+            [this](const ROSBridgePublishMsg& msg) {
+              TopologyMapCallback(msg);
+            });
+    subscribers_[GET_TOPIC_NAME(DISPLAY_TOPOLOGY_MAP)] =
+        std::move(topology_map_topic);
+  }
 
   auto diagnostic_topic = std::make_unique<ROSTopic>(
       *ros_bridge_, GET_TOPIC_NAME(MSG_ID_DIAGNOSTIC), "diagnostic_msgs/DiagnosticArray", 1);
@@ -464,22 +492,38 @@ void RosbridgeComm::ConnectAsync() {
     std::string msg_type = (one_image_display.topic.find("compressed") != std::string::npos)
                                ? "sensor_msgs/CompressedImage"
                                : "sensor_msgs/Image";
-    auto image_topic = std::make_unique<ROSTopic>(*ros_bridge_, one_image_display.topic, msg_type, 1);
-    image_topic->SetThrottleRate(150);
+    auto image_topic = std::make_unique<ROSTopic>(
+        *ros_bridge_, one_image_display.topic, msg_type,
+        policy::kImage.queue_length);
+    image_topic->SetThrottleRate(policy::kImage.throttle_rate_ms);
     std::string location = one_image_display.location;
-    callback_handles_[one_image_display.topic] = image_topic->Subscribe(
-        [this, location](const ROSBridgePublishMsg& msg) { ImageCallback(msg, location); });
+    if (IsImageStreamVisible(location)) {
+      auto handle = image_topic->Subscribe(
+          [this, location](const ROSBridgePublishMsg& msg) {
+            ImageCallback(msg, location);
+          });
+      if (handle.IsValid()) {
+        callback_handles_[one_image_display.topic] = std::move(handle);
+      } else {
+        image_stream_visibility_dirty_ = true;
+      }
+    }
     subscribers_[one_image_display.topic] = std::move(image_topic);
   }
 
   // TF变换话题订阅
-  auto tf_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf", "tf2_msgs/TFMessage", 10);
+  auto tf_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, "/tf", "tf2_msgs/TFMessage", policy::kTf.queue_length);
+  tf_topic->SetThrottleRate(policy::kTf.throttle_rate_ms);
   callback_handles_["/tf"] = tf_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { TfCallback(msg); });
   subscribers_["/tf"] = std::move(tf_topic);
 
   // TF静态变换话题订阅
-  auto tf_static_topic = std::make_unique<ROSTopic>(*ros_bridge_, "/tf_static", "tf2_msgs/TFMessage", 5);
+  auto tf_static_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, "/tf_static", "tf2_msgs/TFMessage",
+      policy::kTfStatic.queue_length);
+  tf_static_topic->SetThrottleRate(policy::kTfStatic.throttle_rate_ms);
   callback_handles_["/tf_static"] = tf_static_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { TfCallback(msg); });
   subscribers_["/tf_static"] = std::move(tf_static_topic);
@@ -507,10 +551,14 @@ void RosbridgeComm::ConnectAsync() {
   publishers_[GET_TOPIC_NAME(MSG_ID_EMERGENCY_STOP)] =
       std::move(emergency_stop_publisher);
 
-  // 拓扑地图更新发布者
-  auto topology_map_update_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE), "topology_msgs/TopologyMap", 1);
-  topology_map_update_publisher->Advertise();
-  publishers_[GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE)] = std::move(topology_map_update_publisher);
+  if constexpr (policy::kRos1TopologyAvailable) {
+    auto topology_map_update_publisher = std::make_unique<ROSTopic>(
+        *ros_bridge_, GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE),
+        "topology_msgs/TopologyMap", 1);
+    topology_map_update_publisher->Advertise();
+    publishers_[GET_TOPIC_NAME(MSG_ID_TOPOLOGY_MAP_UPDATE)] =
+        std::move(topology_map_update_publisher);
+  }
 
   // Eggy 命令中心请求发布者
   auto command_request_publisher = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_COMMAND_REQUEST), "std_msgs/String", 10);
@@ -616,6 +664,7 @@ bool RosbridgeComm::Stop() {
   }
 
   message_bus_subscriptions_.clear();
+  lifecycle_subscriptions_.clear();
 
   {
     std::lock_guard<std::mutex> transport_lock(transport_mutex_);
@@ -711,6 +760,7 @@ void RosbridgeComm::ReconnectLoop() {
 void RosbridgeComm::Process() {
   std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   if (init_flag_ && ros_bridge_ && ros_bridge_->IsHealthy()) {
+    ApplyImageStreamVisibilityLocked();
     GetRobotPose();
   }
 }
@@ -721,7 +771,7 @@ void RosbridgeComm::Process() {
 void RosbridgeComm::GetRobotPose() {
   std::string base_frame = GET_CONFIG_VALUE("BaseFrameId", "base_link");
   auto pose = GetTransform("map", base_frame);
-  PUBLISH(MSG_ID_ROBOT_POSE, pose);
+  PUBLISH_LATEST(MSG_ID_ROBOT_POSE, pose);
 }
 
 /**
@@ -848,7 +898,7 @@ void RosbridgeComm::MapCallback(const ROSBridgePublishMsg& msg) {
   new_map.SetFlip();
 
   occ_map_ = new_map;
-  PUBLISH(MSG_ID_OCCUPANCY_MAP, new_map);
+  PUBLISH_LATEST(MSG_ID_OCCUPANCY_MAP, new_map);
 }
 
 /**
@@ -1368,7 +1418,7 @@ void RosbridgeComm::OdomCallback(const ROSBridgePublishMsg& msg) {
     state.theta = std::atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz));
   }
 
-  PUBLISH(MSG_ID_ODOM_POSE, state);
+  PUBLISH_LATEST(MSG_ID_ODOM_POSE, state);
 }
 
 void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
@@ -1417,7 +1467,7 @@ void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
     estimate.xy_variance = std::numeric_limits<double>::infinity();
     estimate.yaw_variance = std::numeric_limits<double>::infinity();
   }
-  PUBLISH(MSG_ID_LOCALIZATION_POSE, estimate);
+  PUBLISH_LATEST(MSG_ID_LOCALIZATION_POSE, estimate);
 }
 
 /**
@@ -1455,7 +1505,7 @@ void RosbridgeComm::RobotFootprintCallback(const ROSBridgePublishMsg& msg) {
       footprint.push_back(p);
     }
   }
-  PUBLISH(MSG_ID_ROBOT_FOOTPRINT, footprint);
+  PUBLISH_LATEST(MSG_ID_ROBOT_FOOTPRINT, footprint);
 }
 
 /**
@@ -1542,6 +1592,77 @@ void RosbridgeComm::TopologyMapCallback(const ROSBridgePublishMsg& msg) {
 
   LOG_INFO("recv topology map:" << topology_map.map_name);
   PUBLISH(MSG_ID_TOPOLOGY_MAP, topology_map);
+}
+
+void RosbridgeComm::SetImageStreamVisibility(const std::string& location,
+                                             bool visible) {
+  std::lock_guard<std::mutex> visibility_lock(
+      image_stream_visibility_mutex_);
+  const auto current = image_stream_visibility_.find(location);
+  if (current != image_stream_visibility_.end() &&
+      current->second == visible) {
+    return;
+  }
+  image_stream_visibility_[location] = visible;
+  image_stream_visibility_dirty_ = true;
+}
+
+bool RosbridgeComm::IsImageStreamVisible(
+    const std::string& location) const {
+  std::lock_guard<std::mutex> visibility_lock(
+      image_stream_visibility_mutex_);
+  const auto current = image_stream_visibility_.find(location);
+  return current != image_stream_visibility_.end() && current->second;
+}
+
+void RosbridgeComm::ApplyImageStreamVisibilityLocked() {
+  const auto now = std::chrono::steady_clock::now();
+  if (now < next_image_subscription_retry_) return;
+  if (!image_stream_visibility_dirty_.exchange(false)) return;
+
+  bool operation_failed = false;
+  const auto config =
+      Config::ConfigManager::Instance()->GetRootConfigSnapshot();
+  for (const auto& image : config.images) {
+    if (!image.enable) continue;
+    const bool visible = IsImageStreamVisible(image.location);
+    const auto subscriber = subscribers_.find(image.topic);
+    if (subscriber == subscribers_.end()) continue;
+
+    const auto callback = callback_handles_.find(image.topic);
+    if (visible && callback == callback_handles_.end()) {
+      const std::string location = image.location;
+      auto handle = subscriber->second->Subscribe(
+          [this, location](const ROSBridgePublishMsg& msg) {
+            ImageCallback(msg, location);
+          });
+      if (handle.IsValid()) {
+        callback_handles_[image.topic] = std::move(handle);
+        LOG_INFO("Enabled image stream for " << image.location << ": "
+                                             << image.topic);
+      } else {
+        operation_failed = true;
+        LOG_WARN("Failed to enable image stream for " << image.location
+                                                       << ": " << image.topic);
+      }
+    } else if (!visible && callback != callback_handles_.end()) {
+      if (subscriber->second->Unsubscribe(callback->second)) {
+        callback_handles_.erase(callback);
+        LOG_INFO("Disabled hidden image stream for " << image.location << ": "
+                                                      << image.topic);
+      } else {
+        operation_failed = true;
+        LOG_WARN("Failed to disable image stream for " << image.location
+                                                        << ": " << image.topic);
+      }
+    }
+  }
+  if (operation_failed) {
+    next_image_subscription_retry_ = now + std::chrono::seconds(1);
+    image_stream_visibility_dirty_ = true;
+  } else {
+    next_image_subscription_retry_ = {};
+  }
 }
 
 /**
@@ -1848,6 +1969,17 @@ bool RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_re
  * @param topology_map 拓扑地图数据
  */
 void RosbridgeComm::PubTopologyMapUpdate(const TopologyMap& topology_map) {
+  if constexpr (!policy::kRos1TopologyAvailable) {
+    basic::ChannelPublishResult result;
+    result.message_id = MSG_ID_TOPOLOGY_MAP_UPDATE;
+    result.success = false;
+    result.message =
+        "ROS1 topology map synchronization is unavailable on this board";
+    LOG_WARN(result.message);
+    PUBLISH(MSG_ID_CHANNEL_PUBLISH_RESULT, result);
+    return;
+  }
+
   rapidjson::Document msg;
   msg.SetObject();
   auto& allocator = msg.GetAllocator();

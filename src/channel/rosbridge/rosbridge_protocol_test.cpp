@@ -6,7 +6,10 @@
 
 #include "include/latest_value_queue.h"
 #include "include/protocol_validation.h"
+#include "include/ros_bridge.h"
 #include "include/rosbridge_contract.h"
+#include "include/ros_topic.h"
+#include "include/subscription_policy.h"
 
 namespace {
 
@@ -15,6 +18,25 @@ rapidjson::Document Parse(const char* json) {
   document.Parse(json);
   return document;
 }
+
+class FakeTransport : public rosbridge2cpp::ITransportLayer {
+ public:
+  bool Init(std::string, int) override { return true; }
+  bool SendMessage(std::string) override {
+    ++send_count;
+    return send_success;
+  }
+  bool IsHealthy() const override { return true; }
+  void RegisterIncomingMessageCallback(
+      std::function<void(rapidjson::Document&)>) override {}
+  void RegisterErrorCallback(
+      std::function<void(rosbridge2cpp::TransportError)>) override {}
+  void ReportError(rosbridge2cpp::TransportError) override {}
+  void SetTransportMode(TransportMode) override {}
+
+  bool send_success{true};
+  int send_count{0};
+};
 
 TEST(RosbridgeContractTest, UsesDirectMoveBaseTopics) {
   EXPECT_STREQ(rosbridge2cpp::contract::kGlobalPathTopic,
@@ -35,6 +57,52 @@ TEST(RosbridgeContractTest, UsesDirectMoveBaseTopics) {
                "/camera/front/image_source/compressed");
   EXPECT_STREQ(rosbridge2cpp::contract::kOverlayCameraTopic,
                "/camera/front/image/compressed");
+}
+
+TEST(RosbridgeSubscriptionPolicyTest, BoundsVisualizationQueuesAndLatency) {
+  using namespace rosbridge2cpp::subscription_policy;
+  for (const TopicPolicy policy : {kMap, kLocalCostMap, kGlobalCostMap,
+                                   kLaserScan, kGlobalPath, kLocalPath,
+                                   kOdometry, kLocalizationPose,
+                                   kRobotFootprint, kImage}) {
+    EXPECT_EQ(policy.queue_length, 1);
+    EXPECT_GE(policy.throttle_rate_ms, 0);
+  }
+  EXPECT_LE(kOdometry.throttle_rate_ms, 50);
+  EXPECT_LE(kLocalPath.throttle_rate_ms, 100);
+  EXPECT_LE(kImage.throttle_rate_ms, 100);
+  EXPECT_EQ(kTf.queue_length, 10);
+  EXPECT_EQ(kTf.throttle_rate_ms, 0);
+  EXPECT_EQ(kTfStatic.queue_length, 5);
+  EXPECT_EQ(kTfStatic.throttle_rate_ms, 0);
+}
+
+TEST(RosbridgeSubscriptionPolicyTest, DisablesUnavailableRos1TopologyTypes) {
+  EXPECT_FALSE(
+      rosbridge2cpp::subscription_policy::kRos1TopologyAvailable);
+}
+
+TEST(RosTopicLifecycleTest, RecoversAfterSubscribeAndUnsubscribeSendFailures) {
+  FakeTransport transport;
+  rosbridge2cpp::ROSBridge bridge(transport);
+  rosbridge2cpp::ROSTopic topic(bridge, "/camera", "sensor_msgs/Image", 1);
+  rosbridge2cpp::FunVrROSPublishMsg callback =
+      [](const ROSBridgePublishMsg&) {};
+
+  transport.send_success = false;
+  const auto invalid_handle = topic.Subscribe(callback);
+  EXPECT_FALSE(invalid_handle.IsValid());
+
+  transport.send_success = true;
+  const auto valid_handle = topic.Subscribe(callback);
+  ASSERT_TRUE(valid_handle.IsValid());
+
+  transport.send_success = false;
+  EXPECT_FALSE(topic.Unsubscribe(valid_handle));
+
+  transport.send_success = true;
+  EXPECT_TRUE(topic.Unsubscribe(valid_handle));
+  EXPECT_EQ(transport.send_count, 4);
 }
 
 TEST(ProtocolValidationTest, RejectsInvalidEnvelopeFieldTypesAndSizes) {

@@ -2,6 +2,7 @@
 #define ROSBRIDGE_COMM_H
 
 #include <atomic>
+#include <chrono>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -77,6 +78,9 @@ class RosbridgeComm : public VirtualChannelNode {
   void VoiceCommandCallback(const ROSBridgePublishMsg& msg);
   void ImageCallback(const ROSBridgePublishMsg& msg, const std::string& location);
   void ImageWorkerLoop();
+  void SetImageStreamVisibility(const std::string& location, bool visible);
+  void ApplyImageStreamVisibilityLocked();
+  bool IsImageStreamVisible(const std::string& location) const;
   void TfCallback(const ROSBridgePublishMsg& msg);
 
   basic::RobotPose GetTransform(const std::string& from, const std::string& to);
@@ -84,12 +88,17 @@ class RosbridgeComm : public VirtualChannelNode {
 
  private:
   std::vector<Framework::ScopedSubscription> message_bus_subscriptions_;
+  std::vector<Framework::ScopedSubscription> lifecycle_subscriptions_;
   std::unique_ptr<SocketWebSocketConnection> websocket_connection_;
   std::unique_ptr<ROSBridge> ros_bridge_;
 
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> publishers_;
   std::unordered_map<std::string, std::unique_ptr<ROSTopic>> subscribers_;
   std::unordered_map<std::string, ROSCallbackHandle<FunVrROSPublishMsg>> callback_handles_;
+  std::unordered_map<std::string, bool> image_stream_visibility_;
+  mutable std::mutex image_stream_visibility_mutex_;
+  std::atomic_bool image_stream_visibility_dirty_ = {false};
+  std::chrono::steady_clock::time_point next_image_subscription_retry_{};
   // Owns the complete transport graph. A ROSBridge references its WebSocket,
   // and every ROSTopic references the ROSBridge, so reads and teardown must be
   // serialized as one unit across connect, reconnect, process and UI threads.
