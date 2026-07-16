@@ -93,30 +93,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 
   setStyleSheet(UiStyle::PanelStyleSheet() + UiStyle::SecondaryButtonStyleSheet() + UiStyle::InputStyleSheet());
 
-  auto* overview_group = new QFrame(this);
-  overview_group->setProperty("uiCard", true);
-  overview_group->setStyleSheet(UiStyle::CardStyleSheet());
-  auto* overview_layout = new QGridLayout(overview_group);
-  overview_layout->setContentsMargins(14, 14, 14, 14);
-  overview_layout->setHorizontalSpacing(12);
-  overview_layout->setVerticalSpacing(12);
-  connection_overview_label_ = new QLabel(overview_group);
-  nav_overview_label_ = new QLabel(overview_group);
-  task_overview_label_ = new QLabel(overview_group);
-  diagnostic_overview_label_ = new QLabel(overview_group);
-  motion_owner_label_ = new QLabel(overview_group);
-  overview_layout->addWidget(connection_overview_label_, 0, 0);
-  overview_layout->addWidget(nav_overview_label_, 0, 1);
-  overview_layout->addWidget(task_overview_label_, 1, 0);
-  overview_layout->addWidget(diagnostic_overview_label_, 1, 1);
-  overview_layout->addWidget(motion_owner_label_, 2, 0, 1, 2);
-  root->addWidget(overview_group);
-  SetConnectionOverview(false, tr("未连接"));
-  SetOverviewPill(nav_overview_label_, tr("工作模式"), tr("未连接"),
-                  UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
-  SetOverviewPill(task_overview_label_, tr("任务"), tr("空闲"),
-                  UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt, UiStyle::Palette::Border);
-  SetDiagnosticOverview(0, 0, 0);
+  motion_owner_label_ = new QLabel(this);
+  root->addWidget(motion_owner_label_);
   SetMotionOwnerStatus({AppContract::MotionOwnerState::Unknown, {}});
   auto* camera_group = new QFrame(this);
   camera_group->setProperty("uiCard", true);
@@ -311,16 +289,12 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* auto_mapping_metrics = new QGridLayout();
   auto_mapping_metrics->setHorizontalSpacing(8);
   auto_mapping_metrics->setVerticalSpacing(8);
-  auto_mapping_map_metric_ = new QLabel(auto_mapping_group);
   auto_mapping_frontier_metric_ = new QLabel(auto_mapping_group);
   auto_mapping_sensor_metric_ = new QLabel(auto_mapping_group);
   auto_mapping_safety_metric_ = new QLabel(auto_mapping_group);
-  auto_mapping_metrics->addWidget(auto_mapping_map_metric_, 0, 0);
-  auto_mapping_metrics->addWidget(auto_mapping_frontier_metric_, 0, 1);
-  auto_mapping_metrics->addWidget(auto_mapping_sensor_metric_, 1, 0);
-  auto_mapping_metrics->addWidget(auto_mapping_safety_metric_, 1, 1);
-  SetMetricPill(auto_mapping_map_metric_, tr("地图"), tr("等待数据"),
-                UiStyle::Palette::TextSecondary);
+  auto_mapping_metrics->addWidget(auto_mapping_frontier_metric_, 0, 0);
+  auto_mapping_metrics->addWidget(auto_mapping_safety_metric_, 0, 1);
+  auto_mapping_metrics->addWidget(auto_mapping_sensor_metric_, 1, 0, 1, 2);
   SetMetricPill(auto_mapping_frontier_metric_, tr("可达边界"), tr("等待数据"),
                 UiStyle::Palette::TextSecondary);
   SetMetricPill(auto_mapping_sensor_metric_, tr("传感器新鲜度"), tr("等待数据"),
@@ -371,13 +345,17 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
                                   "margin:0; padding:0; background:transparent; border:0px; border-style:none; border-radius:0px; }")
                                   .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
   auto* refresh_status_btn = new QPushButton(tr("刷新"), status_group);
-  auto* clear_btn = new QPushButton(tr("清空"), status_group);
+  log_toggle_btn_ = new QPushButton(tr("日志"), status_group);
+  clear_log_btn_ = new QPushButton(tr("清空"), status_group);
   refresh_status_btn->setFixedWidth(76);
-  clear_btn->setFixedWidth(76);
+  log_toggle_btn_->setFixedWidth(76);
+  clear_log_btn_->setFixedWidth(76);
+  clear_log_btn_->setVisible(false);
   status_header->addWidget(status_title);
   status_header->addStretch();
   status_header->addWidget(refresh_status_btn);
-  status_header->addWidget(clear_btn);
+  status_header->addWidget(log_toggle_btn_);
+  status_header->addWidget(clear_log_btn_);
   status_layout->addLayout(status_header);
   status_summary_label_ = new QLabel(tr("暂无状态"), status_group);
   status_summary_label_->setWordWrap(true);
@@ -406,7 +384,8 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addWidget(status_group);
 
   connect(refresh_status_btn, &QPushButton::clicked, this, &CommandCenterWidget::SendStatusRequest);
-  connect(clear_btn, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
+  connect(log_toggle_btn_, &QPushButton::clicked, this, &CommandCenterWidget::ToggleLog);
+  connect(clear_log_btn_, &QPushButton::clicked, this, &CommandCenterWidget::ClearLog);
 
   diagnostic_group_ = new QFrame(this);
   diagnostic_group_->setProperty("uiCard", true);
@@ -471,36 +450,17 @@ void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot&
   }
   int total = 0;
   int abnormal = 0;
-  int worst_level = 0;
-  auto rank = [](int level) {
-    switch (level) {
-      case 2:
-        return 0;
-      case 3:
-        return 1;
-      case 1:
-        return 2;
-      case 0:
-        return 3;
-      default:
-        return 0;
-    }
-  };
   for (const auto& hardware : snapshot.hardware) {
     for (const auto& component : hardware.second) {
       ++total;
       if (component.second.level != 0) {
         ++abnormal;
       }
-      if (rank(component.second.level) < rank(worst_level)) {
-        worst_level = component.second.level;
-      }
     }
   }
   if (diagnostic_group_) {
-    diagnostic_group_->setVisible(total > 0);
+    diagnostic_group_->setVisible(total > 0 && abnormal > 0);
   }
-  SetDiagnosticOverview(total, abnormal, worst_level);
 }
 
 void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
@@ -560,11 +520,6 @@ void CommandCenterWidget::SetNetworkStatus(const std::string& json) {
                                     : UiStyle::Palette::Border)
             .arg(UiStyle::FontSmallPx()));
   }
-  const bool connected = wifi_connected || cellular_connected;
-  const QString detail = wifi_connected
-                             ? (wifi_name.isEmpty() ? tr("WiFi 已连接") : wifi_name)
-                             : (cellular_connected ? tr("4G 已连接") : tr("未连接"));
-  SetConnectionOverview(connected, detail);
 }
 
 void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
@@ -638,7 +593,6 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     inspection_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                           : UiStyle::SecondaryButtonStyleSheet());
   }
-  SetOverviewPill(nav_overview_label_, tr("工作模式"), text, color, bg, border);
   if ((normalized == QStringLiteral("mapping_slam") ||
        normalized == QStringLiteral("static_nav") ||
        normalized == QStringLiteral("inspection")) &&
@@ -686,7 +640,6 @@ void CommandCenterWidget::AppendLog(const QString& prefix, const QString& text) 
     return;
   }
   const QString ts = QDateTime::currentDateTime().toString("HH:mm:ss");
-  log_edit_->setVisible(true);
   QString compact = text.simplified();
   if (compact.size() > 96) {
     compact = compact.left(93) + QStringLiteral("...");
@@ -868,12 +821,10 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
 
   const QString displayed_mode = nav_mode_label_ ? nav_mode_label_->text() : mode;
   const QString displayed_state = FriendlySystemState(state);
-  const QString summary =
-      tr("%1 · 系统%2 · 负载 %3 · 摄像头%4 · 核心节点 %5/%6")
-          .arg(displayed_mode, displayed_state, load_text,
-               camera_running ? tr("在线") : tr("未启动"))
-          .arg(online_count)
-          .arg(core_nodes.size());
+  const QString summary = tr("系统%1 · 核心节点 %2/%3")
+                              .arg(displayed_state)
+                              .arg(online_count)
+                              .arg(core_nodes.size());
 
   QString detail;
   detail += tr("工作模式: %1\n").arg(displayed_mode);
@@ -899,10 +850,6 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   }
   SetStatusSummary(summary, detail);
   UpdateAutoMappingCard(obj.value(QStringLiteral("auto_mapping")).toObject());
-  SetOverviewPill(task_overview_label_, tr("任务"), online_count == core_nodes.size() ? tr("可执行") : tr("待检查"),
-                  online_count == core_nodes.size() ? UiStyle::Palette::Success : UiStyle::Palette::Warning,
-                  online_count == core_nodes.size() ? UiStyle::Palette::SuccessBg : UiStyle::Palette::WarningBg,
-                  online_count == core_nodes.size() ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::WarningBorder);
 }
 
 void CommandCenterWidget::UpdateMotionOwner(const std::string& json) {
@@ -978,17 +925,18 @@ void CommandCenterWidget::SetOverviewPill(QLabel* label, const QString& title, c
   if (!label) {
     return;
   }
-  label->setText(QStringLiteral("<span style='font-size:%1px;color:%2;font-weight:600;'>%3</span><br/><span style='font-size:%4px;color:%5;font-weight:800;'>%6</span>")
+  label->setText(QStringLiteral("<span style='font-size:%1px;color:%2;font-weight:600;'>%3</span>"
+                                "&nbsp;&nbsp;<span style='font-size:%4px;color:%5;font-weight:800;'>%6</span>")
                      .arg(UiStyle::FontMiniPx())
                      .arg(UiStyle::Palette::TextSecondary)
                      .arg(title.toHtmlEscaped())
                      .arg(UiStyle::FontBasePx())
                      .arg(color)
                      .arg(value.toHtmlEscaped()));
-  label->setMinimumHeight(58);
+  label->setMinimumHeight(44);
   label->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
   label->setStyleSheet(QStringLiteral(
-                           "QLabel { background:%1; border:1px solid %2; border-radius:12px; padding:9px 11px; }")
+                           "QLabel { background:%1; border:1px solid %2; border-radius:10px; padding:7px 10px; }")
                            .arg(bg, border));
 }
 
@@ -1014,36 +962,6 @@ void CommandCenterWidget::SetMetricPill(QLabel* label, const QString& title,
                            "QLabel { background:%1; border:1px solid %2; border-radius:10px; padding:7px 9px; }")
                            .arg(UiStyle::Palette::SurfaceAlt,
                                 UiStyle::Palette::Border));
-}
-
-void CommandCenterWidget::SetConnectionOverview(bool online, const QString& detail) {
-  SetOverviewPill(connection_overview_label_, tr("连接"),
-                  online ? detail : tr("等待连接"),
-                  online ? UiStyle::Palette::Success : UiStyle::Palette::TextSecondary,
-                  online ? UiStyle::Palette::SuccessBg : UiStyle::Palette::SurfaceAlt,
-                  online ? UiStyle::Palette::SuccessBorder : UiStyle::Palette::Border);
-}
-
-void CommandCenterWidget::SetDiagnosticOverview(int total, int abnormal, int worstLevel) {
-  QString color = UiStyle::Palette::TextSecondary;
-  QString bg = UiStyle::Palette::SurfaceAlt;
-  QString border = UiStyle::Palette::Border;
-  QString value = total == 0 ? tr("暂无数据") : tr("%1 异常 / %2").arg(abnormal).arg(total);
-  if (total > 0 && abnormal == 0) {
-    color = UiStyle::Palette::Success;
-    bg = UiStyle::Palette::SuccessBg;
-    border = UiStyle::Palette::SuccessBorder;
-    value = tr("全部正常");
-  } else if (worstLevel == 1) {
-    color = UiStyle::Palette::Warning;
-    bg = UiStyle::Palette::WarningBg;
-    border = UiStyle::Palette::WarningBorder;
-  } else if (worstLevel == 2 || worstLevel == 3) {
-    color = UiStyle::Palette::Danger;
-    bg = UiStyle::Palette::DangerBg;
-    border = UiStyle::Palette::DangerBorder;
-  }
-  SetOverviewPill(diagnostic_overview_label_, tr("诊断"), value, color, bg, border);
 }
 
 void CommandCenterWidget::SetStatusSummary(const QString& text, const QString& detail) {
@@ -1143,6 +1061,16 @@ void CommandCenterWidget::RefreshAutoMappingControls() {
   auto_mapping_duration_spin_->setEnabled(!active && !paused);
   auto_mapping_speed_spin_->setEnabled(!active && !paused);
   auto_mapping_return_home_check_->setEnabled(!active && !paused);
+  const bool show_runtime = active || paused ||
+                            auto_mapping_state_ == QStringLiteral("completed") ||
+                            auto_mapping_state_ == QStringLiteral("cancelled") ||
+                            auto_mapping_state_ == QStringLiteral("aborted") ||
+                            auto_mapping_state_ == QStringLiteral("rejected");
+  auto_mapping_message_label_->setVisible(show_runtime);
+  auto_mapping_progress_->setVisible(show_runtime);
+  auto_mapping_frontier_metric_->setVisible(show_runtime);
+  auto_mapping_sensor_metric_->setVisible(show_runtime);
+  auto_mapping_safety_metric_->setVisible(show_runtime);
 }
 
 void CommandCenterWidget::UpdateAutoMappingCard(const QJsonObject& status) {
@@ -1208,9 +1136,6 @@ void CommandCenterWidget::UpdateAutoMappingCard(const QJsonObject& status) {
   const bool safety_ok = safety_reason == QStringLiteral("ok") ||
                          safety_reason == QStringLiteral("ready") ||
                          safety_reason == QStringLiteral("正常");
-  SetMetricPill(auto_mapping_map_metric_, tr("地图"),
-                tr("%1 格").arg(status.value(QStringLiteral("known_cells")).toInt()),
-                UiStyle::Palette::Info);
   SetMetricPill(auto_mapping_frontier_metric_, tr("可达边界"),
                 tr("%1 个").arg(status.value(QStringLiteral("reachable_frontiers")).toInt()),
                 UiStyle::Palette::Info);
@@ -1241,10 +1166,10 @@ void CommandCenterWidget::SetMotionOwnerStatus(
         {QStringLiteral("mission"), tr("任务执行器")},
         {QStringLiteral("manual"), tr("手动控制")},
         {QStringLiteral("safety"), tr("安全控制")},
-        {QStringLiteral("none"), tr("无（小车静止）")},
+        {QStringLiteral("none"), tr("小车静止")},
     };
     const QString owner = owner_labels.value(status.owner, status.owner);
-    SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), owner,
+    SetOverviewPill(motion_owner_label_, tr("运动控制"), owner,
                     UiStyle::Palette::Info, UiStyle::Palette::InfoBg,
                     UiStyle::Palette::InfoBorder);
     return;
@@ -1253,12 +1178,12 @@ void CommandCenterWidget::SetMotionOwnerStatus(
     const QString value = status.owner.isEmpty()
                               ? tr("状态过期")
                               : tr("%1（状态过期）").arg(status.owner);
-    SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), value,
+    SetOverviewPill(motion_owner_label_, tr("运动控制"), value,
                     UiStyle::Palette::Warning, UiStyle::Palette::WarningBg,
                     UiStyle::Palette::WarningBorder);
     return;
   }
-  SetOverviewPill(motion_owner_label_, tr("当前运动控制者"), tr("未知（板端未报告）"),
+  SetOverviewPill(motion_owner_label_, tr("运动控制"), tr("未报告"),
                   UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
                   UiStyle::Palette::Border);
 }
@@ -1331,9 +1256,22 @@ void CommandCenterWidget::NotifyCameraFrameReceived() {
   SetStatusSummary(tr("摄像头画面已连接"));
 }
 
+void CommandCenterWidget::ToggleLog() {
+  if (!log_edit_) {
+    return;
+  }
+  const bool show = !log_edit_->isVisible();
+  log_edit_->setVisible(show);
+  if (log_toggle_btn_) {
+    log_toggle_btn_->setText(show ? tr("收起") : tr("日志"));
+  }
+  if (clear_log_btn_) {
+    clear_log_btn_->setVisible(show);
+  }
+}
+
 void CommandCenterWidget::ClearLog() {
   if (log_edit_) {
     log_edit_->clear();
-    log_edit_->setVisible(false);
   }
 }

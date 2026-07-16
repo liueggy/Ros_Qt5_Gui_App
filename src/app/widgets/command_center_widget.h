@@ -44,6 +44,7 @@ class CommandCenterWidget : public QWidget {
   void StartAutoMapping();
   void PauseResumeAutoMapping();
   void StopAutoMapping();
+  void ToggleLog();
   void ClearLog();
 
  signals:
@@ -63,8 +64,6 @@ class CommandCenterWidget : public QWidget {
   void SetStatusSummary(const QString& text, const QString& detail = QString());
   void SetOverviewPill(QLabel* label, const QString& title, const QString& value,
                        const QString& color, const QString& bg, const QString& border);
-  void SetConnectionOverview(bool online, const QString& detail);
-  void SetDiagnosticOverview(int total, int abnormal, int worstLevel);
   void SetMetricPill(QLabel* label, const QString& title, const QString& value,
                      const QString& color);
   void SetMotionOwnerStatus(const AppContract::MotionOwnerStatus& status);
@@ -72,10 +71,6 @@ class CommandCenterWidget : public QWidget {
   void SendAutoMappingCommand(const QString& command);
   void RefreshAutoMappingControls();
 
-  QLabel* connection_overview_label_{nullptr};
-  QLabel* nav_overview_label_{nullptr};
-  QLabel* task_overview_label_{nullptr};
-  QLabel* diagnostic_overview_label_{nullptr};
   QLabel* motion_owner_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
   QLabel* camera_inspection_label_{nullptr};
@@ -88,7 +83,6 @@ class CommandCenterWidget : public QWidget {
   QPushButton* inspection_btn_{nullptr};
   QLabel* auto_mapping_state_label_{nullptr};
   QLabel* auto_mapping_message_label_{nullptr};
-  QLabel* auto_mapping_map_metric_{nullptr};
   QLabel* auto_mapping_frontier_metric_{nullptr};
   QLabel* auto_mapping_sensor_metric_{nullptr};
   QLabel* auto_mapping_safety_metric_{nullptr};
@@ -101,6 +95,8 @@ class CommandCenterWidget : public QWidget {
   QPushButton* auto_mapping_stop_btn_{nullptr};
   QLabel* status_summary_label_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
+  QPushButton* log_toggle_btn_{nullptr};
+  QPushButton* clear_log_btn_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
   QString active_workspace_mode_;

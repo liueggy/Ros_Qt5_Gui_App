@@ -368,13 +368,10 @@ void ViewManager::UpdateMapLegend(const QColor& laser, const QColor& globalPath,
     return color.isValid() ? color.name(QColor::HexRgb) : fallback;
   };
   map_legend_->setText(
-      tr("<b>地图图例</b>&nbsp;&nbsp;"
-         "<span style='color:%1'>●</span> 雷达&nbsp;&nbsp;"
-         "<span style='color:%2'>━</span> 全局路径&nbsp;&nbsp;"
-         "<span style='color:%3'>━</span> 局部路径<br/>"
-         "<span style='color:#111111'>■</span> 障碍&nbsp;&nbsp;"
-         "<span style='color:#F4F5F7'>□</span> 可通行&nbsp;&nbsp;"
-         "<span style='color:#8D949E'>■</span> 未知区域")
+      tr("<span style='color:%1'>●</span> 雷达&nbsp;&nbsp;"
+         "<span style='color:%2'>━</span> 全局&nbsp;&nbsp;"
+         "<span style='color:%3'>━</span> 局部&nbsp;&nbsp;"
+         "<span style='color:#111111'>■</span> 障碍")
           .arg(colorName(laser, QStringLiteral("#FF6347")),
                colorName(globalPath, QStringLiteral("#2563EB")),
                colorName(localPath, QStringLiteral("#0F766E"))));
