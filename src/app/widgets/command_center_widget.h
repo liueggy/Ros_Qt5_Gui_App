@@ -28,6 +28,7 @@ class CommandCenterWidget : public QWidget {
   void SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot);
   void SetNetworkStatus(const std::string& json);
   void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
+  void NotifyCameraFrameReceived();
 
  public slots:
   void AppendResponse(const std::string& json);
@@ -100,7 +101,12 @@ class CommandCenterWidget : public QWidget {
   QString active_workspace_mode_;
   QString auto_mapping_state_{QStringLiteral("idle")};
   QString auto_mapping_request_id_;
+  QString camera_start_request_id_;
   bool pending_auto_mapping_start_{false};
+  bool camera_start_pending_{false};
+  bool camera_waiting_first_frame_{false};
+  bool camera_frame_received_{false};
+  int camera_start_generation_{0};
   AppContract::ProfileSwitchTracker profile_switch_tracker_;
   int motion_owner_generation_{0};
   bool mapping_profile_available_{false};

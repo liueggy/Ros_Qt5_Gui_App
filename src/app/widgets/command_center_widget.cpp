@@ -390,6 +390,17 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
             [this, result]() {
               const QString request_id =
                   QString::fromStdString(result.request_id);
+              if (camera_start_pending_ &&
+                  request_id == camera_start_request_id_) {
+                camera_start_pending_ = false;
+                camera_waiting_first_frame_ = false;
+                camera_start_request_id_.clear();
+                SetCameraStateText(tr("请求发送失败"));
+                SetStatusSummary(tr("摄像头启动请求发送失败"),
+                                 QString::fromStdString(result.message));
+                AppendLog(tr("失败"), tr("摄像头启动命令未发送到小车端，请检查连接。"));
+                return;
+              }
               if (!profile_switch_tracker_.Timeout(request_id)) {
                 return;
               }
@@ -658,6 +669,34 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
       }
     }
 
+    if (!camera_start_request_id_.isEmpty() &&
+        command == QStringLiteral("camera_start") &&
+        request_id == camera_start_request_id_) {
+      camera_start_pending_ = false;
+      if (!success) {
+        camera_waiting_first_frame_ = false;
+        camera_start_request_id_.clear();
+        SetCameraStateText(tr("启动失败"));
+        SetStatusSummary(obj.value("message").toString(tr("摄像头启动失败")));
+      } else {
+        camera_waiting_first_frame_ = true;
+        camera_start_request_id_.clear();
+        SetCameraStateText(tr("等待首帧"));
+        emit CameraViewRequested(true);
+        const int generation = camera_start_generation_;
+        QTimer::singleShot(8000, this, [this, generation]() {
+          if (generation != camera_start_generation_ ||
+              !camera_waiting_first_frame_) {
+            return;
+          }
+          camera_waiting_first_frame_ = false;
+          SetCameraStateText(tr("画面超时"));
+          SetStatusSummary(tr("摄像头已启动，但 Qt 未收到图像"),
+                           tr("请检查图像话题、网络带宽和 ROSBridge 订阅状态。"));
+        });
+      }
+    }
+
     QString text = QString("%1\n命令: %2  目标: %3")
                        .arg(obj.value("message").toString())
                        .arg(command)
@@ -715,7 +754,15 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
   auto is_online = [&nodes](const QString& name) { return nodes.value(name).toBool(false); };
   const QJsonObject camera = obj.value("camera").toObject();
   const bool camera_running = camera.value("running").toBool(false);
-  SetCameraStateText(camera_running ? tr("摄像头在线") : tr("摄像头离线"));
+  if (!camera_running) {
+    camera_frame_received_ = false;
+  }
+  if (!camera_start_pending_ && !camera_waiting_first_frame_) {
+    SetCameraStateText(camera_running
+                           ? (camera_frame_received_ ? tr("画面在线")
+                                                     : tr("节点在线"))
+                           : tr("摄像头离线"));
+  }
 
   const QStringList core_nodes = {
       QStringLiteral("/move_base"),
@@ -856,7 +903,7 @@ void CommandCenterWidget::SetCameraStateText(const QString& text) {
   if (camera_state_label_) {
     camera_state_label_->setText(text);
   }
-  const bool pending = text.contains(tr("正在"));
+  const bool pending = camera_start_pending_ || camera_waiting_first_frame_;
   if (camera_start_btn_) {
     camera_start_btn_->setEnabled(!pending);
     camera_start_btn_->setText(tr("打开画面"));
@@ -1144,7 +1191,42 @@ void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
 }
 
 void CommandCenterWidget::StartCamera() {
-  emit CameraViewRequested(true);
+  if (camera_start_pending_ || camera_waiting_first_frame_) {
+    return;
+  }
+  ++camera_start_generation_;
+  camera_frame_received_ = false;
+  camera_start_request_id_ = QStringLiteral("qt-camera-%1").arg(
+      QUuid::createUuid().toString(QUuid::WithoutBraces));
+  camera_start_pending_ = true;
+  SetCameraStateText(tr("正在启动"));
+  SetStatusSummary(tr("正在启动摄像头并检查图像流…"));
+  PublishJson(MakeRequestJson(QStringLiteral("camera_start"),
+                              QStringLiteral("camera"), QStringLiteral("{}"),
+                              camera_start_request_id_));
+
+  const QString request_id = camera_start_request_id_;
+  const int generation = camera_start_generation_;
+  QTimer::singleShot(35000, this, [this, request_id, generation]() {
+    if (generation != camera_start_generation_ || !camera_start_pending_ ||
+        camera_start_request_id_ != request_id) {
+      return;
+    }
+    camera_start_pending_ = false;
+    camera_start_request_id_.clear();
+    SetCameraStateText(tr("启动超时"));
+    SetStatusSummary(tr("摄像头启动超时，请检查板端摄像头服务"));
+  });
+}
+
+void CommandCenterWidget::NotifyCameraFrameReceived() {
+  if (!camera_waiting_first_frame_) {
+    return;
+  }
+  camera_waiting_first_frame_ = false;
+  camera_frame_received_ = true;
+  SetCameraStateText(tr("画面在线"));
+  SetStatusSummary(tr("摄像头画面已连接"));
 }
 
 void CommandCenterWidget::ClearLog() {
