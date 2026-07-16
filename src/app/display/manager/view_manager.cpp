@@ -51,7 +51,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
     QSlider::handle:horizontal:hover {
       background: %4;
     }
-  )").arg(UiStyle::Palette::Scrollbar, UiStyle::Palette::Primary, UiStyle::Palette::Surface, UiStyle::Palette::PrimaryHover));
+  )")
+                                       .arg(UiStyle::Palette::Scrollbar, UiStyle::Palette::Primary, UiStyle::Palette::Surface, UiStyle::Palette::PrimaryHover));
   tool_size_slider_->hide();  // 默认隐藏
 
   left_bar_layout->addWidget(tool_size_slider_);
@@ -67,24 +68,42 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
 
   center_layout->addLayout(left_bar_layout);
 
+  map_legend_ = new QLabel(viewport());
+  map_legend_->setTextFormat(Qt::RichText);
+  map_legend_->setAttribute(Qt::WA_TransparentForMouseEvents);
+  map_legend_->setStyleSheet(QStringLiteral(
+                                 "QLabel { color:%1; background:%2; border:1px solid %3; "
+                                 "border-radius:10px; padding:8px 10px; font-size:%4px; }")
+                                 .arg(UiStyle::Palette::Text,
+                                      UiStyle::Palette::Surface,
+                                      UiStyle::Palette::Border)
+                                 .arg(UiStyle::FontMiniPx()));
+  UpdateMapLegend(QColor(QStringLiteral("#FF6347")),
+                  QColor(QStringLiteral("#2563EB")),
+                  QColor(QStringLiteral("#0F766E")));
+  map_legend_->move(12, 12);
+  map_legend_->raise();
+
   map_empty_state_ = new QWidget(viewport());
   auto* empty_layout = new QVBoxLayout(map_empty_state_);
   empty_layout->setContentsMargins(30, 26, 30, 28);
   empty_layout->setSpacing(10);
   auto* empty_icon = new QLabel(map_empty_state_);
   empty_icon->setPixmap(UiStyle::TintedIcon(
-      QStringLiteral(":/icons/tabler/map.svg"), QSize(34, 34)).pixmap(34, 34));
+                            QStringLiteral(":/icons/tabler/map.svg"), QSize(34, 34))
+                            .pixmap(34, 34));
   empty_icon->setAlignment(Qt::AlignCenter);
   empty_icon->setFixedSize(68, 58);
   empty_icon->setStyleSheet(QStringLiteral(
-      "QLabel { background:%1; border:1px solid %2; border-radius:20px; "
-      "padding:0; margin-bottom:2px; }")
-      .arg(UiStyle::Palette::PrimaryLight, UiStyle::Palette::BorderHover));
+                                "QLabel { background:%1; border:1px solid %2; border-radius:20px; "
+                                "padding:0; margin-bottom:2px; }")
+                                .arg(UiStyle::Palette::PrimaryLight, UiStyle::Palette::BorderHover));
   auto* empty_title = new QLabel(tr("等待地图"), map_empty_state_);
   empty_title->setAlignment(Qt::AlignCenter);
   empty_title->setStyleSheet(QStringLiteral(
-      "QLabel { color:%1; font-size:%2px; font-weight:800; "
-      "background:transparent; border:none; padding-top:4px; }").arg(UiStyle::Palette::Text, UiStyle::FontTitlePx()));
+                                 "QLabel { color:%1; font-size:%2px; font-weight:800; "
+                                 "background:transparent; border:none; padding-top:4px; }")
+                                 .arg(UiStyle::Palette::Text, UiStyle::FontTitlePx()));
   empty_layout->addWidget(empty_icon, 0, Qt::AlignHCenter);
   empty_layout->addWidget(empty_title);
   auto* empty_hint = new QLabel(
@@ -96,9 +115,9 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   empty_layout->addWidget(empty_hint);
   map_empty_state_->setMaximumWidth(340);
   map_empty_state_->setStyleSheet(QStringLiteral(
-      "QWidget { background:%1; border:1px solid %2; border-radius:5px; } "
-      "QLabel { background:transparent; border:none; }")
-      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Border));
+                                      "QWidget { background:%1; border:1px solid %2; border-radius:5px; } "
+                                      "QLabel { background:transparent; border:none; }")
+                                      .arg(UiStyle::Palette::Surface, UiStyle::Palette::Border));
   map_empty_state_->adjustSize();
   map_empty_state_->raise();
   center_layout->addItem(
@@ -153,8 +172,8 @@ ViewManager::ViewManager(QWidget* parent) : QGraphicsView(parent) {
   data_status_label_->setMaximumWidth(420);
   data_status_label_->setFixedHeight(20);
   data_status_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:%1; font-size:%2px; font-weight:600; }")
-      .arg(UiStyle::Palette::TextMuted, UiStyle::FontMiniPx()));
+                                        "QLabel { color:%1; font-size:%2px; font-weight:600; }")
+                                        .arg(UiStyle::Palette::TextMuted, UiStyle::FontMiniPx()));
   bottom_layout->addWidget(data_status_label_);
 
   // 中间spacer，将右侧按钮推到右边
@@ -340,6 +359,28 @@ void ViewManager::SetGridStyle(bool visible, int spacing, int opacity,
   viewport()->update();
 }
 
+void ViewManager::UpdateMapLegend(const QColor& laser, const QColor& globalPath,
+                                  const QColor& localPath) {
+  if (!map_legend_) {
+    return;
+  }
+  const auto colorName = [](const QColor& color, const QString& fallback) {
+    return color.isValid() ? color.name(QColor::HexRgb) : fallback;
+  };
+  map_legend_->setText(
+      tr("<b>地图图例</b>&nbsp;&nbsp;"
+         "<span style='color:%1'>●</span> 雷达&nbsp;&nbsp;"
+         "<span style='color:%2'>━</span> 全局路径&nbsp;&nbsp;"
+         "<span style='color:%3'>━</span> 局部路径<br/>"
+         "<span style='color:#111111'>■</span> 障碍&nbsp;&nbsp;"
+         "<span style='color:#F4F5F7'>□</span> 可通行&nbsp;&nbsp;"
+         "<span style='color:#8D949E'>■</span> 未知区域")
+          .arg(colorName(laser, QStringLiteral("#FF6347")),
+               colorName(globalPath, QStringLiteral("#2563EB")),
+               colorName(localPath, QStringLiteral("#0F766E"))));
+  map_legend_->adjustSize();
+}
+
 void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
   display_manager_ptr_ = display_manager;
   // 初始化滑动条值（默认0.1米）
@@ -366,7 +407,6 @@ void ViewManager::SetDisplayManagerPtr(DisplayManager* display_manager) {
             this, &ViewManager::OnEditMapModeChanged);
   }
 }
-
 
 void ViewManager::FitMapToBestView() {
   auto* map = FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP);
@@ -443,9 +483,9 @@ void ViewManager::UpdateDataStatus(const QString& text, bool stale) {
   if (!data_status_label_) return;
   data_status_label_->setText(text);
   data_status_label_->setStyleSheet(QStringLiteral(
-      "QLabel { color:%1; font-size:%2px; font-weight:600; }")
-      .arg(stale ? UiStyle::Palette::Danger : UiStyle::Palette::TextMuted,
-           UiStyle::FontMiniPx()));
+                                        "QLabel { color:%1; font-size:%2px; font-weight:600; }")
+                                        .arg(stale ? UiStyle::Palette::Danger : UiStyle::Palette::TextMuted,
+                                             UiStyle::FontMiniPx()));
 }
 
 void ViewManager::UpdateToolSizeSlider(double range) {
@@ -479,6 +519,10 @@ void ViewManager::resizeEvent(QResizeEvent* event) {
   map_empty_state_->move(center.x() - map_empty_state_->width() / 2,
                          center.y() - map_empty_state_->height() / 2);
   map_empty_state_->raise();
+  if (map_legend_) {
+    map_legend_->move(12, 12);
+    map_legend_->raise();
+  }
 }
 
 void ViewManager::mousePressEvent(QMouseEvent* event) {

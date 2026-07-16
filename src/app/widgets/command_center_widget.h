@@ -65,6 +65,8 @@ class CommandCenterWidget : public QWidget {
                        const QString& color, const QString& bg, const QString& border);
   void SetConnectionOverview(bool online, const QString& detail);
   void SetDiagnosticOverview(int total, int abnormal, int worstLevel);
+  void SetMetricPill(QLabel* label, const QString& title, const QString& value,
+                     const QString& color);
   void SetMotionOwnerStatus(const AppContract::MotionOwnerStatus& status);
   void UpdateAutoMappingCard(const QJsonObject& status);
   void SendAutoMappingCommand(const QString& command);
@@ -86,7 +88,10 @@ class CommandCenterWidget : public QWidget {
   QPushButton* inspection_btn_{nullptr};
   QLabel* auto_mapping_state_label_{nullptr};
   QLabel* auto_mapping_message_label_{nullptr};
-  QLabel* auto_mapping_metrics_label_{nullptr};
+  QLabel* auto_mapping_map_metric_{nullptr};
+  QLabel* auto_mapping_frontier_metric_{nullptr};
+  QLabel* auto_mapping_sensor_metric_{nullptr};
+  QLabel* auto_mapping_safety_metric_{nullptr};
   QProgressBar* auto_mapping_progress_{nullptr};
   QSpinBox* auto_mapping_duration_spin_{nullptr};
   QDoubleSpinBox* auto_mapping_speed_spin_{nullptr};

@@ -9,28 +9,30 @@
  */
 // NOLINTBEGIN
 #include "display/point_shape.h"
+#include <cmath>
 #include "QDebug"
 #include "algorithm.h"
 #include "core/framework/framework.h"
 #include "msg/msg_info.h"
-#include <cmath>
 using namespace basic;
 // Unused: #define circle_radius 20
 namespace {
 constexpr double kRobotFootprintWidthScenePx = 6.0;
 constexpr double kRobotFootprintHeightScenePx = 4.0;
-constexpr double kRobotIconFootprintFitRatio = 0.50;
+// Keep the robot visible over laser/costmap layers without adding a direction
+// vector that would compete with the map itself.
+constexpr double kRobotIconFootprintFitRatio = 0.65;
 
 QRectF RobotIconRect() {
   const double size = (std::min)(kRobotFootprintWidthScenePx,
-                               kRobotFootprintHeightScenePx) *
+                                 kRobotFootprintHeightScenePx) *
                       kRobotIconFootprintFitRatio;
   return QRectF(-size / 2.0, -size / 2.0, size, size);
 }
 }  // namespace
 namespace Display {
-PointShape::PointShape(const ePointType &type, const std::string &display_type,
-                       const std::string &display_name, const int &z_value,
+PointShape::PointShape(const ePointType& type, const std::string& display_type,
+                       const std::string& display_name, const int& z_value,
                        std::string parent_name)
     : VirtualDisplay(display_type, z_value, parent_name, display_name),
       type_(type) {
@@ -57,7 +59,7 @@ PointShape::PointShape(const ePointType &type, const std::string &display_type,
   }
 }
 QVariant PointShape::itemChange(GraphicsItemChange change,
-                                const QVariant &value) {
+                                const QVariant& value) {
   switch (change) {
     case ItemPositionHasChanged:
       curr_scene_pose_ = RobotPose(scenePos().x(), scenePos().y(),
@@ -77,15 +79,15 @@ QVariant PointShape::itemChange(GraphicsItemChange change,
   };
   return QGraphicsItem::itemChange(change, value);
 }
-bool PointShape::UpdateData(const RobotPose &pose) {
+bool PointShape::UpdateData(const RobotPose& pose) {
   robot_pose_ = pose;
   rotate_value_ = 0;
   SetPoseInParent(pose);
   update();
   return true;
 }
-bool PointShape::SetDisplayConfig(const std::string &config_name,
-                                  const std::any &config_data) {
+bool PointShape::SetDisplayConfig(const std::string& config_name,
+                                  const std::any& config_data) {
   if (config_name == "Enable") {
     GetAnyData(bool, config_data, enable_);
   } else {
@@ -93,9 +95,9 @@ bool PointShape::SetDisplayConfig(const std::string &config_name,
   }
   return true;
 }
-void PointShape::paint(QPainter *painter,
-                       const QStyleOptionGraphicsItem *option,
-                       QWidget *widget) {
+void PointShape::paint(QPainter* painter,
+                       const QStyleOptionGraphicsItem* option,
+                       QWidget* widget) {
   painter->setRenderHints(QPainter::Antialiasing |
                           QPainter::SmoothPixmapTransform);
   switch (type_) {
@@ -119,8 +121,8 @@ void PointShape::paint(QPainter *painter,
                   normalize(robot_pose_.theta + rotate_value_)));
   }
 }
-void PointShape::setEnable(const bool &enable) {}
-void PointShape::drawRobot(QPainter *painter) {
+void PointShape::setEnable(const bool& enable) {}
+void PointShape::drawRobot(QPainter* painter) {
   painter->setRenderHint(QPainter::Antialiasing, true);  // 设置反锯齿 反走样
   painter->save();
   painter->rotate(-rad2deg(robot_pose_.theta) - rad2deg(rotate_value_) + deg_offset_);
@@ -129,12 +131,12 @@ void PointShape::drawRobot(QPainter *painter) {
   robot_svg_renderer_.render(painter, targetRect);
   painter->restore();
 }
-void PointShape::drawNavGoal(QPainter *painter) {
+void PointShape::drawNavGoal(QPainter* painter) {
   painter->setRenderHint(QPainter::Antialiasing, true);  // 设置反锯齿 反走样
-  
+
   // 设置目标图标透明度
   painter->save();
-  
+
   // 绘制不旋转的目标SVG图标
   const QRectF targetRect = RobotIconRect();
   // 地图视图可能整体旋转（默认约 90°），对导航图标做反向补偿，
@@ -149,9 +151,8 @@ void PointShape::drawNavGoal(QPainter *painter) {
   painter->drawEllipse(QPointF(0, 0), targetRect.width() * 0.9,
                        targetRect.height() * 0.9);
   robot_svg_renderer_.render(painter, targetRect);
-  
+
   painter->restore();
-  
 }
 // void PointShape::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 //   QMenu menu;
@@ -160,7 +161,6 @@ void PointShape::drawNavGoal(QPainter *painter) {
 //   menu.exec(event->screenPos());
 //   connect(removeAction, SIGNAL(triggered()), this, SLOT(slotRemoveItem()));
 // }
-void PointShape::drawParticle(QPainter *painter) {}
+void PointShape::drawParticle(QPainter* painter) {}
 // NOLINTEND
 }  // namespace Display
-

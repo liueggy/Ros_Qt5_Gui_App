@@ -3,17 +3,17 @@
 // 3, 占栅格地图坐标系 occPose
 // 4,机器人全局地图坐标系 wordPose
 #ifdef constant
-#undef constant
+  #undef constant
 #endif
 #include "display/manager/display_manager.h"
-#include "display/point_shape.h"
-#include "display/laser_points.h"
-#include <algorithm>
 #include <Eigen/Eigen>
 #include <QOpenGLWidget>
+#include <algorithm>
 #include "algorithm.h"
-#include "display/manager/scene_manager.h"
 #include "core/framework/framework.h"
+#include "display/laser_points.h"
+#include "display/manager/scene_manager.h"
+#include "display/point_shape.h"
 namespace Display {
 
 DisplayManager::DisplayManager() {
@@ -23,13 +23,13 @@ DisplayManager::DisplayManager() {
   // 设置绘制区域
   FactoryDisplay::Instance()->Init(graphics_view_ptr_, scene_manager_ptr_);
   connect(scene_manager_ptr_,
-          SIGNAL(signalTopologyMapUpdate(const TopologyMap &)), this,
-          SIGNAL(signalTopologyMapUpdate(const TopologyMap &)));
+          SIGNAL(signalTopologyMapUpdate(const TopologyMap&)), this,
+          SIGNAL(signalTopologyMapUpdate(const TopologyMap&)));
   connect(
       scene_manager_ptr_,
-      SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo &)),
+      SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo&)),
       this,
-      SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo &)));
+      SIGNAL(signalCurrentSelectPointChanged(const TopologyMap::PointInfo&)));
   connect(scene_manager_ptr_,
           SIGNAL(signalEditMapModeChanged(MapEditMode)), this,
           SIGNAL(signalEditMapModeChanged(MapEditMode)));
@@ -55,8 +55,8 @@ DisplayManager::DisplayManager() {
   // connection
 
   connect(GetDisplay(DISPLAY_ROBOT),
-          SIGNAL(signalPoseUpdate(const RobotPose &)), this,
-          SLOT(slotRobotScenePoseChanged(const RobotPose &)));
+          SIGNAL(signalPoseUpdate(const RobotPose&)), this,
+          SLOT(slotRobotScenePoseChanged(const RobotPose&)));
   // 设置默认地图图层响应鼠标事件
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_MAP);
   graphics_view_ptr_->SetDisplayManagerPtr(this);
@@ -64,7 +64,7 @@ DisplayManager::DisplayManager() {
   SUBSCRIBE_QOBJECT(this, MSG_ID_TOPOLOGY_MAP, [this](const TopologyMap& data) {
     scene_manager_ptr_->UpdateTopologyMap(data);
   });
-  
+
   SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
   });
@@ -93,7 +93,7 @@ DisplayManager::DisplayManager() {
   freshness_timer_->start();
 }
 
-void DisplayManager::slotSetRobotPose(const RobotPose &pose) {
+void DisplayManager::slotSetRobotPose(const RobotPose& pose) {
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_ROBOT, false);
   UpdateRobotPose(pose);
   // enable move after 300ms
@@ -102,7 +102,7 @@ void DisplayManager::slotSetRobotPose(const RobotPose &pose) {
   });
 }
 
-void DisplayManager::slotRobotScenePoseChanged(const RobotPose &pose) {
+void DisplayManager::slotRobotScenePoseChanged(const RobotPose& pose) {
   if (is_reloc_mode_) {
     QPointF occ_pose =
         GetDisplay(DISPLAY_MAP)->mapFromScene(QPointF(pose.x, pose.y));
@@ -120,25 +120,25 @@ void DisplayManager::InitUi() {
   set_reloc_pose_widget_ = new SetPoseWidget(graphics_view_ptr_);
   set_reloc_pose_widget_->hide();
   connect(set_reloc_pose_widget_, &SetPoseWidget::SignalHandleOver,
-          [this](const bool &is_submit, const RobotPose &pose) {
+          [this](const bool& is_submit, const RobotPose& pose) {
             SetRelocMode(false);
             if (is_submit) {
               emit signalPub2DPose(pose);
             }
           });
-  connect(set_reloc_pose_widget_, SIGNAL(SignalPoseChanged(const RobotPose &)),
-          this, SLOT(slotSetRobotPose(const RobotPose &)));
+  connect(set_reloc_pose_widget_, SIGNAL(SignalPoseChanged(const RobotPose&)),
+          this, SLOT(slotSetRobotPose(const RobotPose&)));
 }
 DisplayManager::~DisplayManager() {}
 
-bool DisplayManager::SetDisplayConfig(const std::string &config_name,
-                                      const std::any &data) {
+bool DisplayManager::SetDisplayConfig(const std::string& config_name,
+                                      const std::any& data) {
   QString q_config_name = QString::fromStdString(config_name);
   auto config_list = q_config_name.split("/");
   if (config_list.empty() || config_list.size() != 2) {
     return false;
   }
-  VirtualDisplay *display = GetDisplay(config_list[0].toStdString());
+  VirtualDisplay* display = GetDisplay(config_list[0].toStdString());
   if (!display) {
     std::cout << "error current display not fi csxnd:"
               << config_list[0].toStdString() << " config_name:" << config_name
@@ -168,12 +168,16 @@ void DisplayManager::SetMapStyleConfig(const Config::MapStyleConfig& config) {
   const QColor grid_color(QString::fromStdString(config.grid_color));
   graphics_view_ptr_->SetGridStyle(config.grid_visible, config.grid_spacing,
                                    config.grid_opacity, grid_color);
+  graphics_view_ptr_->UpdateMapLegend(
+      QColor(QString::fromStdString(config.laser_color)),
+      QColor(QString::fromStdString(config.global_path_color)),
+      QColor(QString::fromStdString(config.local_path_color)));
   if (auto* laser = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER))) {
     laser->SetVisualStyle(config.laser_point_size, config.laser_opacity,
                           QColor(QString::fromStdString(config.laser_color)));
   }
   const auto apply_path_color = [this](const std::string& display_name,
-                                        const std::string& color_text) {
+                                       const std::string& color_text) {
     const QColor color(QString::fromStdString(color_text));
     if (color.isValid()) {
       SetDisplayConfig(display_name + "/Color",
@@ -195,11 +199,11 @@ void DisplayManager::SetMapStyleConfig(const Config::MapStyleConfig& config) {
  * @return {*}
  */
 std::vector<Point>
-DisplayManager::transLaserPoint(const std::vector<Point> &point) {
+DisplayManager::transLaserPoint(const std::vector<Point>& point) {
   // point为车身坐标系下的坐标 需要根据当前机器人坐标转换为map
   std::vector<Point> res;
   for (auto one_point : point) {
-    //根据机器人坐标转换为map坐标系下
+    // 根据机器人坐标转换为map坐标系下
     basic::RobotPose map_pose = basic::absoluteSum(
         basic::RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta),
         basic::RobotPose(one_point.x, one_point.y, 0));
@@ -216,7 +220,7 @@ DisplayManager::transLaserPoint(const std::vector<Point> &point) {
  * @param {Vector3f&} pose x y theta
  * @return {*}
  */
-void DisplayManager::UpdateRobotPose(const RobotPose &pose) {
+void DisplayManager::UpdateRobotPose(const RobotPose& pose) {
   robot_pose_ = pose;
   auto* robot_display = dynamic_cast<PointShape*>(GetDisplay(DISPLAY_ROBOT));
   if (robot_display) {
@@ -242,11 +246,11 @@ void DisplayManager::SetRelocMode(bool is_start) {
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_ROBOT, is_start);
 }
 
-void DisplayManager::SetRelocPositionFromScene(const QPointF &scene_pos) {
+void DisplayManager::SetRelocPositionFromScene(const QPointF& scene_pos) {
   if (!is_reloc_mode_) {
     return;
   }
-  auto *map_display = GetDisplay(DISPLAY_MAP);
+  auto* map_display = GetDisplay(DISPLAY_MAP);
   if (!map_display) {
     return;
   }
@@ -259,7 +263,7 @@ void DisplayManager::SetRelocPositionFromScene(const QPointF &scene_pos) {
   slotSetRobotPose(robot_pose_);
   set_reloc_pose_widget_->SetPose(robot_pose_);
 }
-void DisplayManager::FocusDisplay(const std::string &display_name) {
+void DisplayManager::FocusDisplay(const std::string& display_name) {
   FactoryDisplay::Instance()->SetFocusDisplay(display_name);
 }
 
@@ -268,7 +272,7 @@ void DisplayManager::FocusDisplay(const std::string &display_name) {
  * @param {Vector2f&} point 传入的点坐标
  * @return {*}
  */
-RobotPose DisplayManager::wordPose2Scene(const RobotPose &point) {
+RobotPose DisplayManager::wordPose2Scene(const RobotPose& point) {
   // xy在栅格地图上的图元坐标
   double x, y;
   map_data_.xy2ScenePose(point.x, point.y, x, y);
@@ -288,7 +292,7 @@ RobotPose DisplayManager::wordPose2Scene(const RobotPose &point) {
  * @param {Vector2f&} point 传入的点坐标
  * @return {*}
  */
-QPointF DisplayManager::wordPose2Scene(const QPointF &point) {
+QPointF DisplayManager::wordPose2Scene(const QPointF& point) {
   // xy在栅格地图上的图元坐标
   double x, y;
   map_data_.xy2ScenePose(point.x(), point.y(), x, y);
@@ -296,7 +300,7 @@ QPointF DisplayManager::wordPose2Scene(const QPointF &point) {
       ->GetDisplay(DISPLAY_MAP)
       ->PoseToScene(QPointF(x, y));
 }
-RobotPose DisplayManager::wordPose2Map(const RobotPose &pose) {
+RobotPose DisplayManager::wordPose2Map(const RobotPose& pose) {
   RobotPose ret = pose;
   double x, y;
   map_data_.xy2ScenePose(pose.x, pose.y, x, y);
@@ -304,7 +308,7 @@ RobotPose DisplayManager::wordPose2Map(const RobotPose &pose) {
   ret.y = y;
   return ret;
 }
-QPointF DisplayManager::wordPose2Map(const QPointF &pose) {
+QPointF DisplayManager::wordPose2Map(const QPointF& pose) {
   QPointF ret;
   double x, y;
   map_data_.xy2ScenePose(pose.x(), pose.y(), x, y);
@@ -312,7 +316,7 @@ QPointF DisplayManager::wordPose2Map(const QPointF &pose) {
   ret.setY(y);
   return ret;
 }
-RobotPose DisplayManager::mapPose2Word(const RobotPose &pose) {
+RobotPose DisplayManager::mapPose2Word(const RobotPose& pose) {
   RobotPose ret = pose;
   double x, y;
   map_data_.ScenePose2xy(pose.x, pose.y, x, y);
@@ -320,19 +324,19 @@ RobotPose DisplayManager::mapPose2Word(const RobotPose &pose) {
   ret.y = y;
   return ret;
 }
-RobotPose DisplayManager::scenePoseToWord(const RobotPose &pose) {
+RobotPose DisplayManager::scenePoseToWord(const RobotPose& pose) {
   QPointF pose_map = FactoryDisplay::Instance()
                          ->GetDisplay(DISPLAY_MAP)
                          ->mapFromScene(QPointF(pose.x, pose.y));
   return mapPose2Word(RobotPose(pose_map.x(), pose_map.y(), pose.theta));
 }
-RobotPose DisplayManager::scenePoseToMap(const RobotPose &pose) {
+RobotPose DisplayManager::scenePoseToMap(const RobotPose& pose) {
   QPointF pose_map = FactoryDisplay::Instance()
                          ->GetDisplay(DISPLAY_MAP)
                          ->mapFromScene(QPointF(pose.x, pose.y));
   return RobotPose(pose_map.x(), pose_map.y(), pose.theta);
 }
-VirtualDisplay *DisplayManager::GetDisplay(const std::string &name) {
+VirtualDisplay* DisplayManager::GetDisplay(const std::string& name) {
   return FactoryDisplay::Instance()->GetDisplay(name);
 }
 void DisplayManager::ApplyConfiguredDisplayVisibility() {
@@ -412,16 +416,16 @@ double DisplayManager::GetEraserRange() const { return scene_manager_ptr_->GetEr
 double DisplayManager::GetPenRange() const { return scene_manager_ptr_->GetPenRange(); }
 void DisplayManager::AddOneNavPoint() { scene_manager_ptr_->AddOneNavPoint(); }
 void DisplayManager::AddPointAtRobotPosition() { scene_manager_ptr_->AddPointAtRobotPosition(); }
-OccupancyMap &DisplayManager::GetMap() { return map_data_; }
+OccupancyMap& DisplayManager::GetMap() { return map_data_; }
 OccupancyMap DisplayManager::GetOccupancyMap() {
-  auto display_map_ = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
+  auto display_map_ = static_cast<DisplayOccMap*>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   if (display_map_ != nullptr) {
     return display_map_->GetOccupancyMap();
   }
   return map_data_;
 }
 
-void DisplayManager::UpdateOCCMap(const OccupancyMap &map) {
+void DisplayManager::UpdateOCCMap(const OccupancyMap& map) {
   PUBLISH(MSG_ID_OCCUPANCY_MAP, map);
 }
 
@@ -429,7 +433,7 @@ TopologyMap DisplayManager::GetTopologyMap() {
   return scene_manager_ptr_->GetTopologyMap();
 }
 
-void DisplayManager::UpdateTopologyMap(const TopologyMap &topology_map) {
+void DisplayManager::UpdateTopologyMap(const TopologyMap& topology_map) {
   PUBLISH(MSG_ID_TOPOLOGY_MAP, topology_map);
   if (graphics_view_ptr_) {
     QTimer::singleShot(500, graphics_view_ptr_, &ViewManager::FitMapToBestView);
