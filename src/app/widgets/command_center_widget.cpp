@@ -1,25 +1,31 @@
 #include "widgets/command_center_widget.h"
 
 #include <QByteArray>
+#include <QCheckBox>
 #include <QDateTime>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
 #include <QFrame>
 #include <QGridLayout>
-#include <QHash>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
 #include <QLabel>
+#include <QMessageBox>
 #include <QMetaObject>
 #include <QPlainTextEdit>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSizePolicy>
+#include <QSpinBox>
 #include <QStringList>
-#include <QTimer>
 #include <QTextCursor>
+#include <QTimer>
 #include <QToolButton>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -207,6 +213,100 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   amcl_btn_->setEnabled(false);
   inspection_btn_->setEnabled(false);
 
+  auto* auto_mapping_group = new QFrame(this);
+  auto_mapping_group->setProperty("uiCard", true);
+  auto_mapping_group->setStyleSheet(UiStyle::CardStyleSheet());
+  auto* auto_mapping_layout = new QVBoxLayout(auto_mapping_group);
+  auto_mapping_layout->setContentsMargins(16, 14, 16, 16);
+  auto_mapping_layout->setSpacing(10);
+  auto* auto_mapping_header = new QHBoxLayout();
+  auto* auto_mapping_title = new QLabel(tr("自动建图"), auto_mapping_group);
+  auto_mapping_title->setObjectName(QStringLiteral("sectionTitle"));
+  auto_mapping_title->setStyleSheet(QStringLiteral(
+                                        "QLabel#sectionTitle { color:%1; font-size:%2px; font-weight:800; "
+                                        "padding:0; margin:0; background:transparent; border:0px; }")
+                                        .arg(UiStyle::Palette::Text, UiStyle::FontBasePx()));
+  auto_mapping_state_label_ = new QLabel(tr("待命"), auto_mapping_group);
+  auto_mapping_state_label_->setAlignment(Qt::AlignCenter);
+  auto_mapping_state_label_->setStyleSheet(QStringLiteral(
+                                               "QLabel { color:%1; background:%2; border:1px solid %3; border-radius:9px; "
+                                               "padding:6px 10px; font-size:%4px; font-weight:700; }")
+                                               .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
+                                                    UiStyle::Palette::Border)
+                                               .arg(UiStyle::FontSmallPx()));
+  auto_mapping_header->addWidget(auto_mapping_title);
+  auto_mapping_header->addStretch();
+  auto_mapping_header->addWidget(auto_mapping_state_label_);
+  auto_mapping_layout->addLayout(auto_mapping_header);
+
+  auto_mapping_message_label_ = new QLabel(
+      tr("自动选择高信息量边界；雷达、里程计或心跳异常时立即停驶。"),
+      auto_mapping_group);
+  auto_mapping_message_label_->setWordWrap(true);
+  auto_mapping_message_label_->setStyleSheet(QStringLiteral(
+                                                 "QLabel { color:%1; background:%2; border:1px solid %3; border-radius:10px; "
+                                                 "padding:9px 11px; font-size:%4px; }")
+                                                 .arg(UiStyle::Palette::TextSecondary, UiStyle::Palette::SurfaceAlt,
+                                                      UiStyle::Palette::Border)
+                                                 .arg(UiStyle::FontMiniPx()));
+  auto_mapping_layout->addWidget(auto_mapping_message_label_);
+
+  auto* auto_mapping_form = new QFormLayout();
+  auto_mapping_form->setHorizontalSpacing(12);
+  auto_mapping_form->setVerticalSpacing(8);
+  auto_mapping_duration_spin_ = new QSpinBox(auto_mapping_group);
+  auto_mapping_duration_spin_->setRange(1, 60);
+  auto_mapping_duration_spin_->setValue(15);
+  auto_mapping_duration_spin_->setSuffix(tr(" 分钟"));
+  auto_mapping_speed_spin_ = new QDoubleSpinBox(auto_mapping_group);
+  auto_mapping_speed_spin_->setRange(0.05, 0.30);
+  auto_mapping_speed_spin_->setSingleStep(0.01);
+  auto_mapping_speed_spin_->setDecimals(2);
+  auto_mapping_speed_spin_->setValue(0.22);
+  auto_mapping_speed_spin_->setSuffix(tr(" m/s"));
+  auto_mapping_return_home_check_ = new QCheckBox(tr("完成后返回起点"), auto_mapping_group);
+  auto_mapping_return_home_check_->setChecked(true);
+  auto_mapping_form->addRow(tr("最长运行"), auto_mapping_duration_spin_);
+  auto_mapping_form->addRow(tr("速度上限"), auto_mapping_speed_spin_);
+  auto_mapping_form->addRow(QString(), auto_mapping_return_home_check_);
+  auto_mapping_layout->addLayout(auto_mapping_form);
+
+  auto_mapping_progress_ = new QProgressBar(auto_mapping_group);
+  auto_mapping_progress_->setRange(0, 100);
+  auto_mapping_progress_->setValue(0);
+  auto_mapping_progress_->setTextVisible(true);
+  auto_mapping_progress_->setFormat(tr("尚未开始"));
+  auto_mapping_layout->addWidget(auto_mapping_progress_);
+  auto_mapping_metrics_label_ = new QLabel(tr("地图 — · 可达边界 — · 传感器等待"), auto_mapping_group);
+  auto_mapping_metrics_label_->setWordWrap(true);
+  auto_mapping_metrics_label_->setStyleSheet(
+      QStringLiteral("QLabel { color:%1; font-size:%2px; }")
+          .arg(UiStyle::Palette::TextSecondary)
+          .arg(UiStyle::FontMiniPx()));
+  auto_mapping_layout->addWidget(auto_mapping_metrics_label_);
+
+  auto* auto_mapping_actions = new QHBoxLayout();
+  auto_mapping_actions->setSpacing(8);
+  auto_mapping_start_btn_ = new QPushButton(tr("开始自动建图"), auto_mapping_group);
+  auto_mapping_pause_btn_ = new QPushButton(tr("暂停"), auto_mapping_group);
+  auto_mapping_stop_btn_ = new QPushButton(tr("停止并保存草稿"), auto_mapping_group);
+  auto_mapping_start_btn_->setStyleSheet(UiStyle::MainButtonStyleSheet());
+  auto_mapping_pause_btn_->setStyleSheet(UiStyle::SecondaryButtonStyleSheet());
+  auto_mapping_stop_btn_->setStyleSheet(UiStyle::DangerButtonStyleSheet());
+  auto_mapping_start_btn_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  auto_mapping_actions->addWidget(auto_mapping_start_btn_, 2);
+  auto_mapping_actions->addWidget(auto_mapping_pause_btn_, 1);
+  auto_mapping_actions->addWidget(auto_mapping_stop_btn_, 2);
+  auto_mapping_layout->addLayout(auto_mapping_actions);
+  root->addWidget(auto_mapping_group);
+  connect(auto_mapping_start_btn_, &QPushButton::clicked,
+          this, &CommandCenterWidget::StartAutoMapping);
+  connect(auto_mapping_pause_btn_, &QPushButton::clicked,
+          this, &CommandCenterWidget::PauseResumeAutoMapping);
+  connect(auto_mapping_stop_btn_, &QPushButton::clicked,
+          this, &CommandCenterWidget::StopAutoMapping);
+  RefreshAutoMappingControls();
+
   auto* status_group = new QFrame(this);
   status_group->setProperty("uiCard", true);
   status_group->setStyleSheet(UiStyle::CardStyleSheet());
@@ -293,6 +393,7 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
               if (!profile_switch_tracker_.Timeout(request_id)) {
                 return;
               }
+              pending_auto_mapping_start_ = false;
               SetNavigationModeText(active_workspace_mode_);
               SetStatusSummary(tr("模式切换请求发送失败"),
                                QString::fromStdString(result.message));
@@ -478,6 +579,12 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     active_workspace_mode_ = normalized;
     emit WorkspaceModeRequested(normalized);
   }
+  RefreshAutoMappingControls();
+  if (pending_auto_mapping_start_ && normalized == QStringLiteral("mapping_slam") &&
+      !profile_switch_tracker_.pending()) {
+    pending_auto_mapping_start_ = false;
+    QTimer::singleShot(0, this, [this]() { SendAutoMappingCommand(QStringLiteral("start")); });
+  }
 }
 
 QString CommandCenterWidget::MakeRequestJson(const QString& command, const QString& target,
@@ -545,6 +652,7 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
     if (profile_command) {
       profile_response = profile_switch_tracker_.HandleResponse(request_id, success);
       if (profile_response == AppContract::ProfileResponse::Rejected) {
+        pending_auto_mapping_start_ = false;
         SetNavigationModeText(active_workspace_mode_);
         SetStatusSummary(obj.value("message").toString(tr("模式切换失败")));
       }
@@ -683,6 +791,7 @@ void CommandCenterWidget::UpdateStatus(const std::string& json) {
                        capabilities.value("initialpose").toBool(false) ? tr("可用") : tr("不可用"));
   }
   SetStatusSummary(summary, detail);
+  UpdateAutoMappingCard(obj.value(QStringLiteral("auto_mapping")).toObject());
   SetOverviewPill(task_overview_label_, tr("任务"), online_count == core_nodes.size() ? tr("可执行") : tr("待检查"),
                   online_count == core_nodes.size() ? UiStyle::Palette::Success : UiStyle::Palette::Warning,
                   online_count == core_nodes.size() ? UiStyle::Palette::SuccessBg : UiStyle::Palette::WarningBg,
@@ -815,6 +924,159 @@ void CommandCenterWidget::SendStatusRequest() {
   PublishJson(MakeRequestJson("status", "system"));
 }
 
+void CommandCenterWidget::StartAutoMapping() {
+  if (auto_mapping_state_ != QStringLiteral("idle") &&
+      auto_mapping_state_ != QStringLiteral("completed") &&
+      auto_mapping_state_ != QStringLiteral("cancelled") &&
+      auto_mapping_state_ != QStringLiteral("aborted") &&
+      auto_mapping_state_ != QStringLiteral("rejected")) {
+    return;
+  }
+  const auto answer = QMessageBox::question(
+      this, tr("开始自动建图"),
+      tr("小车将自主移动并保存新地图。请确认周围无人、无悬空台阶，急停可随时使用。\n\n是否开始？"),
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+  if (answer != QMessageBox::Yes) {
+    return;
+  }
+  auto_mapping_request_id_ = QStringLiteral("qt-auto-map-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+  if (active_workspace_mode_ != QStringLiteral("mapping_slam")) {
+    pending_auto_mapping_start_ = true;
+    SetStatusSummary(tr("正在切换建图模式，切换完成后将自动开始"));
+    BeginProfileSwitch(QStringLiteral("mapping"), QStringLiteral("mapping"));
+    return;
+  }
+  SendAutoMappingCommand(QStringLiteral("start"));
+}
+
+void CommandCenterWidget::PauseResumeAutoMapping() {
+  if (auto_mapping_state_ == QStringLiteral("paused")) {
+    SendAutoMappingCommand(QStringLiteral("resume"));
+  } else {
+    SendAutoMappingCommand(QStringLiteral("pause"));
+  }
+}
+
+void CommandCenterWidget::StopAutoMapping() {
+  if (QMessageBox::question(
+          this, tr("停止自动建图"),
+          tr("小车会立即停止，当前地图将作为草稿保存。确定停止吗？"),
+          QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+    return;
+  }
+  SendAutoMappingCommand(QStringLiteral("stop"));
+}
+
+void CommandCenterWidget::SendAutoMappingCommand(const QString& command) {
+  if (auto_mapping_request_id_.isEmpty()) {
+    auto_mapping_request_id_ = QStringLiteral("qt-auto-map-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+  }
+  QJsonObject params;
+  if (command == QStringLiteral("start")) {
+    params[QStringLiteral("max_duration_sec")] = auto_mapping_duration_spin_->value() * 60;
+    params[QStringLiteral("max_linear_speed")] = auto_mapping_speed_spin_->value();
+    params[QStringLiteral("return_home")] = auto_mapping_return_home_check_->isChecked();
+    params[QStringLiteral("save_draft_on_abort")] = true;
+  }
+  PublishJson(MakeRequestJson(
+      QStringLiteral("auto_mapping_%1").arg(command), QStringLiteral("auto_mapping"),
+      QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact)),
+      auto_mapping_request_id_));
+  if (command == QStringLiteral("start")) {
+    auto_mapping_state_ = QStringLiteral("preflight");
+    RefreshAutoMappingControls();
+  }
+  auto_mapping_message_label_->setText(
+      command == QStringLiteral("start") ? tr("启动请求已发送，等待板端安全检查…")
+                                         : tr("%1 请求已发送…").arg(command));
+}
+
+void CommandCenterWidget::RefreshAutoMappingControls() {
+  if (!auto_mapping_start_btn_) return;
+  const bool active = auto_mapping_state_ == QStringLiteral("preflight") ||
+                      auto_mapping_state_ == QStringLiteral("planning") ||
+                      auto_mapping_state_ == QStringLiteral("navigating") ||
+                      auto_mapping_state_ == QStringLiteral("observing") ||
+                      auto_mapping_state_ == QStringLiteral("returning") ||
+                      auto_mapping_state_ == QStringLiteral("final_scan") ||
+                      auto_mapping_state_ == QStringLiteral("saving");
+  const bool paused = auto_mapping_state_ == QStringLiteral("paused");
+  auto_mapping_start_btn_->setEnabled(mapping_profile_available_ && !active && !paused &&
+                                      !profile_switch_tracker_.pending());
+  auto_mapping_pause_btn_->setEnabled(active || paused);
+  auto_mapping_pause_btn_->setText(paused ? tr("继续") : tr("暂停"));
+  auto_mapping_stop_btn_->setEnabled(active || paused);
+  auto_mapping_duration_spin_->setEnabled(!active && !paused);
+  auto_mapping_speed_spin_->setEnabled(!active && !paused);
+  auto_mapping_return_home_check_->setEnabled(!active && !paused);
+}
+
+void CommandCenterWidget::UpdateAutoMappingCard(const QJsonObject& status) {
+  if (!auto_mapping_state_label_ || status.isEmpty()) return;
+  const QString state = status.value(QStringLiteral("state")).toString(QStringLiteral("idle"));
+  auto_mapping_state_ = state;
+  const QString reported_request_id =
+      status.value(QStringLiteral("request_id")).toString().trimmed();
+  if (!reported_request_id.isEmpty()) {
+    auto_mapping_request_id_ = reported_request_id;
+  }
+  const QHash<QString, QString> labels = {
+      {QStringLiteral("idle"), tr("待命")}, {QStringLiteral("preflight"), tr("安全检查")}, {QStringLiteral("planning"), tr("选择边界")}, {QStringLiteral("navigating"), tr("自主移动")}, {QStringLiteral("observing"), tr("更新地图")}, {QStringLiteral("returning"), tr("返回起点")}, {QStringLiteral("final_scan"), tr("最终扫描")}, {QStringLiteral("saving"), tr("保存地图")}, {QStringLiteral("paused"), tr("已暂停")}, {QStringLiteral("completed"), tr("已完成")}, {QStringLiteral("cancelled"), tr("已停止")}, {QStringLiteral("aborted"), tr("异常终止")}, {QStringLiteral("rejected"), tr("未启动")}};
+  const QString label = labels.value(state, state);
+  const bool danger = state == QStringLiteral("aborted") || state == QStringLiteral("rejected");
+  const bool success = state == QStringLiteral("completed");
+  const bool warning = state == QStringLiteral("paused") || state == QStringLiteral("cancelled");
+  const QString color = danger    ? UiStyle::Palette::Danger
+                        : success ? UiStyle::Palette::Success
+                        : warning ? UiStyle::Palette::Warning
+                                  : UiStyle::Palette::Info;
+  const QString bg = danger    ? UiStyle::Palette::DangerBg
+                     : success ? UiStyle::Palette::SuccessBg
+                     : warning ? UiStyle::Palette::WarningBg
+                               : UiStyle::Palette::InfoBg;
+  const QString border = danger    ? UiStyle::Palette::DangerBorder
+                         : success ? UiStyle::Palette::SuccessBorder
+                         : warning ? UiStyle::Palette::WarningBorder
+                                   : UiStyle::Palette::InfoBorder;
+  auto_mapping_state_label_->setText(label);
+  auto_mapping_state_label_->setStyleSheet(QStringLiteral(
+                                               "QLabel { color:%1; background:%2; border:1px solid %3; border-radius:9px; "
+                                               "padding:6px 10px; font-size:%4px; font-weight:700; }")
+                                               .arg(color, bg, border)
+                                               .arg(UiStyle::FontSmallPx()));
+  auto_mapping_message_label_->setText(status.value(QStringLiteral("message")).toString(tr("等待状态")));
+
+  const double elapsed = status.value(QStringLiteral("elapsed_sec")).toDouble();
+  const QJsonObject options = status.value(QStringLiteral("options")).toObject();
+  const int duration = qMax(
+      60, options.value(QStringLiteral("max_duration_sec"))
+              .toInt(auto_mapping_duration_spin_->value() * 60));
+  auto_mapping_progress_->setValue(qBound(0, qRound(elapsed * 100.0 / duration), 100));
+  auto_mapping_progress_->setFormat(tr("已运行 %1 分钟 · 上限 %2 分钟")
+                                        .arg(elapsed / 60.0, 0, 'f', 1)
+                                        .arg(duration / 60));
+  const QJsonObject ages = status.value(QStringLiteral("ages")).toObject();
+  const QJsonObject safety = status.value(QStringLiteral("safety")).toObject();
+  auto ageText = [&ages](const QString& key) {
+    const QJsonValue value = ages.value(key);
+    return value.isDouble() ? QStringLiteral("%1s").arg(value.toDouble(), 0, 'f', 1)
+                            : QStringLiteral("—");
+  };
+  auto_mapping_metrics_label_->setText(
+      tr("地图 %1 格 · 可达边界 %2 · 地图/雷达/里程计年龄 %3 / %4 / %5\n安全：%6")
+          .arg(status.value(QStringLiteral("known_cells")).toInt())
+          .arg(status.value(QStringLiteral("reachable_frontiers")).toInt())
+          .arg(ageText(QStringLiteral("map")), ageText(QStringLiteral("scan")),
+               ageText(QStringLiteral("odom")),
+               safety.value(QStringLiteral("reason")).toString(tr("等待数据"))));
+  const QJsonObject result = status.value(QStringLiteral("result")).toObject();
+  if (!result.value(QStringLiteral("map_id")).toString().isEmpty()) {
+    auto_mapping_message_label_->setText(
+        tr("地图已保存：%1").arg(result.value(QStringLiteral("map_id")).toString()));
+  }
+  RefreshAutoMappingControls();
+}
+
 void CommandCenterWidget::StartAmclNavigation() {
   BeginProfileSwitch(QStringLiteral("navigation"), QStringLiteral("navigation"));
 }
@@ -824,6 +1086,7 @@ void CommandCenterWidget::SetMotionOwnerStatus(
   if (status.state == AppContract::MotionOwnerState::Known) {
     const QHash<QString, QString> owner_labels = {
         {QStringLiteral("navigation"), tr("导航栈")},
+        {QStringLiteral("mapping"), tr("自动建图")},
         {QStringLiteral("mission"), tr("任务执行器")},
         {QStringLiteral("manual"), tr("手动控制")},
         {QStringLiteral("safety"), tr("安全控制")},
@@ -874,6 +1137,7 @@ void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
     if (!profile_switch_tracker_.Timeout(request_id)) {
       return;
     }
+    pending_auto_mapping_start_ = false;
     SetNavigationModeText(active_workspace_mode_);
     SetStatusSummary(tr("模式切换超时，请检查板端状态后重试"));
   });

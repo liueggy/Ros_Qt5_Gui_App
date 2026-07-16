@@ -8,10 +8,15 @@
 #include "msg/diagnostic_snapshot.h"
 
 class DiagnosticDockWidget;
+class QCheckBox;
+class QDoubleSpinBox;
 class QFrame;
+class QJsonObject;
 class QLabel;
 class QPlainTextEdit;
+class QProgressBar;
 class QPushButton;
+class QSpinBox;
 class QToolButton;
 
 class CommandCenterWidget : public QWidget {
@@ -35,6 +40,9 @@ class CommandCenterWidget : public QWidget {
   void SwitchToMapping();
   void StartInspection();
   void StartCamera();
+  void StartAutoMapping();
+  void PauseResumeAutoMapping();
+  void StopAutoMapping();
   void ClearLog();
 
  signals:
@@ -57,6 +65,9 @@ class CommandCenterWidget : public QWidget {
   void SetConnectionOverview(bool online, const QString& detail);
   void SetDiagnosticOverview(int total, int abnormal, int worstLevel);
   void SetMotionOwnerStatus(const AppContract::MotionOwnerStatus& status);
+  void UpdateAutoMappingCard(const QJsonObject& status);
+  void SendAutoMappingCommand(const QString& command);
+  void RefreshAutoMappingControls();
 
   QLabel* connection_overview_label_{nullptr};
   QLabel* nav_overview_label_{nullptr};
@@ -72,11 +83,24 @@ class CommandCenterWidget : public QWidget {
   QPushButton* amcl_btn_{nullptr};
   QPushButton* mapping_btn_{nullptr};
   QPushButton* inspection_btn_{nullptr};
+  QLabel* auto_mapping_state_label_{nullptr};
+  QLabel* auto_mapping_message_label_{nullptr};
+  QLabel* auto_mapping_metrics_label_{nullptr};
+  QProgressBar* auto_mapping_progress_{nullptr};
+  QSpinBox* auto_mapping_duration_spin_{nullptr};
+  QDoubleSpinBox* auto_mapping_speed_spin_{nullptr};
+  QCheckBox* auto_mapping_return_home_check_{nullptr};
+  QPushButton* auto_mapping_start_btn_{nullptr};
+  QPushButton* auto_mapping_pause_btn_{nullptr};
+  QPushButton* auto_mapping_stop_btn_{nullptr};
   QLabel* status_summary_label_{nullptr};
   QPlainTextEdit* log_edit_{nullptr};
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
   QString active_workspace_mode_;
+  QString auto_mapping_state_{QStringLiteral("idle")};
+  QString auto_mapping_request_id_;
+  bool pending_auto_mapping_start_{false};
   AppContract::ProfileSwitchTracker profile_switch_tracker_;
   int motion_owner_generation_{0};
   bool mapping_profile_available_{false};
