@@ -1163,6 +1163,14 @@ void DisplayConfigWidget::LoadConfig() {
       }
       front->enable = true;
     }
+    config.images.erase(
+        std::remove_if(config.images.begin(), config.images.end(),
+                       [](const auto& image) {
+                         return image.location == "front_overlay" &&
+                                image.topic ==
+                                    "/camera/front/image/compressed";
+                       }),
+        config.images.end());
   });
   const auto config = Config::ConfigManager::Instance()->GetRootConfigSnapshot();
 

@@ -18,12 +18,12 @@ inline constexpr char kFootprintTopic[] =
 inline constexpr char kManualCmdVelTopic[] = "/cmd_vel/manual";
 inline constexpr char kEmergencyStopTopic[] = "/eggy/emergency_stop";
 
-// "raw" means the stable, unannotated camera stream. The board publishes it
-// as CompressedImage to avoid an unnecessary decode/re-encode cycle.
-inline constexpr char kRawCameraLocation[] = "front";
+// The primary Qt camera view uses the annotated RKNN stream. The raw stream
+// remains a board-side inference input and is not added as a second Qt view.
+inline constexpr char kPrimaryCameraLocation[] = "front";
 inline constexpr char kRawCameraTopic[] =
     "/camera/front/image_source/compressed";
-inline constexpr char kOverlayCameraLocation[] = "front_overlay";
+inline constexpr char kLegacyOverlayCameraLocation[] = "front_overlay";
 inline constexpr char kOverlayCameraTopic[] =
     "/camera/front/image/compressed";
 
@@ -43,8 +43,7 @@ void EnsureStableCameraContracts(ImageConfigs& images) {
       found->topic = topic;
     }
   };
-  ensure(kRawCameraLocation, kRawCameraTopic, true);
-  ensure(kOverlayCameraLocation, kOverlayCameraTopic, false);
+  ensure(kPrimaryCameraLocation, kOverlayCameraTopic, true);
 }
 
 template <typename DisplayConfigs>
@@ -62,13 +61,22 @@ void MigrateLegacyTopic(DisplayConfigs& configs, const std::string& display_name
 
 template <typename ImageConfigs>
 void MigrateLegacyCameraTopic(ImageConfigs& images) {
-  const auto found = std::find_if(images.begin(), images.end(),
-                                  [](const auto& image) {
-                                    return image.location == kRawCameraLocation;
-                                  });
-  if (found != images.end() && found->topic == kOverlayCameraTopic) {
-    found->topic = kRawCameraTopic;
+  const auto primary = std::find_if(images.begin(), images.end(),
+                                    [](const auto& image) {
+                                      return image.location ==
+                                             kPrimaryCameraLocation;
+                                    });
+  if (primary != images.end() && primary->topic == kRawCameraTopic) {
+    primary->topic = kOverlayCameraTopic;
+    primary->enable = true;
   }
+
+  images.erase(
+      std::remove_if(images.begin(), images.end(), [](const auto& image) {
+        return image.location == kLegacyOverlayCameraLocation &&
+               image.topic == kOverlayCameraTopic;
+      }),
+      images.end());
 }
 
 inline const char* PreferredCameraTopic(bool overlay_available) {

@@ -203,7 +203,7 @@ TEST(LatestValueQueueTest, ReplacesPendingValuePerKeyAndStaysBounded) {
   EXPECT_EQ(value, 2);
 }
 
-TEST(RosbridgeContractTest, KeepsRawAndOverlaySemanticsStable) {
+TEST(RosbridgeContractTest, KeepsCustomPrimaryCameraAndAvoidsDuplicateView) {
   struct ImageConfig {
     std::string location;
     std::string topic;
@@ -212,12 +212,9 @@ TEST(RosbridgeContractTest, KeepsRawAndOverlaySemanticsStable) {
   std::vector<ImageConfig> images{{"front", "/user/raw", false}};
   rosbridge2cpp::contract::EnsureStableCameraContracts(images);
 
-  ASSERT_EQ(images.size(), 2u);
+  ASSERT_EQ(images.size(), 1u);
   EXPECT_EQ(images[0].topic, "/user/raw");
   EXPECT_FALSE(images[0].enable);
-  EXPECT_EQ(images[1].location, "front_overlay");
-  EXPECT_EQ(images[1].topic, rosbridge2cpp::contract::kOverlayCameraTopic);
-  EXPECT_FALSE(images[1].enable);
 }
 
 TEST(RosbridgeContractTest, FallsBackToRawWhenOverlayIsUnavailable) {
@@ -247,11 +244,14 @@ TEST(RosbridgeContractTest, MigratesOnlyKnownLegacyDefaults) {
     std::string topic;
     bool enable;
   };
-  std::vector<ImageConfig> images{{"front", "/camera/front/image/compressed",
-                                   true}};
+  std::vector<ImageConfig> images{
+      {"front", "/camera/front/image_source/compressed", true},
+      {"front_overlay", "/camera/front/image/compressed", false}};
   rosbridge2cpp::contract::MigrateLegacyCameraTopic(images);
+  ASSERT_EQ(images.size(), 1u);
   EXPECT_EQ(images[0].topic,
-            rosbridge2cpp::contract::kRawCameraTopic);
+            rosbridge2cpp::contract::kOverlayCameraTopic);
+  EXPECT_TRUE(images[0].enable);
 }
 
 }  // namespace
