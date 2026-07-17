@@ -192,6 +192,7 @@ class OccupancyMap {
   Eigen::MatrixXi flip() { return map_data.colwise().reverse(); }
   void SetFlip() { map_data = flip(); }
   auto &operator()(int r, int c) { return map_data(r, c); }
+  const auto &operator()(int r, int c) const { return map_data(r, c); }
   void SetDirtyRegion(int row_min, int col_min, int row_max, int col_max) {
     dirty_region.row_min = std::max(0, std::min(row_min, rows));
     dirty_region.col_min = std::max(0, std::min(col_min, cols));
@@ -207,8 +208,8 @@ class OccupancyMap {
     map_data = data;
     map_data = flip();
   }
-  int Rows() { return rows; }
-  int Cols() { return cols; }
+  int Rows() const { return rows; }
+  int Cols() const { return cols; }
   //宽高地图坐标系下的长度
   int width() const { return cols; }
   int height() const { return rows; }
