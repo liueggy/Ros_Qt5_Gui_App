@@ -10,7 +10,11 @@ bool FactoryDisplay::Init(QGraphicsView *viewer, SceneManager *scene_ptr) {
     viewer_ptr_ = viewer;
     scene_manager_ptr_ = scene_ptr;
     viewer_ptr_->setScene(scene_manager_ptr_);
-    viewer_ptr_->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    // Laser scans update several times per second. Repainting the complete map
+    // for every scan stalls the GUI thread when the occupancy map is large.
+    // MinimalViewportUpdate keeps static map/grid pixels untouched and repaints
+    // only the dirty regions reported by dynamic display items.
+    viewer_ptr_->setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     run_flag_ = true;
     connect(&timer_coordinate_system_, SIGNAL(timeout()), this,
             SLOT(Process()));

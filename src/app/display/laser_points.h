@@ -28,7 +28,7 @@ class LaserPoints : public VirtualDisplay {
   void Id2Color(int id, int &R, int &G, int &B);
   void drawLaser(QPainter *painter, int id, const std::vector<Point>& data,
                  qreal opacity_scale = 1.0);
-  void computeBoundRect();
+  void computeBoundRect(bool reset = false);
 
  private:
   std::map<int, QColor> location_to_color_;

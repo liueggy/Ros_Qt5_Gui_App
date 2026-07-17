@@ -28,7 +28,7 @@ void LaserPoints::paint(QPainter *painter,
 
 LaserPoints::~LaserPoints() {}
 
-void LaserPoints::computeBoundRect() {
+void LaserPoints::computeBoundRect(bool reset) {
   bool has_points = false;
   float xmax = 0.0f;
   float xmin = 0.0f;
@@ -54,12 +54,21 @@ void LaserPoints::computeBoundRect() {
   include_scan(previous_laser_data_scene_);
   include_scan(laser_data_scene_);
   const qreal margin = (std::max)(1.0, point_size_);
-  const QRectF next_bounds =
+  const QRectF frame_bounds =
       has_points
           ? QRectF(QPointF(xmin, ymin), QPointF(xmax, ymax))
                 .normalized()
                 .adjusted(-margin, -margin, margin, margin)
           : QRectF();
+  // A scan's extrema vary slightly from frame to frame. Shrinking and growing
+  // the item on every scan makes QGraphicsScene rebuild its spatial index and
+  // produces visible stop/go rendering. Keep a stable, monotonically expanding
+  // extent during a session; ClearData() is the deliberate reset boundary.
+  const QRectF next_bounds =
+      reset || bounding_rect_.isEmpty()
+          ? frame_bounds
+          : (frame_bounds.isEmpty() ? bounding_rect_
+                                    : bounding_rect_.united(frame_bounds));
   if (bounding_rect_ != next_bounds) {
     prepareGeometryChange();
     bounding_rect_ = next_bounds;
@@ -83,7 +92,7 @@ void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
 void LaserPoints::ClearData() {
   laser_data_scene_.clear();
   previous_laser_data_scene_.clear();
-  computeBoundRect();
+  computeBoundRect(true);
   update();
 }
 
