@@ -62,6 +62,7 @@ class DisplayManager : public QObject {
   bool robot_pose_received_{false};
   bool laser_data_received_{false};
   bool laser_data_stale_{true};
+  bool laser_data_cleared_{true};
 
 
  signals:

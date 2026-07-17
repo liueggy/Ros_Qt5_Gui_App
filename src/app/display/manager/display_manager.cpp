@@ -87,6 +87,7 @@ DisplayManager::DisplayManager() {
       laser_display->UpdateLaserData(data.id, transformed_points);
       laser_data_received_ = true;
       laser_data_stale_ = false;
+      laser_data_cleared_ = false;
       laser_data_timer_.restart();
     }
   });
@@ -397,7 +398,8 @@ void DisplayManager::UpdateFreshnessStatus() {
   constexpr qint64 kGlobalPathTimeoutMs = 2500;
   constexpr qint64 kLocalCostTimeoutMs = 1200;
   constexpr qint64 kGlobalCostTimeoutMs = 2500;
-  constexpr qint64 kLaserTimeoutMs = 500;
+  constexpr qint64 kLaserTimeoutMs = 1500;
+  constexpr qint64 kLaserClearMs = 3000;
   const qint64 pose_age = robot_pose_received_ ? robot_pose_timer_.elapsed() : -1;
   const qint64 global_path_age = global_path->DataAgeMs();
   const qint64 local_path_age = local_path->DataAgeMs();
@@ -415,8 +417,10 @@ void DisplayManager::UpdateFreshnessStatus() {
   local_path->SetDataStale(local_path_stale);
   global_cost->SetDataStale(global_cost_stale);
   local_cost->SetDataStale(local_cost_stale);
-  if (laser_stale && !laser_data_stale_) {
+  if (laser_data_received_ && laser_data_timer_.elapsed() > kLaserClearMs &&
+      !laser_data_cleared_) {
     laser->ClearData();
+    laser_data_cleared_ = true;
   }
   laser_data_stale_ = laser_stale;
 
@@ -425,11 +429,9 @@ void DisplayManager::UpdateFreshnessStatus() {
     const QString value = QStringLiteral("%1s").arg(age / 1000.0, 0, 'f', 1);
     return stale ? value + QStringLiteral("（过期）") : value;
   };
-  const QString text = QStringLiteral("数据: 位姿 %1 · 局部路径 %2 · 局部代价 %3")
-                           .arg(age_text(pose_age, pose_stale),
-                                age_text(local_path_age, local_path_stale),
-                                age_text(local_cost_age, local_cost_stale));
-  view->UpdateDataStatus(text, pose_stale || local_path_stale || local_cost_stale);
+  const QString text =
+      QStringLiteral("位姿 %1").arg(age_text(pose_age, pose_stale));
+  view->UpdateDataStatus(text, pose_stale);
 }
 void DisplayManager::StartReloc() {
   if (!set_reloc_pose_widget_->isVisible()) {

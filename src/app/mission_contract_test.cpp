@@ -1,4 +1,5 @@
 #include "app/mission_contract.h"
+#include "app/diagnostic_policy.h"
 
 #include <gtest/gtest.h>
 
@@ -117,6 +118,60 @@ TEST(MissionContractTest, TopologySelectionPreservesOnlyAvailablePoint) {
   EXPECT_TRUE(AppContract::ReconcilePointSelection(QStringLiteral("removed"),
                                                    candidates)
                   .isEmpty());
+}
+
+TEST(DiagnosticPolicyTest, ProfileSwitchSuppressesOnlyRosRuntimeDiagnostics) {
+  basic::DiagnosticSnapshot snapshot;
+  snapshot.hardware["ROS nodes"]["amcl"].level = 2;
+  snapshot.hardware["battery"]["voltage"].level = 2;
+
+  const auto adapted = AppContract::AdaptDiagnosticSnapshot(
+      snapshot, QStringLiteral("static_nav"), true);
+
+  EXPECT_EQ(adapted.hardware.at("battery").at("voltage").level, 2);
+  EXPECT_EQ(adapted.hardware.count("ROS nodes"), 0U);
+  EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 1);
+}
+
+TEST(DiagnosticPolicyTest, MappingOmitsInactiveAmclDiagnostic) {
+  basic::DiagnosticSnapshot snapshot;
+  snapshot.hardware["ROS nodes"]["amcl: Standard deviation"].level = 1;
+  snapshot.hardware["ROS nodes"]["amcl: Standard deviation"].message =
+      "Too large";
+
+  const auto adapted = AppContract::AdaptDiagnosticSnapshot(
+      snapshot, QStringLiteral("mapping_slam"), false);
+
+  EXPECT_TRUE(adapted.hardware.empty());
+  EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 0);
+}
+
+TEST(DiagnosticPolicyTest, AmclConvergenceIsGuidanceNotSystemFailure) {
+  basic::DiagnosticSnapshot snapshot;
+  snapshot.hardware["ROS nodes"]["amcl: Standard deviation"].level = 1;
+  snapshot.hardware["ROS nodes"]["amcl: Standard deviation"].message =
+      "Too large";
+
+  const auto adapted = AppContract::AdaptDiagnosticSnapshot(
+      snapshot, QStringLiteral("static_nav"), false);
+  const auto& state =
+      adapted.hardware.at("ROS nodes").at("amcl: Standard deviation");
+
+  EXPECT_EQ(state.level, 0);
+  EXPECT_NE(state.message.find("定位尚未收敛"), std::string::npos);
+  EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 0);
+}
+
+TEST(DiagnosticPolicyTest, ActiveModeKeepsUnrelatedSensorFailure) {
+  basic::DiagnosticSnapshot snapshot;
+  snapshot.hardware["sensors"]["lidar"].level = 2;
+  snapshot.hardware["sensors"]["lidar"].message = "data_stale";
+
+  const auto adapted = AppContract::AdaptDiagnosticSnapshot(
+      snapshot, QStringLiteral("static_nav"), false);
+
+  EXPECT_EQ(adapted.hardware.at("sensors").at("lidar").level, 2);
+  EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 1);
 }
 
 }  // namespace

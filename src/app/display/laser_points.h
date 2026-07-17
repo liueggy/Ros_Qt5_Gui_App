@@ -12,6 +12,7 @@ class LaserPoints : public VirtualDisplay {
  public:
   QColor laser_color_;
   std::map<int, std::vector<Point>> laser_data_scene_;
+  std::map<int, std::vector<Point>> previous_laser_data_scene_;
   LaserPoints(const std::string &display_type, const int &z_value,
               std::string parent_name = "");
   ~LaserPoints();
@@ -25,8 +26,9 @@ class LaserPoints : public VirtualDisplay {
 
  private:
   void Id2Color(int id, int &R, int &G, int &B);
-  void drawLaser(QPainter *painter, int id, const std::vector<Point>& data);
-  void computeBoundRect(const std::map<int, std::vector<Point>> &laser_scan);
+  void drawLaser(QPainter *painter, int id, const std::vector<Point>& data,
+                 qreal opacity_scale = 1.0);
+  void computeBoundRect();
 
  private:
   std::map<int, QColor> location_to_color_;

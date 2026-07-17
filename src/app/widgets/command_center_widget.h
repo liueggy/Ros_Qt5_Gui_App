@@ -55,6 +55,7 @@ class CommandCenterWidget : public QWidget {
   void InspectionCapabilityChanged(bool ready);
 
  private:
+  void RefreshDiagnosticSnapshot();
   QString MakeRequestJson(const QString& command, const QString& target,
                           const QString& paramsJson = "{}",
                           const QString& requestId = QString()) const;
@@ -102,6 +103,7 @@ class CommandCenterWidget : public QWidget {
   DiagnosticDockWidget* diagnostic_widget_{nullptr};
   QFrame* diagnostic_group_{nullptr};
   QString active_workspace_mode_;
+  basic::DiagnosticSnapshot raw_diagnostic_snapshot_;
   QString auto_mapping_state_{QStringLiteral("idle")};
   QString auto_mapping_request_id_;
   QString camera_start_request_id_;

@@ -18,6 +18,9 @@ LaserPoints::LaserPoints(const std::string &display_type, const int &z_value,
 void LaserPoints::paint(QPainter *painter,
                         const QStyleOptionGraphicsItem *option,
                         QWidget *widget) {
+  for (const auto& [id, data] : previous_laser_data_scene_) {
+    drawLaser(painter, id, data, 0.28);
+  }
   for (const auto& [id, data] : laser_data_scene_) {
     drawLaser(painter, id, data);
   }
@@ -25,33 +28,42 @@ void LaserPoints::paint(QPainter *painter,
 
 LaserPoints::~LaserPoints() {}
 
-void LaserPoints::computeBoundRect(
-    const std::map<int, std::vector<Point>> &laser_scan) {
+void LaserPoints::computeBoundRect() {
   bool has_points = false;
   float xmax = 0.0f;
   float xmin = 0.0f;
   float ymax = 0.0f;
   float ymin = 0.0f;
-  for (const auto& [id, points] : laser_scan) {
-    if (points.empty())
-      continue;
-    if (!has_points) {
-      xmax = xmin = points[0].x;
-      ymax = ymin = points[0].y;
-      has_points = true;
+  const auto include_scan = [&](const auto& laser_scan) {
+    for (const auto& [id, points] : laser_scan) {
+      if (points.empty())
+        continue;
+      if (!has_points) {
+        xmax = xmin = points[0].x;
+        ymax = ymin = points[0].y;
+        has_points = true;
+      }
+      for (const auto& p : points) {
+        xmax = xmax > p.x ? xmax : p.x;
+        xmin = xmin < p.x ? xmin : p.x;
+        ymax = ymax > p.y ? ymax : p.y;
+        ymin = ymin < p.y ? ymin : p.y;
+      }
     }
-    for (size_t i = 0; i < points.size(); ++i) {
-      Point p = points[i];
-      xmax = xmax > p.x ? xmax : p.x;
-      xmin = xmin < p.x ? xmin : p.x;
-      ymax = ymax > p.y ? ymax : p.y;
-      ymin = ymin < p.y ? ymin : p.y;
-    }
+  };
+  include_scan(previous_laser_data_scene_);
+  include_scan(laser_data_scene_);
+  const qreal margin = (std::max)(1.0, point_size_);
+  const QRectF next_bounds =
+      has_points
+          ? QRectF(QPointF(xmin, ymin), QPointF(xmax, ymax))
+                .normalized()
+                .adjusted(-margin, -margin, margin, margin)
+          : QRectF();
+  if (bounding_rect_ != next_bounds) {
+    prepareGeometryChange();
+    bounding_rect_ = next_bounds;
   }
-  // std::cout << "xmax:" << xmax << "xmin:" << xmin << "ymax:" << ymax
-  //           << "ymin:" << ymin << std::endl;
-  SetBoundingRect(has_points ? QRectF(QPointF(xmin, ymin), QPointF(xmax, ymax))
-                             : QRectF());
 }
 bool LaserPoints::SetDisplayConfig(const std::string &config_name,
                                    const std::any &config_data) {
@@ -59,14 +71,19 @@ bool LaserPoints::SetDisplayConfig(const std::string &config_name,
 }
 
 void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
+  const auto current = laser_data_scene_.find(id);
+  if (current != laser_data_scene_.end()) {
+    previous_laser_data_scene_[id] = current->second;
+  }
   laser_data_scene_[id] = data;
-  computeBoundRect(laser_data_scene_);
+  computeBoundRect();
   update();
 }
 
 void LaserPoints::ClearData() {
   laser_data_scene_.clear();
-  computeBoundRect(laser_data_scene_);
+  previous_laser_data_scene_.clear();
+  computeBoundRect();
   update();
 }
 
@@ -77,11 +94,13 @@ void LaserPoints::SetVisualStyle(qreal point_size, int opacity, const QColor& co
     laser_color_ = color;
     use_style_color_ = true;
   }
+  computeBoundRect();
   update();
 }
 
 void LaserPoints::drawLaser(QPainter *painter, int id,
-                            const std::vector<Point>& data) {
+                            const std::vector<Point>& data,
+                            qreal opacity_scale) {
   QColor color;
   if (!location_to_color_.count(id)) {
     int r, g, b;
@@ -94,7 +113,9 @@ void LaserPoints::drawLaser(QPainter *painter, int id,
   if (use_style_color_) {
     color = laser_color_;
   }
-  color.setAlpha(color.alpha() * opacity_ / 100);
+  color.setAlphaF(std::clamp(color.alphaF() * opacity_ / 100.0 *
+                                opacity_scale,
+                            0.0, 1.0));
   painter->setPen(QPen(color, point_size_));
   QPolygonF poly;
   poly.reserve(static_cast<int>(data.size()));

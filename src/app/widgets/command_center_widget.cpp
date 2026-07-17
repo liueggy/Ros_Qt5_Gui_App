@@ -34,6 +34,7 @@
 #include "msg/channel_publish_result.h"
 #include "msg/msg_info.h"
 #include "widgets/diagnostic_dock_widget.h"
+#include "app/diagnostic_policy.h"
 #include "widgets/ui_style.h"
 
 namespace {
@@ -445,19 +446,25 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
 }
 
 void CommandCenterWidget::SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot) {
+  raw_diagnostic_snapshot_ = snapshot;
+  RefreshDiagnosticSnapshot();
+}
+
+void CommandCenterWidget::RefreshDiagnosticSnapshot() {
+  const bool switching = profile_switch_tracker_.pending() ||
+                         external_profile_switch_busy_;
+  const auto adapted = AppContract::AdaptDiagnosticSnapshot(
+      raw_diagnostic_snapshot_, active_workspace_mode_, switching);
   if (diagnostic_widget_) {
-    diagnostic_widget_->SetSnapshot(snapshot);
+    diagnostic_widget_->SetSnapshot(adapted);
   }
   int total = 0;
-  int abnormal = 0;
-  for (const auto& hardware : snapshot.hardware) {
+  for (const auto& hardware : adapted.hardware) {
     for (const auto& component : hardware.second) {
       ++total;
-      if (component.second.level != 0) {
-        ++abnormal;
-      }
     }
   }
+  const int abnormal = AppContract::CountDiagnosticAbnormal(adapted);
   if (diagnostic_group_) {
     diagnostic_group_->setVisible(total > 0 && abnormal > 0);
   }
@@ -603,6 +610,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     active_workspace_mode_ = normalized;
     emit WorkspaceModeRequested(normalized);
   }
+  RefreshDiagnosticSnapshot();
   RefreshAutoMappingControls();
   if (pending_auto_mapping_start_ && normalized == QStringLiteral("mapping_slam") &&
       !profile_switch_tracker_.pending()) {
