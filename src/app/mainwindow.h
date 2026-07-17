@@ -90,6 +90,7 @@ class MainWindow : public QMainWindow {
   NavGoalTableView* nav_goal_table_view_;
   QProgressBar* battery_bar_;
   QLabel* top_connection_status_{nullptr};
+  QToolButton* open_map_btn_{nullptr};
   ads::CDockAreaWidget* center_docker_area_;
   ads::CDockAreaWidget* settings_dock_area_{nullptr};
   ads::CDockAreaWidget* command_center_dock_area_{nullptr};

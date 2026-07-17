@@ -1117,14 +1117,14 @@ void MainWindow::setupUi() {
   edit_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(edit_map_btn);
 
-  QToolButton* open_map_btn = new QToolButton();
-  open_map_btn->setIcon(UiStyle::TintedIcon(
+  open_map_btn_ = new QToolButton();
+  open_map_btn_->setIcon(UiStyle::TintedIcon(
       QStringLiteral(":/icons/tabler/folder-open.svg"), QSize(32, 32)));
-  open_map_btn->setText("打开地图");
-  open_map_btn->setIconSize(QSize(24, 24));
-  open_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-  open_map_btn->setStyleSheet(modernToolButtonStyle);
-  horizontalLayout_tools->addWidget(open_map_btn);
+  open_map_btn_->setText("打开地图");
+  open_map_btn_->setIconSize(QSize(24, 24));
+  open_map_btn_->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+  open_map_btn_->setStyleSheet(modernToolButtonStyle);
+  horizontalLayout_tools->addWidget(open_map_btn_);
 
   QToolButton* save_map_btn = new QToolButton();
   save_map_btn->setIcon(UiStyle::TintedIcon(
@@ -1872,7 +1872,7 @@ void MainWindow::setupUi() {
   connect(save_map_btn, &QToolButton::clicked,
           this, &MainWindow::SaveMapToLocalAndRobot);
 
-  connect(open_map_btn, &QToolButton::clicked, [this]() {
+  connect(open_map_btn_, &QToolButton::clicked, [this]() {
     const QString fileName = QFileDialog::getOpenFileName(
         this, tr("打开地图"), MapLibraryDirectory(), tr("ROS 地图 (*.yaml)"));
     if (!fileName.isEmpty()) {
@@ -2764,6 +2764,10 @@ QString MainWindow::MapLibraryDirectory() const {
 }
 
 bool MainWindow::UploadLocalMap(const QString& yaml_path, bool activate) {
+  if (!pending_map_request_id_.isEmpty()) {
+    statusBar()->showMessage(tr("地图切换正在进行，请等待当前操作完成。"), 5000);
+    return false;
+  }
   OccupancyMap map;
   if (!map.Load(yaml_path.toStdString())) {
     QMessageBox::warning(this, tr("地图无效"),
@@ -2797,20 +2801,64 @@ bool MainWindow::UploadLocalMap(const QString& yaml_path, bool activate) {
   pending_map_request_id_ = request_id;
   pending_map_yaml_path_ = yaml_path;
   pending_map_activation_ = activate;
-  statusBar()->showMessage(activate ? tr("正在将地图同步到小车并启动 AMCL…")
+  if (activate) {
+    LoadMap(yaml_path.toStdString());
+    if (open_map_btn_) {
+      open_map_btn_->setEnabled(false);
+      open_map_btn_->setText(tr("切换中"));
+    }
+    if (command_center_widget_) {
+      command_center_widget_->SetExternalProfileSwitchBusy(
+          true, tr("正在切换地图：上传并校验（1/3）"));
+    }
+  }
+  statusBar()->showMessage(activate ? tr("正在切换地图（1/3）：上传并校验…")
                                     : tr("本地保存完成，正在同步到小车…"));
   PUBLISH(MSG_ID_COMMAND_REQUEST, request.dump());
-  QTimer::singleShot(45000, this, [this, request_id]() {
+  if (activate) {
+    QTimer::singleShot(2200, this, [this, request_id]() {
+      if (pending_map_request_id_ != request_id) {
+        return;
+      }
+      statusBar()->showMessage(tr("正在切换地图（2/3）：启动地图服务与 AMCL…"));
+      if (command_center_widget_) {
+        command_center_widget_->SetExternalProfileSwitchBusy(
+            true, tr("正在切换地图：启动导航节点（2/3）"));
+      }
+    });
+    QTimer::singleShot(6000, this, [this, request_id]() {
+      if (pending_map_request_id_ != request_id) {
+        return;
+      }
+      statusBar()->showMessage(tr("正在切换地图（3/3）：等待导航就绪…"));
+      if (command_center_widget_) {
+        command_center_widget_->SetExternalProfileSwitchBusy(
+            true, tr("正在切换地图：等待导航就绪（3/3）"));
+      }
+    });
+  }
+  QTimer::singleShot(20000, this, [this, request_id]() {
     if (pending_map_request_id_ != request_id) {
       return;
     }
+    const bool activate = pending_map_activation_;
     pending_map_request_id_.clear();
     pending_map_yaml_path_.clear();
     pending_map_activation_ = false;
-    statusBar()->showMessage(tr("地图操作超时：小车端未在 45 秒内确认，请检查连接和命令中心。"),
+    if (activate) {
+      if (open_map_btn_) {
+        open_map_btn_->setEnabled(true);
+        open_map_btn_->setText(tr("打开地图"));
+      }
+      if (command_center_widget_) {
+        command_center_widget_->SetExternalProfileSwitchBusy(
+            false, tr("地图切换超时，请检查板端状态"));
+      }
+    }
+    statusBar()->showMessage(tr("地图操作超时：小车端未在 20 秒内确认，请检查连接和命令中心。"),
                              10000);
     QMessageBox::warning(this, tr("地图操作超时"),
-                         tr("小车端未确认地图操作。当前显示未切换，可检查连接后重试。"));
+                         tr("小车端未确认地图操作。已保留本地地图预览，可检查连接后重试。"));
   });
   return true;
 }
@@ -2830,6 +2878,17 @@ void MainWindow::HandleMapCommandResponse(const std::string& json_text) {
     pending_map_request_id_.clear();
     pending_map_yaml_path_.clear();
     pending_map_activation_ = false;
+    if (activate) {
+      if (open_map_btn_) {
+        open_map_btn_->setEnabled(true);
+        open_map_btn_->setText(tr("打开地图"));
+      }
+      if (command_center_widget_) {
+        command_center_widget_->SetExternalProfileSwitchBusy(
+            false, success ? tr("地图与 AMCL 已就绪") : tr("地图切换失败"),
+            success ? QStringLiteral("navigation") : QString());
+      }
+    }
 
     if (!success) {
       statusBar()->showMessage(tr("地图操作失败：%1").arg(message), 10000);
@@ -2853,9 +2912,7 @@ void MainWindow::HandleMapCommandResponse(const std::string& json_text) {
     if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
       robot->setVisible(false);
     }
-    if (!LoadMap(yaml_path.toStdString())) {
-      return;
-    }
+    LoadMap(yaml_path.toStdString());
     statusBar()->showMessage(
         tr("地图已在小车端加载。请标定小车的真实位置，确认后才可导航。"));
     if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {

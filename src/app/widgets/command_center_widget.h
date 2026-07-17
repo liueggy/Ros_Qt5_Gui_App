@@ -29,6 +29,8 @@ class CommandCenterWidget : public QWidget {
   void SetNetworkStatus(const std::string& json);
   void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
   void NotifyCameraFrameReceived();
+  void SetExternalProfileSwitchBusy(bool busy, const QString& message = QString(),
+                                    const QString& confirmedMode = QString());
 
  public slots:
   void AppendResponse(const std::string& json);
@@ -113,4 +115,5 @@ class CommandCenterWidget : public QWidget {
   bool mapping_profile_available_{false};
   bool navigation_profile_available_{false};
   bool inspection_profile_available_{false};
+  bool external_profile_switch_busy_{false};
 };

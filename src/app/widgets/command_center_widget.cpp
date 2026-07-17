@@ -573,6 +573,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     const bool active = normalized == QStringLiteral("mapping_slam");
     mapping_btn_->setText(active ? tr("当前：SLAM") : tr("SLAM 建图"));
     mapping_btn_->setEnabled(!profile_switch_tracker_.pending() &&
+                             !external_profile_switch_busy_ &&
                              mapping_profile_available_ && !active);
     mapping_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                        : UiStyle::SecondaryButtonStyleSheet());
@@ -581,6 +582,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     const bool active = normalized == QStringLiteral("static_nav");
     amcl_btn_->setText(active ? tr("当前：AMCL") : tr("AMCL 导航"));
     amcl_btn_->setEnabled(!profile_switch_tracker_.pending() &&
+                          !external_profile_switch_busy_ &&
                           navigation_profile_available_ && !active);
     amcl_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                     : UiStyle::SecondaryButtonStyleSheet());
@@ -589,6 +591,7 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     const bool active = normalized == QStringLiteral("inspection");
     inspection_btn_->setText(active ? tr("当前：巡检") : tr("巡检模式"));
     inspection_btn_->setEnabled(!profile_switch_tracker_.pending() &&
+                                !external_profile_switch_busy_ &&
                                 inspection_profile_available_ && !active);
     inspection_btn_->setStyleSheet(active ? UiStyle::MainButtonStyleSheet()
                                           : UiStyle::SecondaryButtonStyleSheet());
@@ -605,6 +608,17 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
       !profile_switch_tracker_.pending()) {
     pending_auto_mapping_start_ = false;
     QTimer::singleShot(0, this, [this]() { SendAutoMappingCommand(QStringLiteral("start")); });
+  }
+}
+
+void CommandCenterWidget::SetExternalProfileSwitchBusy(
+    bool busy, const QString& message, const QString& confirmedMode) {
+  external_profile_switch_busy_ = busy;
+  SetNavigationModeText(
+      busy ? QStringLiteral("switching")
+           : (confirmedMode.isEmpty() ? active_workspace_mode_ : confirmedMode));
+  if (!message.isEmpty()) {
+    SetStatusSummary(message);
   }
 }
 
@@ -1198,6 +1212,10 @@ void CommandCenterWidget::StartInspection() {
 
 void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
                                              const QString& target) {
+  if (external_profile_switch_busy_) {
+    SetStatusSummary(tr("地图切换尚未完成，请稍候"));
+    return;
+  }
   const QString request_id = QStringLiteral("qt-profile-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
   if (!profile_switch_tracker_.Begin(profile, request_id)) {
     return;
@@ -1208,7 +1226,7 @@ void CommandCenterWidget::BeginProfileSwitch(const QString& profile,
                               QString::fromUtf8(QJsonDocument(params).toJson(QJsonDocument::Compact)),
                               request_id));
   SetNavigationModeText(QStringLiteral("switching"));
-  QTimer::singleShot(30000, this, [this, request_id]() {
+  QTimer::singleShot(25000, this, [this, request_id]() {
     if (!profile_switch_tracker_.Timeout(request_id)) {
       return;
     }
