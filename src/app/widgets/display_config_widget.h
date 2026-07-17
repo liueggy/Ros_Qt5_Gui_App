@@ -94,6 +94,7 @@ signals:
   QColor robot_color_;
 
   QCheckBox *grid_visible_checkbox_{nullptr};
+  QCheckBox *discovery_animation_checkbox_{nullptr};
   QSlider *grid_spacing_slider_{nullptr};
   QSlider *grid_opacity_slider_{nullptr};
   QSlider *laser_size_slider_{nullptr};

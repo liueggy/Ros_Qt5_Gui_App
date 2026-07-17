@@ -84,6 +84,8 @@ class RosbridgeComm : public VirtualChannelNode {
   void TfCallback(const ROSBridgePublishMsg& msg);
 
   basic::RobotPose GetTransform(const std::string& from, const std::string& to);
+  bool TryGetTransform(const std::string& from, const std::string& to,
+                       basic::RobotPose* result);
   void GetRobotPose();
 
  private:

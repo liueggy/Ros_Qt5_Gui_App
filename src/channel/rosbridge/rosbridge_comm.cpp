@@ -854,6 +854,13 @@ basic::RobotPose RosbridgeComm::GetTransform(const std::string& from, const std:
   return tf2_.LookUpForTransform(from, to);
 }
 
+bool RosbridgeComm::TryGetTransform(const std::string& from,
+                                    const std::string& to,
+                                    basic::RobotPose* result) {
+  std::lock_guard<std::mutex> lock(tf_cache_mutex_);
+  return tf2_.TryLookUpForTransform(from, to, result);
+}
+
 /**
  * @brief 地图回调函数，处理占用栅格地图消息
  * @param msg ROSBridge消息
@@ -1058,15 +1065,34 @@ void RosbridgeComm::LaserCallback(const ROSBridgePublishMsg& msg) {
   // 提取角度参数
   double angle_min = msg_json["angle_min"].GetDouble();
   double angle_increment = msg_json["angle_increment"].GetDouble();
+  double range_min = 0.0;
+  double range_max = std::numeric_limits<double>::infinity();
+  if (msg_json.HasMember("range_min") && msg_json["range_min"].IsNumber()) {
+    range_min = msg_json["range_min"].GetDouble();
+  }
+  if (msg_json.HasMember("range_max") && msg_json["range_max"].IsNumber()) {
+    range_max = msg_json["range_max"].GetDouble();
+  }
+
+  std::string frame_id = "base_link";
+  if (msg_json.HasMember("header") && msg_json["header"].IsObject() &&
+      msg_json["header"].HasMember("frame_id") &&
+      msg_json["header"]["frame_id"].IsString()) {
+    frame_id = NormalizeFrameId(msg_json["header"]["frame_id"].GetString());
+  }
+  basic::RobotPose map_from_laser;
+  const bool transform_ready =
+      TryGetTransform("map", frame_id, &map_from_laser);
 
   // 转换激光扫描数据为点云
   basic::LaserScan laser_points;
   const auto& ranges = msg_json["ranges"];
   if (ranges.IsArray()) {
     for (rapidjson::SizeType i = 0; i < ranges.Size(); i++) {
+      if (!ranges[i].IsNumber()) continue;
       double dist = ranges[i].GetDouble();
       // 跳过无效距离值
-      if (std::isinf(dist)) continue;
+      if (!std::isfinite(dist) || dist < range_min || dist > range_max) continue;
 
       // 计算当前点的角度和坐标
       double angle = angle_min + i * angle_increment;
@@ -1076,10 +1102,14 @@ void RosbridgeComm::LaserCallback(const ROSBridgePublishMsg& msg) {
       basic::Point p;
       p.x = x;
       p.y = y;
+      if (transform_ready) {
+        p = basic::absoluteSum(map_from_laser, p);
+      }
       laser_points.push_back(p);
     }
   }
   laser_points.id = 0;
+  laser_points.points_in_map = transform_ready;
   PUBLISH_LATEST(MSG_ID_LASER_SCAN, laser_points);
 }
 

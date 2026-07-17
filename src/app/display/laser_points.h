@@ -20,6 +20,7 @@ class LaserPoints : public VirtualDisplay {
   bool SetDisplayConfig(const std::string &config_name,
                         const std::any &config_data) override;
   void UpdateLaserData(int id, const std::vector<Point>& data);
+  void ClearData();
   void SetVisualStyle(qreal point_size, int opacity, const QColor& color);
 
  private:

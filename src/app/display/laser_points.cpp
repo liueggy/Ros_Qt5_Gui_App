@@ -27,13 +27,20 @@ LaserPoints::~LaserPoints() {}
 
 void LaserPoints::computeBoundRect(
     const std::map<int, std::vector<Point>> &laser_scan) {
-  float xmax, xmin, ymax, ymin;
+  bool has_points = false;
+  float xmax = 0.0f;
+  float xmin = 0.0f;
+  float ymax = 0.0f;
+  float ymin = 0.0f;
   for (const auto& [id, points] : laser_scan) {
     if (points.empty())
       continue;
-    xmax = xmin = points[0].x;
-    ymax = ymin = points[0].y;
-    for (int i = 1; i < points.size(); ++i) {
+    if (!has_points) {
+      xmax = xmin = points[0].x;
+      ymax = ymin = points[0].y;
+      has_points = true;
+    }
+    for (size_t i = 0; i < points.size(); ++i) {
       Point p = points[i];
       xmax = xmax > p.x ? xmax : p.x;
       xmin = xmin < p.x ? xmin : p.x;
@@ -43,7 +50,8 @@ void LaserPoints::computeBoundRect(
   }
   // std::cout << "xmax:" << xmax << "xmin:" << xmin << "ymax:" << ymax
   //           << "ymin:" << ymin << std::endl;
-  SetBoundingRect(QRectF(0, 0, xmax, ymax));
+  SetBoundingRect(has_points ? QRectF(QPointF(xmin, ymin), QPointF(xmax, ymax))
+                             : QRectF());
 }
 bool LaserPoints::SetDisplayConfig(const std::string &config_name,
                                    const std::any &config_data) {
@@ -52,6 +60,12 @@ bool LaserPoints::SetDisplayConfig(const std::string &config_name,
 
 void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
   laser_data_scene_[id] = data;
+  computeBoundRect(laser_data_scene_);
+  update();
+}
+
+void LaserPoints::ClearData() {
+  laser_data_scene_.clear();
   computeBoundRect(laser_data_scene_);
   update();
 }

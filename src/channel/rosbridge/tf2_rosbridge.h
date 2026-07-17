@@ -22,7 +22,8 @@ class TF2Rosbridge {
   ~TF2Rosbridge() = default;
 
   void UpdateTF(const std::unordered_map<std::string, TransformData> &tf_cache);
-  
+  bool TryLookUpForTransform(const std::string &from, const std::string &to,
+                             basic::RobotPose *result);
   basic::RobotPose LookUpForTransform(const std::string &from, const std::string &to);
 
  private:

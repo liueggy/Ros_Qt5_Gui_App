@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <Eigen/Dense>
 #include <QFutureSynchronizer>
+#include <QTimeLine>
 #include "occupancy_map.h"
 #include "virtual_display.h"
 namespace Display {
@@ -38,11 +39,18 @@ class DisplayOccMap : public VirtualDisplay {
   void RestoreMapImageRegion(const QRectF &region, const QImage &image);
   QImage GetMapImage() const { return map_image_; }
   void SetMapImage(const QImage &image);
+  void SetDiscoveryAnimation(bool enabled, int duration_ms);
  private:
   OccupancyMap map_data_;
 
   QTransform transform_;
   QImage map_image_;
+  OccupancyMap rendered_map_;
+  bool rendered_map_valid_{false};
+  QImage discovery_overlay_;
+  QTimeLine *discovery_timeline_{nullptr};
+  bool discovery_animation_enabled_{true};
+  int discovery_animation_duration_ms_{280};
   Eigen::Vector3f sub_map_center_pose_;
   double sub_map_value_ = 1;
   bool is_draw_line_ = false;

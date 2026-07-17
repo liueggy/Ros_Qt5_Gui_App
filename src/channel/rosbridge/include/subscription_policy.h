@@ -10,10 +10,10 @@ struct TopicPolicy {
 // Visualization data may be sampled because rendering stale intermediate
 // frames adds latency without improving the operator's view. Command, safety,
 // mission and diagnostic topics intentionally do not use these policies.
-inline constexpr TopicPolicy kMap{1, 1000};
+inline constexpr TopicPolicy kMap{1, 500};
 inline constexpr TopicPolicy kLocalCostMap{1, 200};
 inline constexpr TopicPolicy kGlobalCostMap{1, 500};
-inline constexpr TopicPolicy kLaserScan{1, 125};
+inline constexpr TopicPolicy kLaserScan{1, 100};
 inline constexpr TopicPolicy kGlobalPath{1, 500};
 inline constexpr TopicPolicy kLocalPath{1, 100};
 inline constexpr TopicPolicy kOdometry{1, 50};

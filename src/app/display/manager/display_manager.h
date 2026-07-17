@@ -57,8 +57,11 @@ class DisplayManager : public QObject {
   SceneManager *scene_manager_ptr_;
   bool init_flag_ = {false};
   QElapsedTimer robot_pose_timer_;
+  QElapsedTimer laser_data_timer_;
   QTimer *freshness_timer_{nullptr};
   bool robot_pose_received_{false};
+  bool laser_data_received_{false};
+  bool laser_data_stale_{true};
 
 
  signals:
@@ -93,6 +96,7 @@ class DisplayManager : public QObject {
   void InitUi();
   void UpdateFreshnessStatus();
   std::vector<Point> transLaserPoint(const std::vector<Point> &point);
+  std::vector<Point> mapPointsToScene(const std::vector<Point> &point);
   QPushButton *btn_move_focus_;
 
  public:

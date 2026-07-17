@@ -703,6 +703,15 @@ QWidget* DisplayConfigWidget::CreateMapStylePage() {
   connect(grid_visible_checkbox_, &QCheckBox::toggled, this,
           [this](bool) { OnMapStyleChanged(); });
   grid_card.second->addWidget(grid_visible_checkbox_);
+  discovery_animation_checkbox_ =
+      new QCheckBox(tr("新探索区域渐显"), grid_card.first);
+  discovery_animation_checkbox_->setStyleSheet(
+      UiStyle::CheckBoxStyleSheet());
+  discovery_animation_checkbox_->setToolTip(
+      tr("关闭后新地图区域立即显示，适合偏好减少动态效果的用户"));
+  connect(discovery_animation_checkbox_, &QCheckBox::toggled, this,
+          [this](bool) { OnMapStyleChanged(); });
+  grid_card.second->addWidget(discovery_animation_checkbox_);
   add_slider(grid_card.second, grid_card.first, tr("栅格间距"), 16, 96,
              grid_spacing_slider_, grid_spacing_spin_, tr(" px"));
   add_slider(grid_card.second, grid_card.first, tr("栅格强度"), 0, 100,
@@ -1024,6 +1033,8 @@ void DisplayConfigWidget::OnMapStyleChanged() {
     style.grid_visible = grid_visible_checkbox_->isChecked();
     style.grid_spacing = grid_spacing_slider_->value();
     style.grid_opacity = grid_opacity_slider_->value();
+    style.discovery_animation =
+        discovery_animation_checkbox_->isChecked();
     style.laser_point_size = laser_size_slider_->value();
     style.laser_opacity = laser_opacity_slider_->value();
     style.path_line_width = path_width_slider_->value();
@@ -1048,6 +1059,9 @@ void DisplayConfigWidget::OnResetMapStyle() {
   grid_visible_checkbox_->blockSignals(true);
   grid_visible_checkbox_->setChecked(style.grid_visible);
   grid_visible_checkbox_->blockSignals(false);
+  discovery_animation_checkbox_->blockSignals(true);
+  discovery_animation_checkbox_->setChecked(style.discovery_animation);
+  discovery_animation_checkbox_->blockSignals(false);
   set_slider(grid_spacing_slider_, grid_spacing_spin_, style.grid_spacing);
   set_slider(grid_opacity_slider_, grid_opacity_spin_, style.grid_opacity);
   set_slider(laser_size_slider_, laser_size_spin_, style.laser_point_size);
@@ -1251,6 +1265,10 @@ void DisplayConfigWidget::LoadConfig() {
   grid_visible_checkbox_->blockSignals(true);
   grid_visible_checkbox_->setChecked(map_style.grid_visible);
   grid_visible_checkbox_->blockSignals(false);
+  discovery_animation_checkbox_->blockSignals(true);
+  discovery_animation_checkbox_->setChecked(
+      map_style.discovery_animation);
+  discovery_animation_checkbox_->blockSignals(false);
   load_style_slider(grid_spacing_slider_, grid_spacing_spin_, map_style.grid_spacing);
   load_style_slider(grid_opacity_slider_, grid_opacity_spin_, map_style.grid_opacity);
   load_style_slider(laser_size_slider_, laser_size_spin_, map_style.laser_point_size);

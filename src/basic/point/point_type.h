@@ -50,6 +50,7 @@ struct LaserScan {
   LaserScan(int i, std::vector<Point> d) : id(i), data(d) {}
   int id;                   // 激光ID
   std::vector<Point> data;  // 点坐标
+  bool points_in_map{false};  // true: data 已经由 TF 转换到 map 坐标系
   void push_back(Point p) { data.push_back(p); }
   void clear() { data.clear(); }
 };

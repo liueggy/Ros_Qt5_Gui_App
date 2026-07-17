@@ -81,18 +81,21 @@ struct MapStyleConfig {
   int grid_spacing = 32;
   int grid_opacity = 100;
   std::string grid_color = "#607D75";
-  int laser_point_size = 1;
-  int laser_opacity = 100;
+  int laser_point_size = 2;
+  int laser_opacity = 85;
   std::string laser_color = "#FF6347";
   int path_line_width = 1;
   std::string global_path_color = "#2563EB";
   std::string local_path_color = "#0F766E";
   int costmap_opacity = 100;
+  bool discovery_animation = true;
+  int discovery_animation_duration_ms = 280;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(
     MapStyleConfig, grid_visible, grid_spacing, grid_opacity,
     grid_color, laser_point_size, laser_opacity, laser_color,
-    path_line_width, global_path_color, local_path_color, costmap_opacity);
+    path_line_width, global_path_color, local_path_color, costmap_opacity,
+    discovery_animation, discovery_animation_duration_ms);
 
 struct ConfigRoot {
   std::vector<DisplayConfig> display_config;

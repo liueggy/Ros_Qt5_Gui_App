@@ -81,8 +81,13 @@ DisplayManager::DisplayManager() {
   SUBSCRIBE_QOBJECT(this, MSG_ID_LASER_SCAN, [this](const LaserScan& data) {
     auto* laser_display = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
     if (laser_display) {
-      std::vector<Point> transformed_points = transLaserPoint(data.data);
+      std::vector<Point> transformed_points =
+          data.points_in_map ? mapPointsToScene(data.data)
+                             : transLaserPoint(data.data);
       laser_display->UpdateLaserData(data.id, transformed_points);
+      laser_data_received_ = true;
+      laser_data_stale_ = false;
+      laser_data_timer_.restart();
     }
   });
 
@@ -176,6 +181,10 @@ void DisplayManager::SetMapStyleConfig(const Config::MapStyleConfig& config) {
     laser->SetVisualStyle(config.laser_point_size, config.laser_opacity,
                           QColor(QString::fromStdString(config.laser_color)));
   }
+  if (auto* map = dynamic_cast<DisplayOccMap*>(GetDisplay(DISPLAY_MAP))) {
+    map->SetDiscoveryAnimation(config.discovery_animation,
+                               config.discovery_animation_duration_ms);
+  }
   const auto apply_path_color = [this](const std::string& display_name,
                                        const std::string& color_text) {
     const QColor color(QString::fromStdString(color_text));
@@ -213,6 +222,19 @@ DisplayManager::transLaserPoint(const std::vector<Point>& point) {
     res.push_back(Point(x, y));
   }
   return res;
+}
+
+std::vector<Point>
+DisplayManager::mapPointsToScene(const std::vector<Point>& point) {
+  std::vector<Point> result;
+  result.reserve(point.size());
+  for (const auto& map_point : point) {
+    double x = 0.0;
+    double y = 0.0;
+    map_data_.xy2ScenePose(map_point.x, map_point.y, x, y);
+    result.emplace_back(x, y);
+  }
+  return result;
 }
 
 /**
@@ -366,13 +388,16 @@ void DisplayManager::UpdateFreshnessStatus() {
   auto* local_path = dynamic_cast<DisplayPath*>(GetDisplay(DISPLAY_LOCAL_PATH));
   auto* global_cost = dynamic_cast<DisplayCostMap*>(GetDisplay(DISPLAY_GLOBAL_COST_MAP));
   auto* local_cost = dynamic_cast<DisplayCostMap*>(GetDisplay(DISPLAY_LOCAL_COST_MAP));
-  if (!view || !global_path || !local_path || !global_cost || !local_cost) return;
+  auto* laser = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
+  if (!view || !global_path || !local_path || !global_cost || !local_cost ||
+      !laser) return;
 
   constexpr qint64 kPoseTimeoutMs = 750;
   constexpr qint64 kLocalPathTimeoutMs = 1200;
   constexpr qint64 kGlobalPathTimeoutMs = 2500;
   constexpr qint64 kLocalCostTimeoutMs = 1200;
   constexpr qint64 kGlobalCostTimeoutMs = 2500;
+  constexpr qint64 kLaserTimeoutMs = 500;
   const qint64 pose_age = robot_pose_received_ ? robot_pose_timer_.elapsed() : -1;
   const qint64 global_path_age = global_path->DataAgeMs();
   const qint64 local_path_age = local_path->DataAgeMs();
@@ -383,11 +408,17 @@ void DisplayManager::UpdateFreshnessStatus() {
   const bool local_path_stale = local_path_age < 0 || local_path_age > kLocalPathTimeoutMs;
   const bool global_cost_stale = global_cost_age < 0 || global_cost_age > kGlobalCostTimeoutMs;
   const bool local_cost_stale = local_cost_age < 0 || local_cost_age > kLocalCostTimeoutMs;
+  const bool laser_stale =
+      !laser_data_received_ || laser_data_timer_.elapsed() > kLaserTimeoutMs;
 
   global_path->SetDataStale(global_path_stale);
   local_path->SetDataStale(local_path_stale);
   global_cost->SetDataStale(global_cost_stale);
   local_cost->SetDataStale(local_cost_stale);
+  if (laser_stale && !laser_data_stale_) {
+    laser->ClearData();
+  }
+  laser_data_stale_ = laser_stale;
 
   auto age_text = [](qint64 age, bool stale) {
     if (age < 0) return QStringLiteral("等待");

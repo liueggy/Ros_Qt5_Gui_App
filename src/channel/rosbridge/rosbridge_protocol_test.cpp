@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "include/latest_value_queue.h"
@@ -10,6 +11,7 @@
 #include "include/rosbridge_contract.h"
 #include "include/ros_topic.h"
 #include "include/subscription_policy.h"
+#include "tf2_rosbridge.h"
 
 namespace {
 
@@ -80,6 +82,26 @@ TEST(RosbridgeSubscriptionPolicyTest, BoundsVisualizationQueuesAndLatency) {
 TEST(RosbridgeSubscriptionPolicyTest, DisablesUnavailableRos1TopologyTypes) {
   EXPECT_FALSE(
       rosbridge2cpp::subscription_policy::kRos1TopologyAvailable);
+}
+
+TEST(TF2RosbridgeTest, ReportsMissingTransformInsteadOfReturningFreshOrigin) {
+  rosbridge2cpp::TF2Rosbridge tf;
+  basic::RobotPose pose;
+  EXPECT_FALSE(tf.TryLookUpForTransform("map", "laser_frame", &pose));
+}
+
+TEST(TF2RosbridgeTest, ComposesMapToLaserIncludingMountOffset) {
+  rosbridge2cpp::TF2Rosbridge tf;
+  std::unordered_map<std::string, rosbridge2cpp::TransformData> transforms;
+  transforms["base_link"] = {1.0, 2.0, 0.0, "map"};
+  transforms["laser_frame"] = {0.05, 0.0, 0.0, "base_link"};
+  tf.UpdateTF(transforms);
+
+  basic::RobotPose pose;
+  ASSERT_TRUE(tf.TryLookUpForTransform("map", "laser_frame", &pose));
+  EXPECT_NEAR(pose.x, 1.05, 1e-9);
+  EXPECT_NEAR(pose.y, 2.0, 1e-9);
+  EXPECT_NEAR(pose.theta, 0.0, 1e-9);
 }
 
 TEST(RosTopicLifecycleTest, RecoversAfterSubscribeAndUnsubscribeSendFailures) {

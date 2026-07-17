@@ -99,34 +99,40 @@ std::vector<std::string> TF2Rosbridge::ShortestPath(const std::string &from, con
   return {};
 }
 
-basic::RobotPose TF2Rosbridge::LookUpForTransform(const std::string &from, const std::string &to) {
-  basic::RobotPose result;
-  result.x = 0.0;
-  result.y = 0.0;
-  result.theta = 0.0;
+bool TF2Rosbridge::TryLookUpForTransform(const std::string &from,
+                                        const std::string &to,
+                                        basic::RobotPose *result) {
+  if (!result) {
+    return false;
+  }
+  result->x = 0.0;
+  result->y = 0.0;
+  result->theta = 0.0;
 
   std::vector<std::string> path = ShortestPath(from, to);
   if (path.empty()) {
-    return result;
+    return false;
   }
 
-  for (size_t i = 0; i < path.size() - 1; i++) {
+  for (size_t i = 0; i + 1 < path.size(); ++i) {
     const std::string &curr = path[i];
     const std::string &next = path[i + 1];
-
-    if (adj_transform_.find(curr) == adj_transform_.end()) {
-      continue;
+    const auto current = adj_transform_.find(curr);
+    if (current == adj_transform_.end()) {
+      return false;
     }
-
-    const auto &transform_map = adj_transform_[curr];
-    if (transform_map.find(next) == transform_map.end()) {
-      continue;
+    const auto edge = current->second.find(next);
+    if (edge == current->second.end()) {
+      return false;
     }
-
-    const basic::RobotPose &transform = transform_map.at(next);
-    result = basic::absoluteSum(result, transform);
+    *result = basic::absoluteSum(*result, edge->second);
   }
+  return true;
+}
 
+basic::RobotPose TF2Rosbridge::LookUpForTransform(const std::string &from, const std::string &to) {
+  basic::RobotPose result;
+  TryLookUpForTransform(from, to, &result);
   return result;
 }
 

@@ -41,10 +41,15 @@ TEST(ConfigManagerTest, MapStyleColorsRoundTripAndOldConfigUsesDefaults) {
   EXPECT_EQ(restored.map_style_config.laser_color, "#ABCDEF");
   EXPECT_EQ(restored.map_style_config.global_path_color, "#102030");
   EXPECT_EQ(restored.map_style_config.local_path_color, "#0F766E");
+  EXPECT_TRUE(restored.map_style_config.discovery_animation);
+  EXPECT_EQ(restored.map_style_config.discovery_animation_duration_ms, 280);
 
   const auto legacy = nlohmann::json::object().get<Config::ConfigRoot>();
   EXPECT_EQ(legacy.map_style_config.grid_color, "#607D75");
   EXPECT_EQ(legacy.map_style_config.global_path_color, "#2563EB");
+  EXPECT_EQ(legacy.map_style_config.laser_point_size, 2);
+  EXPECT_EQ(legacy.map_style_config.laser_opacity, 85);
+  EXPECT_TRUE(legacy.map_style_config.discovery_animation);
 }
 
 TEST(TopologyMapTest, MissingPointHasSafeDefaultPose) {
