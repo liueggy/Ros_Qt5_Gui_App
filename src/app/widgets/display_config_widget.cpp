@@ -1155,7 +1155,12 @@ void DisplayConfigWidget::LoadConfig() {
     if (front == config.images.end()) {
       config.images.push_back({"front", "/camera/front/image/compressed", true});
     } else {
-      if (front->topic.empty()) front->topic = "/camera/front/image/compressed";
+      // Migrate the legacy raw camera stream to the RKNN annotated stream.
+      // Keep any other explicitly configured topic unchanged.
+      if (front->topic.empty() ||
+          front->topic == "/camera/front/image_source/compressed") {
+        front->topic = "/camera/front/image/compressed";
+      }
       front->enable = true;
     }
   });
