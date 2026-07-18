@@ -697,7 +697,9 @@ void MainWindow::registerChannel() {
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_LOCALIZATION_POSE,
                     [this](const LocalizationEstimate& estimate) {
-    CheckRelocationProgress(estimate);
+    const std::uint64_t sample_generation =
+        ++localization_sample_generation_;
+    CheckRelocationProgress(estimate, sample_generation);
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
@@ -806,6 +808,17 @@ void MainWindow::registerChannel() {
         SetInspectionRunning(false);
         active_mission_point_count_ = 0;
         active_mission_inspection_enabled_ = false;
+      }
+      if (AppContract::IsMissionTerminalStage(stage)) {
+        QTimer::singleShot(1200, this, [this, request_id]() {
+          if (!mission_tracker_.Matches(request_id)) {
+            return;
+          }
+          mission_tracker_.Finish(request_id);
+          SetInspectionRunning(false);
+          active_mission_point_count_ = 0;
+          active_mission_inspection_enabled_ = false;
+        });
       }
     }, Qt::QueuedConnection);
   });
@@ -2260,7 +2273,7 @@ void MainWindow::StartManualRelocation() {
   localization_confirmed_ = false;
   relocation_pending_ = false;
   ++relocation_attempt_id_;
-  relocation_stable_samples_ = 0;
+  relocation_min_sample_generation_ = localization_sample_generation_ + 1;
   UpdateInspectionRouteSummary();
   statusBar()->showMessage(tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
   display_manager_->StartReloc();
@@ -2271,12 +2284,6 @@ void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
     QMessageBox::information(
         this, tr("任务正在运行"),
         tr("请先停止当前导航任务，再发送兼容的 /goal_pose 单点目标。"));
-    return;
-  }
-  if (map_activation_requires_localization_ && !localization_confirmed_) {
-    QMessageBox::warning(
-        this, tr("尚未完成定位"),
-        tr("当前静态地图尚未完成重定位确认。请先在地图上标定小车的真实位置和朝向。"));
     return;
   }
   const QString request_id =
@@ -2616,7 +2623,7 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   const int attempt_id = ++relocation_attempt_id_;
   relocation_pending_ = true;
   relocation_target_ = pose;
-  relocation_stable_samples_ = 0;
+  relocation_min_sample_generation_ = localization_sample_generation_ + 1;
   relocation_elapsed_.restart();
   statusBar()->showMessage(
       tr("正在重定位到 (%1, %2, %3°)…")
@@ -2648,21 +2655,20 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   });
 }
 
-void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
+void MainWindow::CheckRelocationProgress(
+    const LocalizationEstimate& estimate,
+    std::uint64_t sample_generation) {
   if (!relocation_pending_) return;
   const auto evaluation =
       AppContract::EvaluateRelocationSample(relocation_target_, estimate);
-  if (evaluation.acceptable) {
-    ++relocation_stable_samples_;
-  } else {
-    relocation_stable_samples_ = 0;
+  if (!AppContract::IsRelocationConfirmationSample(
+          sample_generation, relocation_min_sample_generation_, evaluation)) {
+    return;
   }
-  if (relocation_stable_samples_ < 3) return;
 
   relocation_pending_ = false;
   localization_confirmed_ = true;
   UpdateInspectionRouteSummary();
-  map_activation_requires_localization_ = false;
   if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
     robot->setVisible(true);
   }
@@ -2902,7 +2908,6 @@ void MainWindow::HandleMapCommandResponse(const std::string& json_text) {
 
     localization_confirmed_ = false;
     UpdateInspectionRouteSummary();
-    map_activation_requires_localization_ = true;
     if (auto* robot = display_manager_->GetDisplay(DISPLAY_ROBOT)) {
       robot->setVisible(false);
     }

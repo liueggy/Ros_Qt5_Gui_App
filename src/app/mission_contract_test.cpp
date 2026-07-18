@@ -97,6 +97,16 @@ TEST(MissionContractTest, MissionTrackerCorrelatesAndRecoversFromTimeouts) {
   EXPECT_TRUE(tracker.requestId().isEmpty());
 }
 
+TEST(MissionContractTest, RecognizesEveryTerminalMissionStatus) {
+  EXPECT_TRUE(AppContract::IsMissionTerminalStage("completed"));
+  EXPECT_TRUE(AppContract::IsMissionTerminalStage("complete"));
+  EXPECT_TRUE(AppContract::IsMissionTerminalStage("cancelled"));
+  EXPECT_TRUE(AppContract::IsMissionTerminalStage("error"));
+  EXPECT_TRUE(AppContract::IsMissionTerminalStage("emergency_stopped"));
+  EXPECT_FALSE(AppContract::IsMissionTerminalStage("accepted"));
+  EXPECT_FALSE(AppContract::IsMissionTerminalStage("navigating"));
+}
+
 TEST(RelocationContractTest, AcceptsCovariancePublishedByQtInitialPose) {
   const basic::RobotPose target(1.0, 2.0, 0.5);
   basic::LocalizationEstimate estimate;
@@ -110,6 +120,20 @@ TEST(RelocationContractTest, AcceptsCovariancePublishedByQtInitialPose) {
   EXPECT_TRUE(evaluation.acceptable);
   EXPECT_DOUBLE_EQ(evaluation.distance, 0.0);
   EXPECT_DOUBLE_EQ(evaluation.angle_error, 0.0);
+}
+
+TEST(RelocationContractTest, ConfirmsFirstNewAcceptableAmclSample) {
+  AppContract::RelocationSampleEvaluation acceptable;
+  acceptable.acceptable = true;
+
+  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(41, 42,
+                                                            acceptable));
+  EXPECT_TRUE(AppContract::IsRelocationConfirmationSample(42, 42,
+                                                           acceptable));
+
+  acceptable.acceptable = false;
+  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(43, 42,
+                                                            acceptable));
 }
 
 TEST(RelocationContractTest, RejectsPositionAndHeadingMismatch) {

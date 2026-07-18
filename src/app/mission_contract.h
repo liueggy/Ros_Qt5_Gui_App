@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
+#include <cstdint>
 #include <cmath>
 #include <nlohmann/json.hpp>
 
@@ -15,6 +16,20 @@ struct RelocationSampleEvaluation {
   double angle_error = {0.0};
   bool acceptable = {false};
 };
+
+inline bool IsRelocationConfirmationSample(
+    std::uint64_t sample_generation,
+    std::uint64_t minimum_sample_generation,
+    const RelocationSampleEvaluation& evaluation) {
+  return sample_generation >= minimum_sample_generation &&
+         evaluation.acceptable;
+}
+
+inline bool IsMissionTerminalStage(const std::string& stage) {
+  return stage == "completed" || stage == "complete" ||
+         stage == "cancelled" || stage == "error" ||
+         stage == "emergency_stopped";
+}
 
 inline RelocationSampleEvaluation EvaluateRelocationSample(
     const basic::RobotPose& target,

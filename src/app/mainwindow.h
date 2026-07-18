@@ -28,6 +28,7 @@
 #include <QToolButton>
 #include <QTreeView>
 #include <QWidgetAction>
+#include <cstdint>
 #include <memory>
 #include <nlohmann/json_fwd.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -141,7 +142,6 @@ class MainWindow : public QMainWindow {
   QString pending_map_request_id_;
   QString pending_map_yaml_path_;
   bool pending_map_activation_ = {false};
-  bool map_activation_requires_localization_ = {false};
   bool relocation_pending_ = {false};
   bool localization_confirmed_ = {false};
   bool inspection_workspace_active_{false};
@@ -156,7 +156,8 @@ class MainWindow : public QMainWindow {
   bool previous_terminal_visible_{false};
   bool previous_front_camera_visible_{false};
   RobotPose relocation_target_;
-  int relocation_stable_samples_ = {0};
+  std::uint64_t localization_sample_generation_ = {0};
+  std::uint64_t relocation_min_sample_generation_ = {0};
   int relocation_attempt_id_ = {0};
   QElapsedTimer relocation_elapsed_;
 
@@ -191,7 +192,8 @@ class MainWindow : public QMainWindow {
   void SetInspectionRunning(bool running);
   void UpdateInspectionProgress(const nlohmann::json& data);
   void BeginRelocation(const RobotPose& pose);
-  void CheckRelocationProgress(const LocalizationEstimate& estimate);
+  void CheckRelocationProgress(const LocalizationEstimate& estimate,
+                               std::uint64_t sample_generation);
   bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);
 };
 #endif  // MAINWINDOW_H
