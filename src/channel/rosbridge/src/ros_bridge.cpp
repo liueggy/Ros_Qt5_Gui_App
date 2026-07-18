@@ -35,22 +35,29 @@ namespace rosbridge2cpp {
 
 	void ROSBridge::HandleIncomingPublishMessage(ROSBridgePublishMsg &data)
 	{
-		spinlock::scoped_lock_wait_for_short_task lock(change_topics_mutex_);
-
 		// Incoming topic message - dispatch to correct callback
 		std::string &incoming_topic_name = data.topic_;
-		if (registered_topic_callbacks_.find(incoming_topic_name) == registered_topic_callbacks_.end()) {
-			std::cerr << "[ROSBridge] Received message for topic " << incoming_topic_name << " where no callback has been registered before" << std::endl;
-			return;
-		}
 
 		if (data.msg_json_.IsNull()) {
 			std::cerr << "[ROSBridge] Received message for topic " << incoming_topic_name << ", but 'msg' field is missing. Aborting" << std::endl;
 			return;
 		}
 
-		// Iterate over all registered callbacks for the given topic
-		for (auto& topic_callback : registered_topic_callbacks_.find(incoming_topic_name)->second) {
+		std::list<ROSCallbackHandle<FunVrROSPublishMsg>> callbacks;
+		{
+			spinlock::scoped_lock_wait_for_short_task lock(change_topics_mutex_);
+			const auto found = registered_topic_callbacks_.find(incoming_topic_name);
+			if (found == registered_topic_callbacks_.end()) {
+				std::cerr << "[ROSBridge] Received message for topic " << incoming_topic_name << " where no callback has been registered before" << std::endl;
+				return;
+			}
+			callbacks = found->second;
+		}
+
+		// Business callbacks may parse maps or images. Execute them after
+		// releasing the topic registry lock so subscribe/unsubscribe and control
+		// publishing cannot inherit that work.
+		for (auto& topic_callback : callbacks) {
 			topic_callback.GetFunction()(data);
 		}
 		return;

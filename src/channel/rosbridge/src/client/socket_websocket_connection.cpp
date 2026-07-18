@@ -20,6 +20,8 @@ bool SocketWebSocketConnection::Init(std::string p_ip_addr, int p_port) {
   is_connected_ = false;
   last_receive_ms_ = 0;
   heartbeat_error_reported_ = false;
+  receive_overload_reported_ = false;
+  inbound_payloads_.Reset();
   ip_addr_ = p_ip_addr;
   port_ = p_port;
 
@@ -74,6 +76,11 @@ bool SocketWebSocketConnection::Init(std::string p_ip_addr, int p_port) {
     }
 
     std::cout << "[WebSocketConnection] Connected successfully" << std::endl;
+
+    // Keep JSON parsing and ROS callbacks away from the ASIO socket thread so
+    // outgoing control frames can be flushed while telemetry is processed.
+    dispatch_thread_ =
+        std::thread(&SocketWebSocketConnection::DispatchThreadFunction, this);
 
     // Setting up the receiver thread
     std::cout << "[WebSocketConnection] Setting up receiver thread..." << std::endl;
@@ -140,6 +147,35 @@ int SocketWebSocketConnection::ReceiverThreadFunction() {
   return 0;
 }
 
+void SocketWebSocketConnection::DispatchThreadFunction() {
+  std::string payload;
+  while (inbound_payloads_.WaitPop(&payload)) {
+    if (shutting_down_) break;
+
+    json document;
+    document.Parse(payload.c_str(), payload.size());
+    if (document.HasParseError()) {
+      std::cout << "[WebSocketConnection] JSON parse error - Ignoring message"
+                << std::endl;
+      continue;
+    }
+
+    std::string validation_error;
+    if (!validation::ValidateEnvelope(document, &validation_error)) {
+      std::cout << "[WebSocketConnection] Invalid rosbridge envelope: "
+                << validation_error << std::endl;
+      continue;
+    }
+
+    std::function<void(json&)> callback;
+    {
+      std::lock_guard<std::mutex> lock(callback_mutex_);
+      callback = incoming_message_callback_;
+    }
+    if (callback && !shutting_down_) callback(document);
+  }
+}
+
 bool SocketWebSocketConnection::IsHealthy() const {
   const long long last = last_receive_ms_.load();
   return is_connected_.load() && last > 0 &&
@@ -181,6 +217,7 @@ void SocketWebSocketConnection::Disconnect() {
     error_callback_ = nullptr;
     callback_function_defined_ = false;
   }
+  inbound_payloads_.Close();
   if (is_connected_) {
     try {
       websocketpp::lib::error_code ec;
@@ -200,6 +237,7 @@ void SocketWebSocketConnection::Disconnect() {
   if (asio_thread_ && asio_thread_->joinable()) asio_thread_->join();
   asio_thread_.reset();
   if (receiver_thread_.joinable()) receiver_thread_.join();
+  if (dispatch_thread_.joinable()) dispatch_thread_.join();
 }
 
 void SocketWebSocketConnection::on_open(connection_hdl hdl) {
@@ -232,34 +270,19 @@ void SocketWebSocketConnection::on_fail(connection_hdl hdl) {
 
 void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) {
   if (shutting_down_) return;
-  // Handle JSON messages
   const std::string& payload = msg->get_payload();
   if (payload.size() > validation::kMaxEnvelopeBytes) {
     std::cout << "[WebSocketConnection] Oversized JSON envelope - Ignoring message" << std::endl;
     return;
   }
-
-  json j;
-  j.Parse(payload.c_str());
-
-  if (j.HasParseError()) {
-    std::cout << "[WebSocketConnection] JSON parse error - Ignoring message" << std::endl;
-    return;
-  }
-  std::string validation_error;
-  if (!validation::ValidateEnvelope(j, &validation_error)) {
-    std::cout << "[WebSocketConnection] Invalid rosbridge envelope: "
-              << validation_error << std::endl;
-    return;
-  }
   last_receive_ms_ = SteadyMillisecondsNow();
-
-  std::function<void(json&)> callback;
-  {
-    std::lock_guard<std::mutex> lock(callback_mutex_);
-    callback = incoming_message_callback_;
+  if (!inbound_payloads_.Push(payload) &&
+      !receive_overload_reported_.exchange(true)) {
+    std::cout << "[WebSocketConnection] Inbound queue overloaded; reconnecting"
+              << std::endl;
+    is_connected_ = false;
+    ReportError(TransportError::R2C_SOCKET_ERROR);
   }
-  if (callback && !shutting_down_) callback(j);
 }
 
 bool SocketWebSocketConnection::on_pong(connection_hdl, std::string) {

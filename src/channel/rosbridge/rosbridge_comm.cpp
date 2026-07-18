@@ -597,7 +597,6 @@ void RosbridgeComm::ConnectAsync() {
   });
 
   SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_SET_ROBOT_SPEED, [this](const basic::RobotSpeed& speed) {
-    LOG_INFO("recv robot speed:" << speed);
     PubRobotSpeed(speed);
   });
 
@@ -762,12 +761,16 @@ void RosbridgeComm::ReconnectLoop() {
  * @brief 处理循环，定期更新机器人位姿
  */
 void RosbridgeComm::Process() {
-  std::lock_guard<std::mutex> transport_lock(transport_mutex_);
-  if (init_flag_ && ros_bridge_ && ros_bridge_->IsHealthy()) {
-    ApplyImageStreamVisibilityLocked();
-    ApplyDisplayStreamVisibilityLocked();
-    GetRobotPose();
+  bool healthy = false;
+  {
+    std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+    healthy = init_flag_ && ros_bridge_ && ros_bridge_->IsHealthy();
+    if (healthy) {
+      ApplyImageStreamVisibilityLocked();
+      ApplyDisplayStreamVisibilityLocked();
+    }
   }
+  if (healthy) GetRobotPose();
 }
 
 /**

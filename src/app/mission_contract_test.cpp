@@ -208,4 +208,29 @@ TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {
   EXPECT_FALSE(map_source.contains("map update calling:"));
 }
 
+TEST(RosbridgeLatencyContract, KeepsInboundWorkOffTheSocketThread) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile socket_source_file(test_source.dir().filePath(QStringLiteral(
+      "../channel/rosbridge/src/client/socket_websocket_connection.cpp")));
+  ASSERT_TRUE(
+      socket_source_file.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray socket_source = socket_source_file.readAll();
+
+  QFile bridge_source_file(test_source.dir().filePath(
+      QStringLiteral("../channel/rosbridge/src/ros_bridge.cpp")));
+  ASSERT_TRUE(
+      bridge_source_file.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray bridge_source = bridge_source_file.readAll();
+
+  QFile comm_source_file(test_source.dir().filePath(
+      QStringLiteral("../channel/rosbridge/rosbridge_comm.cpp")));
+  ASSERT_TRUE(comm_source_file.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray comm_source = comm_source_file.readAll();
+
+  EXPECT_TRUE(socket_source.contains("DispatchThreadFunction"));
+  EXPECT_TRUE(socket_source.contains("inbound_payloads_.Push(payload)"));
+  EXPECT_TRUE(bridge_source.contains("callbacks = found->second"));
+  EXPECT_FALSE(comm_source.contains("LOG_INFO(\"recv robot speed:"));
+}
+
 }  // namespace

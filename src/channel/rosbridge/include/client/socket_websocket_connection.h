@@ -12,6 +12,7 @@
 
 #include "rapidjson/document.h"
 
+#include "bounded_payload_queue.h"
 #include "itransport_layer.h"
 #include "types.h"
 
@@ -35,6 +36,7 @@ namespace rosbridge2cpp{
       bool Init(std::string p_ip_addr, int p_port);
       bool SendMessage(std::string data);
       int ReceiverThreadFunction();
+      void DispatchThreadFunction();
       void RegisterIncomingMessageCallback(std::function<void(json&)> fun);
       void RegisterErrorCallback(std::function<void(TransportError)> fun);
       void ReportError(TransportError err);
@@ -57,11 +59,14 @@ namespace rosbridge2cpp{
       websocketpp::lib::shared_ptr<websocketpp::lib::thread> asio_thread_;
       
       std::thread receiver_thread_;
+      std::thread dispatch_thread_;
       std::atomic_bool terminate_receiver_thread_ = {false};
       std::atomic_bool is_connected_ = {false};
       std::atomic_bool shutting_down_ = {false};
       std::atomic<long long> last_receive_ms_{0};
       std::atomic_bool heartbeat_error_reported_{false};
+      std::atomic_bool receive_overload_reported_{false};
+      BoundedPayloadQueue inbound_payloads_{128, 64U * 1024U * 1024U};
       bool callback_function_defined_ = false;
       
       std::function<void(json&)> incoming_message_callback_;

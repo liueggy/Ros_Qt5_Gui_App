@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/bounded_payload_queue.h"
 #include "include/display_subscription_policy.h"
 #include "include/latest_value_queue.h"
 #include "include/protocol_validation.h"
@@ -227,6 +228,40 @@ TEST(LatestValueQueueTest, ReplacesPendingValuePerKeyAndStaysBounded) {
   ASSERT_TRUE(queue.TryPop(&key, &value));
   EXPECT_EQ(key, "front");
   EXPECT_EQ(value, 2);
+}
+
+TEST(BoundedPayloadQueueTest, EnforcesMessageAndByteLimitsInFifoOrder) {
+  rosbridge2cpp::BoundedPayloadQueue queue(2, 5);
+  EXPECT_TRUE(queue.Push("ab"));
+  EXPECT_TRUE(queue.Push("cd"));
+  EXPECT_FALSE(queue.Push("e"));
+  EXPECT_EQ(queue.Size(), 2u);
+  EXPECT_EQ(queue.Bytes(), 4u);
+
+  std::string payload;
+  EXPECT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "ab");
+  EXPECT_TRUE(queue.Push("e"));
+  EXPECT_FALSE(queue.Push("abcdef"));
+  EXPECT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "cd");
+  EXPECT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "e");
+}
+
+TEST(BoundedPayloadQueueTest, CloseDropsStaleFramesAndResetAllowsReconnect) {
+  rosbridge2cpp::BoundedPayloadQueue queue(4, 64);
+  EXPECT_TRUE(queue.Push("stale-map"));
+  queue.Close();
+
+  std::string payload;
+  EXPECT_FALSE(queue.WaitPop(&payload));
+  EXPECT_FALSE(queue.Push("closed"));
+
+  queue.Reset();
+  EXPECT_TRUE(queue.Push("fresh-scan"));
+  EXPECT_TRUE(queue.WaitPop(&payload));
+  EXPECT_EQ(payload, "fresh-scan");
 }
 
 TEST(RosbridgeContractTest, KeepsCustomPrimaryCameraAndAvoidsDuplicateView) {
