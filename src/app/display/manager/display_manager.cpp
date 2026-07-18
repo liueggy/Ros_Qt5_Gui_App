@@ -72,10 +72,26 @@ DisplayManager::DisplayManager() {
   SUBSCRIBE_QOBJECT(this, MSG_ID_ROBOT_POSE, [this](const RobotPose& data) {
     // LOG_INFO("robot pose update:" << data.x << " " << data.y << " " << data.theta);
     if (!is_reloc_mode_) {
+      motion_visibility_filter_.SetAbsolutePose(data);
       UpdateRobotPose(data);
+      RefreshLaserFromRobotPose();
     }
     robot_pose_received_ = true;
     robot_pose_timer_.restart();
+  });
+
+  SUBSCRIBE_QOBJECT(this, MSG_ID_ODOM_POSE, [this](const RobotState& data) {
+    constexpr qint64 kAbsoluteAnchorTimeoutMs = 750;
+    const bool anchor_fresh = robot_pose_received_ &&
+                              robot_pose_timer_.isValid() &&
+                              robot_pose_timer_.elapsed() <=
+                                  kAbsoluteAnchorTimeoutMs;
+    const auto predicted =
+        motion_visibility_filter_.UpdateOdometry(data, anchor_fresh);
+    if (!is_reloc_mode_ && predicted.has_value()) {
+      UpdateRobotPose(*predicted);
+      RefreshLaserFromRobotPose();
+    }
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_LASER_SCAN, [this](const LaserScan& data) {
@@ -90,8 +106,10 @@ DisplayManager::DisplayManager() {
         }
       }
       std::vector<Point> transformed_points;
-      if (is_reloc_mode_ && !data.RelocationPreviewData().empty() &&
-          (!data.robot_relative_data.empty() || !data.points_in_map)) {
+      if (!data.robot_relative_data.empty()) {
+        transformed_points = transLaserPoint(data.robot_relative_data);
+      } else if (is_reloc_mode_ && !data.RelocationPreviewData().empty() &&
+                 !data.points_in_map) {
         transformed_points = transLaserPoint(data.RelocationPreviewData());
       } else {
         transformed_points = data.points_in_map
@@ -251,7 +269,18 @@ void DisplayManager::RefreshRelocationLaserPreview() {
     return;
   }
   for (const auto& entry : relocation_laser_cache_) {
-    laser_display->UpdateLaserData(entry.first, transLaserPoint(entry.second));
+    laser_display->UpdateLaserData(entry.first, transLaserPoint(entry.second),
+                                   false);
+  }
+}
+
+void DisplayManager::RefreshLaserFromRobotPose() {
+  if (relocation_laser_cache_.empty()) return;
+  auto* laser_display = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
+  if (!laser_display) return;
+  for (const auto& entry : relocation_laser_cache_) {
+    laser_display->UpdateLaserData(entry.first, transLaserPoint(entry.second),
+                                   false);
   }
 }
 

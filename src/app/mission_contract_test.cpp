@@ -1,5 +1,6 @@
 #include "app/mission_contract.h"
 #include "app/diagnostic_policy.h"
+#include "display/motion_visibility_filter.h"
 #include "map/occupancy_map.h"
 
 #include <gtest/gtest.h>
@@ -407,6 +408,90 @@ TEST(RosbridgeLatencyContract, KeepsInboundWorkOffTheSocketThread) {
   EXPECT_TRUE(socket_source.contains("inbound_payloads_.Push(payload)"));
   EXPECT_TRUE(bridge_source.contains("callbacks = found->second"));
   EXPECT_FALSE(comm_source.contains("LOG_INFO(\"recv robot speed:"));
+}
+
+TEST(MotionVisibilityFilterTest, AdvancesMapPoseFromOdometryAndReanchors) {
+  Display::MotionVisibilityFilter filter;
+  filter.SetAbsolutePose(basic::RobotPose(10.0, 20.0, 1.57079632679));
+  EXPECT_FALSE(filter.UpdateOdometry(basic::RobotPose(1.0, 2.0, 0.0)).has_value());
+
+  const auto advanced =
+      filter.UpdateOdometry(basic::RobotPose(2.0, 2.0, 0.1));
+  ASSERT_TRUE(advanced.has_value());
+  EXPECT_NEAR(advanced->x, 10.0, 1e-6);
+  EXPECT_NEAR(advanced->y, 21.0, 1e-6);
+  EXPECT_NEAR(advanced->theta, 1.67079632679, 1e-6);
+
+  filter.SetAbsolutePose(basic::RobotPose(9.8, 20.8, 1.6));
+  const auto corrected = filter.pose();
+  EXPECT_DOUBLE_EQ(corrected.x, 9.8);
+  EXPECT_DOUBLE_EQ(corrected.y, 20.8);
+  EXPECT_DOUBLE_EQ(corrected.theta, 1.6);
+}
+
+TEST(MotionVisibilityFilterTest, RejectsImplausibleOdomJump) {
+  Display::MotionVisibilityFilter filter;
+  filter.SetAbsolutePose(basic::RobotPose(0.0, 0.0, 0.0));
+  filter.UpdateOdometry(basic::RobotPose(0.0, 0.0, 0.0));
+  EXPECT_FALSE(
+      filter.UpdateOdometry(basic::RobotPose(3.0, 0.0, 0.0)).has_value());
+  EXPECT_DOUBLE_EQ(filter.pose().x, 0.0);
+}
+
+TEST(MotionVisibilityFilterTest, StopsPredictionWhenAbsoluteAnchorIsStale) {
+  Display::MotionVisibilityFilter filter;
+  filter.SetAbsolutePose(basic::RobotPose(1.0, 2.0, 0.0));
+  filter.UpdateOdometry(basic::RobotPose(0.0, 0.0, 0.0));
+  EXPECT_FALSE(filter.UpdateOdometry(basic::RobotPose(0.1, 0.0, 0.0),
+                                     false).has_value());
+  EXPECT_DOUBLE_EQ(filter.pose().x, 1.0);
+}
+
+TEST(ModeContractTest, AutoMappingCannotSwitchItselfOutOfNavigation) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile source(test_source.dir().filePath(
+      QStringLiteral("widgets/command_center_widget.cpp")));
+  ASSERT_TRUE(source.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray text = source.readAll();
+  const int begin = text.indexOf("void CommandCenterWidget::StartAutoMapping");
+  const int end = text.indexOf("void CommandCenterWidget::PauseResumeAutoMapping");
+  ASSERT_GE(begin, 0);
+  ASSERT_GT(end, begin);
+  const QByteArray handler = text.mid(begin, end - begin);
+  EXPECT_TRUE(handler.contains(
+      "active_workspace_mode_ != QStringLiteral(\"mapping_slam\")"));
+  EXPECT_FALSE(handler.contains("pending_auto_mapping_start_ = true;"));
+  EXPECT_FALSE(handler.contains("BeginProfileSwitch"));
+}
+
+TEST(CameraRenderingContract, NeverResizesAWidgetDuringPaint) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile source(test_source.dir().filePath(
+      QStringLiteral("widgets/ratio_layouted_frame.cpp")));
+  ASSERT_TRUE(source.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray text = source.readAll();
+  const int begin = text.indexOf("void RatioLayoutedFrame::paintEvent");
+  const int end = text.indexOf("int RatioLayoutedFrame::greatestCommonDivisor");
+  ASSERT_GE(begin, 0);
+  ASSERT_GT(end, begin);
+  EXPECT_FALSE(text.mid(begin, end - begin).contains("resizeToFitAspectRatio"));
+}
+
+TEST(RosbridgeFreshnessContract, DoesNotRepublishAnUnchangedOrExpiredTf) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile source(test_source.dir().filePath(
+      QStringLiteral("../channel/rosbridge/rosbridge_comm.cpp")));
+  ASSERT_TRUE(source.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray text = source.readAll();
+  const int begin = text.indexOf("void RosbridgeComm::GetRobotPose");
+  const int end = text.indexOf("void RosbridgeComm::TfCallback");
+  ASSERT_GE(begin, 0);
+  ASSERT_GT(end, begin);
+  const QByteArray handler = text.mid(begin, end - begin);
+  EXPECT_TRUE(handler.contains("tf_cache_updated_at_"));
+  EXPECT_TRUE(handler.contains("published_pose_tf_generation_ == tf_generation_"));
+  EXPECT_TRUE(handler.contains("TryLookUpForTransform"));
+  EXPECT_FALSE(handler.contains("GetTransform(\"map\""));
 }
 
 }  // namespace

@@ -59,11 +59,12 @@ QImage RatioLayoutedFrame::getImageCopy() const {
 
 void RatioLayoutedFrame::setImage(const QImage& image)  //, QMutex* image_mutex)
 {
-  qimage_mutex_.lock();
-  qimage_ = image.copy();
-  setAspectRatio(qimage_.width(), qimage_.height());
-  qimage_mutex_.unlock();
-  emit delayed_update();
+  {
+    QMutexLocker lock(&qimage_mutex_);
+    qimage_ = image.copy();
+    setAspectRatio(qimage_.width(), qimage_.height());
+  }
+  update();
 }
 
 void RatioLayoutedFrame::resizeToFitAspectRatio() {
@@ -136,21 +137,21 @@ void RatioLayoutedFrame::setAspectRatio(unsigned short width, unsigned short hei
 
 void RatioLayoutedFrame::paintEvent(QPaintEvent* event) {
   QPainter painter(this);
-  qimage_mutex_.lock();
-  if (!qimage_.isNull()) {
-    resizeToFitAspectRatio();
-    // TODO: check if full draw is really necessary
-    //QPaintEvent* paint_event = dynamic_cast<QPaintEvent*>(event);
-    //painter.drawImage(paint_event->rect(), qimage_);
+  QImage image;
+  {
+    QMutexLocker lock(&qimage_mutex_);
+    image = qimage_;
+  }
+  if (!image.isNull()) {
+    const QRect target = getAspectRatioCorrectPaintArea();
     if (!smoothImage_) {
-      painter.drawImage(contentsRect(), qimage_);
+      painter.drawImage(target, image);
     } else {
-      if (contentsRect().width() == qimage_.width()) {
-        painter.drawImage(contentsRect(), qimage_);
+      if (target.size() == image.size()) {
+        painter.drawImage(target, image);
       } else {
-        QImage image = qimage_.scaled(contentsRect().width(), contentsRect().height(),
-                                      Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        painter.drawImage(contentsRect(), image);
+        painter.drawImage(target, image.scaled(target.size(), Qt::KeepAspectRatio,
+                                               Qt::SmoothTransformation));
       }
     }
   } else {
@@ -161,7 +162,28 @@ void RatioLayoutedFrame::paintEvent(QPaintEvent* event) {
     painter.setBrush(gradient);
     painter.drawRect(0, 0, frameRect().width() + 1, frameRect().height() + 1);
   }
-  qimage_mutex_.unlock();
+}
+
+QRect RatioLayoutedFrame::getAspectRatioCorrectPaintArea() {
+  QRect target = contentsRect();
+  if (aspect_ratio_.width() <= 0 || aspect_ratio_.height() <= 0 ||
+      target.width() <= 0 || target.height() <= 0) {
+    return target;
+  }
+  const double image_ratio = static_cast<double>(aspect_ratio_.width()) /
+                             aspect_ratio_.height();
+  const double target_ratio = static_cast<double>(target.width()) /
+                              target.height();
+  if (target_ratio > image_ratio) {
+    const int width = static_cast<int>(target.height() * image_ratio + 0.5);
+    target.setLeft(target.left() + (target.width() - width) / 2);
+    target.setWidth(width);
+  } else {
+    const int height = static_cast<int>(target.width() / image_ratio + 0.5);
+    target.setTop(target.top() + (target.height() - height) / 2);
+    target.setHeight(height);
+  }
+  return target;
 }
 
 int RatioLayoutedFrame::greatestCommonDivisor(int a, int b) {

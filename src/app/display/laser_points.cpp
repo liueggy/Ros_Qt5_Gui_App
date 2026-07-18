@@ -28,7 +28,21 @@ void LaserPoints::paint(QPainter *painter,
 
 LaserPoints::~LaserPoints() {}
 
-void LaserPoints::computeBoundRect(bool reset) {
+QRectF LaserPoints::computeBoundRect(bool reset) {
+  const QRectF frame_bounds = dataBounds();
+  const QRectF next_bounds =
+      reset || bounding_rect_.isEmpty()
+          ? frame_bounds
+          : (frame_bounds.isEmpty() ? bounding_rect_
+                                    : bounding_rect_.united(frame_bounds));
+  if (bounding_rect_ != next_bounds) {
+    prepareGeometryChange();
+    bounding_rect_ = next_bounds;
+  }
+  return frame_bounds;
+}
+
+QRectF LaserPoints::dataBounds() const {
   bool has_points = false;
   float xmax = 0.0f;
   float xmin = 0.0f;
@@ -54,46 +68,36 @@ void LaserPoints::computeBoundRect(bool reset) {
   include_scan(previous_laser_data_scene_);
   include_scan(laser_data_scene_);
   const qreal margin = (std::max)(1.0, point_size_);
-  const QRectF frame_bounds =
+  return
       has_points
           ? QRectF(QPointF(xmin, ymin), QPointF(xmax, ymax))
                 .normalized()
                 .adjusted(-margin, -margin, margin, margin)
           : QRectF();
-  // A scan's extrema vary slightly from frame to frame. Shrinking and growing
-  // the item on every scan makes QGraphicsScene rebuild its spatial index and
-  // produces visible stop/go rendering. Keep a stable, monotonically expanding
-  // extent during a session; ClearData() is the deliberate reset boundary.
-  const QRectF next_bounds =
-      reset || bounding_rect_.isEmpty()
-          ? frame_bounds
-          : (frame_bounds.isEmpty() ? bounding_rect_
-                                    : bounding_rect_.united(frame_bounds));
-  if (bounding_rect_ != next_bounds) {
-    prepareGeometryChange();
-    bounding_rect_ = next_bounds;
-  }
 }
 bool LaserPoints::SetDisplayConfig(const std::string &config_name,
                                    const std::any &config_data) {
   return true;
 }
 
-void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data) {
+void LaserPoints::UpdateLaserData(int id, const std::vector<Point>& data,
+                                  bool advance_history) {
+  const QRectF old_bounds = dataBounds();
   const auto current = laser_data_scene_.find(id);
-  if (current != laser_data_scene_.end()) {
+  if (advance_history && current != laser_data_scene_.end()) {
     previous_laser_data_scene_[id] = current->second;
   }
   laser_data_scene_[id] = data;
-  computeBoundRect();
-  update();
+  const QRectF new_bounds = computeBoundRect();
+  update(old_bounds.united(new_bounds));
 }
 
 void LaserPoints::ClearData() {
+  const QRectF old_bounds = dataBounds();
   laser_data_scene_.clear();
   previous_laser_data_scene_.clear();
   computeBoundRect(true);
-  update();
+  update(old_bounds);
 }
 
 void LaserPoints::SetVisualStyle(qreal point_size, int opacity, const QColor& color) {

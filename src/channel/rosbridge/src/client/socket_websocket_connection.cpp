@@ -9,6 +9,42 @@ long long SteadyMillisecondsNow() {
 }
 constexpr auto kHeartbeatInterval = std::chrono::seconds(5);
 constexpr auto kReceiveDeadline = std::chrono::seconds(15);
+
+std::string ExtractJsonStringField(const std::string& payload,
+                                   const std::string& field) {
+  const std::string marker = "\"" + field + "\"";
+  const auto field_pos = payload.find(marker);
+  if (field_pos == std::string::npos) return {};
+  const auto colon = payload.find(':', field_pos + marker.size());
+  if (colon == std::string::npos) return {};
+  const auto quote = payload.find('"', colon + 1);
+  if (quote == std::string::npos) return {};
+  const auto end = payload.find('"', quote + 1);
+  if (end == std::string::npos) return {};
+  return payload.substr(quote + 1, end - quote - 1);
+}
+
+bool IsPriorityTopic(const std::string& topic) {
+  return topic == "/eggy/command/response" ||
+         topic == "/eggy/command/status" ||
+         topic == "/eggy/cmd_vel/control" ||
+         topic == "/base/flag_stop";
+}
+
+std::string LatestValueKey(const std::string& payload,
+                           const std::string& topic) {
+  if (topic == "/tf") {
+    const std::string child = ExtractJsonStringField(payload, "child_frame_id");
+    return child.empty() ? std::string() : topic + ":" + child;
+  }
+  if (topic == "/scan" || topic == "/odom" || topic == "/amcl_pose" ||
+      topic == "/map" || topic.find("costmap") != std::string::npos ||
+      topic.find("/plan") != std::string::npos ||
+      topic.find("/image") != std::string::npos) {
+    return topic;
+  }
+  return {};
+}
 }  // namespace
 
 namespace rosbridge2cpp {
@@ -276,7 +312,14 @@ void SocketWebSocketConnection::on_message(connection_hdl hdl, message_ptr msg) 
     return;
   }
   last_receive_ms_ = SteadyMillisecondsNow();
-  if (!inbound_payloads_.Push(payload) &&
+  const std::string topic = ExtractJsonStringField(payload, "topic");
+  const std::string latest_key = LatestValueKey(payload, topic);
+  const bool queued = IsPriorityTopic(topic)
+                          ? inbound_payloads_.PushPriority(payload)
+                          : (!latest_key.empty()
+                                 ? inbound_payloads_.PushLatest(latest_key, payload)
+                                 : inbound_payloads_.Push(payload));
+  if (!queued &&
       !receive_overload_reported_.exchange(true)) {
     std::cout << "[WebSocketConnection] Inbound queue overloaded; reconnecting"
               << std::endl;

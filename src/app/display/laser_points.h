@@ -20,7 +20,8 @@ class LaserPoints : public VirtualDisplay {
              QWidget *widget = nullptr) override;
   bool SetDisplayConfig(const std::string &config_name,
                         const std::any &config_data) override;
-  void UpdateLaserData(int id, const std::vector<Point>& data);
+  void UpdateLaserData(int id, const std::vector<Point>& data,
+                       bool advance_history = true);
   void ClearData();
   void SetVisualStyle(qreal point_size, int opacity, const QColor& color);
 
@@ -28,7 +29,8 @@ class LaserPoints : public VirtualDisplay {
   void Id2Color(int id, int &R, int &G, int &B);
   void drawLaser(QPainter *painter, int id, const std::vector<Point>& data,
                  qreal opacity_scale = 1.0);
-  void computeBoundRect(bool reset = false);
+  QRectF computeBoundRect(bool reset = false);
+  QRectF dataBounds() const;
 
  private:
   std::map<int, QColor> location_to_color_;

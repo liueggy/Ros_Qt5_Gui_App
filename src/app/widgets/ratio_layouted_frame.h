@@ -38,6 +38,7 @@
 #include <QLayout>
 #include <QLayoutItem>
 #include <QMutex>
+#include <QMutexLocker>
 #include <QPainter>
 #include <QRect>
 #include <QSize>

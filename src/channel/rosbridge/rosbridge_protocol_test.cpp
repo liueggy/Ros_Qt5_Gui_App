@@ -300,6 +300,35 @@ TEST(BoundedPayloadQueueTest, CloseDropsStaleFramesAndResetAllowsReconnect) {
   EXPECT_EQ(payload, "fresh-scan");
 }
 
+TEST(BoundedPayloadQueueTest, LatestValuesReplaceQueuedTelemetryInPlace) {
+  rosbridge2cpp::BoundedPayloadQueue queue(4, 64);
+  ASSERT_TRUE(queue.PushLatest("/scan", "scan-old"));
+  ASSERT_TRUE(queue.Push("command"));
+  ASSERT_TRUE(queue.PushLatest("/scan", "scan-new"));
+  EXPECT_EQ(queue.Size(), 2U);
+
+  std::string payload;
+  ASSERT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "scan-new");
+  ASSERT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "command");
+}
+
+TEST(BoundedPayloadQueueTest, PriorityMessagesJumpAheadOfTelemetry) {
+  rosbridge2cpp::BoundedPayloadQueue queue(4, 64);
+  ASSERT_TRUE(queue.PushLatest("/map", "map"));
+  ASSERT_TRUE(queue.PushPriority("safety-1"));
+  ASSERT_TRUE(queue.PushPriority("safety-2"));
+
+  std::string payload;
+  ASSERT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "safety-1");
+  ASSERT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "safety-2");
+  ASSERT_TRUE(queue.TryPop(&payload));
+  EXPECT_EQ(payload, "map");
+}
+
 TEST(RosbridgeContractTest, KeepsCustomPrimaryCameraAndAvoidsDuplicateView) {
   struct ImageConfig {
     std::string location;

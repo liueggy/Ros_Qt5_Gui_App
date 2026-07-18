@@ -1022,10 +1022,10 @@ void MainWindow::RecvChannelMsg(const MsgId& id, const std::any& data) {
 }
 
 void MainWindow::SlotRecvImage(const std::string& location, std::shared_ptr<cv::Mat> data) {
-  if (data && !data->empty() && image_frame_map_.count(location)) {
-    if (location == "front" && command_center_widget_) {
-      command_center_widget_->NotifyCameraFrameReceived();
-    }
+  if (data && !data->empty() && data->type() == CV_8UC3 &&
+      data->cols > 0 && data->rows > 0 &&
+      data->step[0] >= static_cast<std::size_t>(data->cols * 3) &&
+      image_frame_map_.count(location)) {
     // 帧节流：同源摄像头最小间隔 33ms（约30FPS），避免高频无效渲染
     constexpr qint64 kMinFrameIntervalMs = 33;
     qint64 now = QDateTime::currentMSecsSinceEpoch();
@@ -1036,6 +1036,9 @@ void MainWindow::SlotRecvImage(const std::string& location, std::shared_ptr<cv::
     last_frame_times_[location] = now;
     QImage image(data->data, data->cols, data->rows, data->step[0], QImage::Format_RGB888);
     image_frame_map_[location]->setImage(image);
+    if (location == "front" && command_center_widget_) {
+      command_center_widget_->NotifyCameraFrameReceived();
+    }
   }
 }
 void MainWindow::closeChannel() {

@@ -402,13 +402,13 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   root->addStretch(1);
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
-    QMetaObject::invokeMethod(this, [this, json]() { AppendResponse(json); }, Qt::QueuedConnection);
+    AppendResponse(json);
   });
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_STATUS, [this](const std::string& json) {
-    QMetaObject::invokeMethod(this, [this, json]() { UpdateStatus(json); }, Qt::QueuedConnection);
+    UpdateStatus(json);
   });
   SUBSCRIBE_QOBJECT(this, MSG_ID_CMD_VEL_CONTROL, [this](const std::string& json) {
-    QMetaObject::invokeMethod(this, [this, json]() { UpdateMotionOwner(json); }, Qt::QueuedConnection);
+    UpdateMotionOwner(json);
   });
   SUBSCRIBE_QOBJECT(
       this, MSG_ID_CHANNEL_PUBLISH_RESULT,
@@ -610,13 +610,11 @@ void CommandCenterWidget::SetNavigationModeText(const QString& mode) {
     active_workspace_mode_ = normalized;
     emit WorkspaceModeRequested(normalized);
   }
+  if (normalized != QStringLiteral("mapping_slam")) {
+    pending_auto_mapping_start_ = false;
+  }
   RefreshDiagnosticSnapshot();
   RefreshAutoMappingControls();
-  if (pending_auto_mapping_start_ && normalized == QStringLiteral("mapping_slam") &&
-      !profile_switch_tracker_.pending()) {
-    pending_auto_mapping_start_ = false;
-    QTimer::singleShot(0, this, [this]() { SendAutoMappingCommand(QStringLiteral("start")); });
-  }
 }
 
 void CommandCenterWidget::SetExternalProfileSwitchBusy(
@@ -726,6 +724,18 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
                            tr("请检查图像话题、网络带宽和 ROSBridge 订阅状态。"));
         });
       }
+    }
+
+    if (!success && command.startsWith(QStringLiteral("auto_mapping_")) &&
+        request_id == auto_mapping_request_id_) {
+      if (command == QStringLiteral("auto_mapping_start")) {
+        auto_mapping_state_ = QStringLiteral("rejected");
+      }
+      if (auto_mapping_message_label_) {
+        auto_mapping_message_label_->setText(
+            obj.value("message").toString(tr("自动建图请求被拒绝")));
+      }
+      RefreshAutoMappingControls();
     }
 
     QString text = QString("%1\n命令: %2  目标: %3")
@@ -999,6 +1009,10 @@ void CommandCenterWidget::SendStatusRequest() {
 }
 
 void CommandCenterWidget::StartAutoMapping() {
+  if (active_workspace_mode_ != QStringLiteral("mapping_slam")) {
+    pending_auto_mapping_start_ = false;
+    return;
+  }
   if (auto_mapping_state_ != QStringLiteral("idle") &&
       auto_mapping_state_ != QStringLiteral("completed") &&
       auto_mapping_state_ != QStringLiteral("cancelled") &&
@@ -1014,12 +1028,6 @@ void CommandCenterWidget::StartAutoMapping() {
     return;
   }
   auto_mapping_request_id_ = QStringLiteral("qt-auto-map-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
-  if (active_workspace_mode_ != QStringLiteral("mapping_slam")) {
-    pending_auto_mapping_start_ = true;
-    SetStatusSummary(tr("正在切换建图模式，切换完成后将自动开始"));
-    BeginProfileSwitch(QStringLiteral("mapping"), QStringLiteral("mapping"));
-    return;
-  }
   SendAutoMappingCommand(QStringLiteral("start"));
 }
 
@@ -1075,14 +1083,17 @@ void CommandCenterWidget::RefreshAutoMappingControls() {
                       auto_mapping_state_ == QStringLiteral("final_scan") ||
                       auto_mapping_state_ == QStringLiteral("saving");
   const bool paused = auto_mapping_state_ == QStringLiteral("paused");
-  auto_mapping_start_btn_->setEnabled(mapping_profile_available_ && !active && !paused &&
+  const bool mapping_mode_active =
+      active_workspace_mode_ == QStringLiteral("mapping_slam");
+  auto_mapping_start_btn_->setEnabled(mapping_mode_active &&
+                                      mapping_profile_available_ && !active && !paused &&
                                       !profile_switch_tracker_.pending());
   auto_mapping_pause_btn_->setEnabled(active || paused);
   auto_mapping_pause_btn_->setText(paused ? tr("继续") : tr("暂停"));
   auto_mapping_stop_btn_->setEnabled(active || paused);
-  auto_mapping_duration_spin_->setEnabled(!active && !paused);
-  auto_mapping_speed_spin_->setEnabled(!active && !paused);
-  auto_mapping_return_home_check_->setEnabled(!active && !paused);
+  auto_mapping_duration_spin_->setEnabled(mapping_mode_active && !active && !paused);
+  auto_mapping_speed_spin_->setEnabled(mapping_mode_active && !active && !paused);
+  auto_mapping_return_home_check_->setEnabled(mapping_mode_active && !active && !paused);
   const bool show_runtime = active || paused ||
                             auto_mapping_state_ == QStringLiteral("completed") ||
                             auto_mapping_state_ == QStringLiteral("cancelled") ||

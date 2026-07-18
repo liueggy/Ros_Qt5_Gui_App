@@ -27,6 +27,7 @@
 #include "display/manager/view_manager.h"
 #include "display/display_cost_map.h"
 #include "display/manager/display_factory.h"
+#include "display/motion_visibility_filter.h"
 #include "display/display_occ_map.h"
 #include "display/display_path.h"
 #include "display/laser_points.h"
@@ -64,6 +65,7 @@ class DisplayManager : public QObject {
   bool laser_data_stale_{true};
   bool laser_data_cleared_{true};
   std::map<int, std::vector<Point>> relocation_laser_cache_;
+  MotionVisibilityFilter motion_visibility_filter_;
 
 
  signals:
@@ -100,6 +102,7 @@ class DisplayManager : public QObject {
   std::vector<Point> transLaserPoint(const std::vector<Point> &point);
   std::vector<Point> mapPointsToScene(const std::vector<Point> &point);
   void RefreshRelocationLaserPreview();
+  void RefreshLaserFromRobotPose();
   QPushButton *btn_move_focus_;
 
  public:

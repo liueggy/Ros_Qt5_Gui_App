@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -114,6 +115,10 @@ class RosbridgeComm : public VirtualChannelNode {
   mutable std::mutex transport_mutex_;
 
   std::unordered_map<std::string, TransformData> tf_cache_;
+  std::unordered_map<std::string, std::chrono::steady_clock::time_point>
+      tf_cache_updated_at_;
+  std::uint64_t tf_generation_{0};
+  std::uint64_t published_pose_tf_generation_{0};
   std::mutex tf_cache_mutex_;
   TF2Rosbridge tf2_;
   basic::DiagnosticSnapshot diagnostic_snapshot_cache_;

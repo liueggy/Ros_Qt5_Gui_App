@@ -777,7 +777,19 @@ void RosbridgeComm::Process() {
  */
 void RosbridgeComm::GetRobotPose() {
   std::string base_frame = GET_CONFIG_VALUE("BaseFrameId", "base_link");
-  auto pose = GetTransform("map", base_frame);
+  basic::RobotPose pose;
+  {
+    std::lock_guard<std::mutex> lock(tf_cache_mutex_);
+    const auto updated = tf_cache_updated_at_.find(NormalizeFrameId(base_frame));
+    if (updated == tf_cache_updated_at_.end() ||
+        std::chrono::steady_clock::now() - updated->second >
+            std::chrono::milliseconds(750) ||
+        published_pose_tf_generation_ == tf_generation_ ||
+        !tf2_.TryLookUpForTransform("map", base_frame, &pose)) {
+      return;
+    }
+    published_pose_tf_generation_ = tf_generation_;
+  }
   PUBLISH_LATEST(MSG_ID_ROBOT_POSE, pose);
 }
 
@@ -795,6 +807,8 @@ void RosbridgeComm::TfCallback(const ROSBridgePublishMsg& msg) {
   if (!transforms.IsArray()) return;
 
   std::lock_guard<std::mutex> lock(tf_cache_mutex_);
+  bool cache_changed = false;
+  const auto received_at = std::chrono::steady_clock::now();
 
   // 遍历所有变换并更新缓存
   for (rapidjson::SizeType i = 0; i < transforms.Size(); i++) {
@@ -805,7 +819,8 @@ void RosbridgeComm::TfCallback(const ROSBridgePublishMsg& msg) {
       continue;
     }
 
-    std::string child_frame = transform_stamped["child_frame_id"].GetString();
+    std::string child_frame =
+        NormalizeFrameId(transform_stamped["child_frame_id"].GetString());
     const auto& transform = transform_stamped["transform"];
 
     if (!transform.HasMember("translation") || !transform.HasMember("rotation")) {
@@ -844,10 +859,13 @@ void RosbridgeComm::TfCallback(const ROSBridgePublishMsg& msg) {
     tf_data.parent_frame = parent_frame;
 
     tf_cache_[child_frame] = tf_data;
+    tf_cache_updated_at_[child_frame] = received_at;
+    cache_changed = true;
   }
 
   // 更新 TF2Rosbridge 图结构
   tf2_.UpdateTF(tf_cache_);
+  if (cache_changed) ++tf_generation_;
 }
 
 /**
@@ -1438,18 +1456,37 @@ void RosbridgeComm::OdomCallback(const ROSBridgePublishMsg& msg) {
   if (msg.msg_json_.IsNull()) return;
 
   const auto& msg_json = msg.msg_json_;
-  if (!msg_json.HasMember("pose") || !msg_json.HasMember("twist")) return;
+  if (!msg_json.HasMember("pose") || !msg_json["pose"].IsObject() ||
+      !msg_json.HasMember("twist") || !msg_json["twist"].IsObject() ||
+      !msg_json["pose"].HasMember("pose") ||
+      !msg_json["pose"]["pose"].IsObject() ||
+      !msg_json["twist"].HasMember("twist") ||
+      !msg_json["twist"]["twist"].IsObject()) return;
 
   basic::RobotState state;
 
   // 提取速度信息
   const auto& twist = msg_json["twist"]["twist"];
-  state.vx = twist.HasMember("linear") ? twist["linear"]["x"].GetDouble() : 0.0;
-  state.vy = twist.HasMember("linear") ? twist["linear"]["y"].GetDouble() : 0.0;
-  state.w = twist.HasMember("angular") ? twist["angular"]["z"].GetDouble() : 0.0;
+  if (twist.HasMember("linear") && twist["linear"].IsObject()) {
+    const auto& linear = twist["linear"];
+    state.vx = linear.HasMember("x") && linear["x"].IsNumber()
+                   ? linear["x"].GetDouble() : 0.0;
+    state.vy = linear.HasMember("y") && linear["y"].IsNumber()
+                   ? linear["y"].GetDouble() : 0.0;
+  }
+  if (twist.HasMember("angular") && twist["angular"].IsObject()) {
+    const auto& angular = twist["angular"];
+    state.w = angular.HasMember("z") && angular["z"].IsNumber()
+                  ? angular["z"].GetDouble() : 0.0;
+  }
 
   // 提取位置信息
   const auto& pose = msg_json["pose"]["pose"];
+  if (!pose.HasMember("position") || !pose["position"].IsObject() ||
+      !pose["position"].HasMember("x") ||
+      !pose["position"]["x"].IsNumber() ||
+      !pose["position"].HasMember("y") ||
+      !pose["position"]["y"].IsNumber()) return;
   state.x = pose["position"]["x"].GetDouble();
   state.y = pose["position"]["y"].GetDouble();
 
