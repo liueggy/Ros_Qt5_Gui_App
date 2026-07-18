@@ -2771,12 +2771,10 @@ bool MainWindow::UploadLocalMap(const QString& yaml_path, bool activate) {
     return false;
   }
   const QString image_path = QString::fromStdString(map.map_config.image);
-  QFile yaml_file(yaml_path);
   QFile image_file(image_path);
-  if (!yaml_file.open(QIODevice::ReadOnly) ||
-      !image_file.open(QIODevice::ReadOnly)) {
+  if (!image_file.open(QIODevice::ReadOnly)) {
     QMessageBox::warning(this, tr("地图不完整"),
-                         tr("地图 YAML 或其图像文件无法读取。\nYAML：%1\n图像：%2")
+                         tr("地图图像文件无法读取。\nYAML：%1\n图像：%2")
                              .arg(yaml_path, image_path));
     return false;
   }
@@ -2788,9 +2786,13 @@ bool MainWindow::UploadLocalMap(const QString& yaml_path, bool activate) {
   request["request_id"] = request_id.toStdString();
   request["command"] = "upload_map";
   request["target"] = "map_library";
+  const std::string upload_image =
+      "./" + QFileInfo(image_path).fileName().toStdString();
+  const QByteArray normalized_yaml = QByteArray::fromStdString(
+      map.map_config.ToYaml(upload_image));
   request["params"] = {
       {"map_name", QFileInfo(yaml_path).completeBaseName().toStdString()},
-      {"yaml_b64", yaml_file.readAll().toBase64().toStdString()},
+      {"yaml_b64", normalized_yaml.toBase64().toStdString()},
       {"pgm_b64", image_file.readAll().toBase64().toStdString()},
       {"activate", activate}};
 

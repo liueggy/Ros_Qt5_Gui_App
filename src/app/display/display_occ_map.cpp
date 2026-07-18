@@ -268,18 +268,27 @@ OccupancyMap DisplayOccMap::GetOccupancyMap() {
   // 使用 constBits() 直接访问内存缓冲区，避免逐像素函数调用开销
   const uchar* bits = map_image_.constBits();
 
+  const QColor free_space(UiStyle::Palette::MapFree);
   for (int j = 0; j < h; j++) {
     const QRgb* row = reinterpret_cast<const QRgb*>(bits + j * bpl);
     for (int i = 0; i < w; i++) {
-      QRgb pixelValue = row[i];
-      int alpha = qAlpha(pixelValue);
+      const QRgb pixel_value = row[i];
+      const bool opaque_black =
+          qAlpha(pixel_value) == 255 && qRed(pixel_value) == 0 &&
+          qGreen(pixel_value) == 0 && qBlue(pixel_value) == 0;
+      const bool opaque_free =
+          qAlpha(pixel_value) == 255 &&
+          qRed(pixel_value) == free_space.red() &&
+          qGreen(pixel_value) == free_space.green() &&
+          qBlue(pixel_value) == free_space.blue();
 
-      if (qRed(pixelValue) == 0 && qGreen(pixelValue) == 0 && qBlue(pixelValue) == 0 && alpha > 0) {
-        map(j, i) = static_cast<int>(alpha / 2.55);
-      } else if (alpha == 255) {
+      // map_image_ is a themed rendering, not an occupancy data source.
+      // Preserve the original grid and apply only the two explicit editor
+      // strokes: opaque black draws an obstacle; free-space color erases it.
+      if (opaque_black) {
+        map(j, i) = OCC_GRID_OCCUPIED;
+      } else if (opaque_free) {
         map(j, i) = 0;
-      } else {
-        map(j, i) = -1;
       }
     }
   }

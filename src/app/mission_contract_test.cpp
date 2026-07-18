@@ -1,11 +1,59 @@
 #include "app/mission_contract.h"
 #include "app/diagnostic_policy.h"
+#include "map/occupancy_map.h"
 
 #include <QFile>
 #include <QFileInfo>
+#include <QTemporaryDir>
 #include <gtest/gtest.h>
 
 namespace {
+
+TEST(MapConfigContract, RepairsReversedThresholdsBeforeUpload) {
+  QTemporaryDir directory;
+  ASSERT_TRUE(directory.isValid());
+  const QString yaml_path = directory.filePath(QStringLiteral("map.yaml"));
+  QFile yaml(yaml_path);
+  ASSERT_TRUE(yaml.open(QIODevice::WriteOnly | QIODevice::Text));
+  yaml.write("image: ./map.pgm\n"
+             "resolution: 0.05\n"
+             "origin: [0, 0, 0]\n"
+             "negate: 0\n"
+             "occupied_thresh: 0.25\n"
+             "free_thresh: 0.65\n");
+  yaml.close();
+
+  basic::MapConfig config;
+  ASSERT_TRUE(config.Load(yaml_path.toStdString()));
+  EXPECT_DOUBLE_EQ(config.occupied_thresh,
+                   basic::MapConfig::kDefaultOccupiedThresh);
+  EXPECT_DOUBLE_EQ(config.free_thresh,
+                   basic::MapConfig::kDefaultFreeThresh);
+  EXPECT_GT(config.occupied_thresh, config.free_thresh);
+  const std::string upload_yaml = config.ToYaml("./map.pgm");
+  EXPECT_NE(upload_yaml.find("occupied_thresh: 0.65"), std::string::npos);
+  EXPECT_NE(upload_yaml.find("free_thresh: 0.196"), std::string::npos);
+}
+
+TEST(MapConfigContract, SavesFreeOccupiedAndUnknownCellsDistinctly) {
+  QTemporaryDir directory;
+  ASSERT_TRUE(directory.isValid());
+  const QString base_path = directory.filePath(QStringLiteral("classes"));
+  basic::OccupancyMap map(1, 3, Eigen::Vector3d::Zero(), 0.05);
+  map(0, 0) = OCC_GRID_FREE;
+  map(0, 1) = OCC_GRID_OCCUPIED;
+  map(0, 2) = OCC_GRID_UNKNOWN;
+
+  map.Save(base_path.toStdString());
+
+  QFile pgm(base_path + QStringLiteral(".pgm"));
+  ASSERT_TRUE(pgm.open(QIODevice::ReadOnly));
+  const QByteArray bytes = pgm.readAll();
+  ASSERT_GE(bytes.size(), 3);
+  EXPECT_EQ(static_cast<unsigned char>(bytes.at(bytes.size() - 3)), 254U);
+  EXPECT_EQ(static_cast<unsigned char>(bytes.at(bytes.size() - 2)), 0U);
+  EXPECT_EQ(static_cast<unsigned char>(bytes.at(bytes.size() - 1)), 205U);
+}
 
 TEST(MissionContractTest, SingleGoalUsesUnifiedMissionEnvelope) {
   const basic::RobotPose pose(1.25, -2.5, 0.75);

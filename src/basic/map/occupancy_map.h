@@ -29,6 +29,7 @@
 #include <boost/filesystem.hpp>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <cmath>
 #include "logger/logger.h"
@@ -43,6 +44,8 @@
 
 namespace basic {
 struct MapConfig {
+  static constexpr double kDefaultOccupiedThresh = 0.65;
+  static constexpr double kDefaultFreeThresh = 0.196;
   enum MapMode : int {
     TRINARY,
     SCALE,
@@ -52,8 +55,8 @@ struct MapConfig {
   double resolution = 0.1;
   std::vector<double> origin;
   int negate = {0};
-  double occupied_thresh = {0.25};
-  double free_thresh = {0.65};
+  double occupied_thresh = {kDefaultOccupiedThresh};
+  double free_thresh = {kDefaultFreeThresh};
   MapMode mode;
   MapConfig() {
     origin.resize(3);
@@ -96,6 +99,15 @@ struct MapConfig {
     } catch (YAML::InvalidScalar &) {
       LOG_ERROR("The map does not contain a free_thresh tag or it is invalid.");
       return false;
+    }
+    if (!(free_thresh >= 0.0 && free_thresh <= 1.0 &&
+          occupied_thresh >= 0.0 && occupied_thresh <= 1.0 &&
+          free_thresh < occupied_thresh)) {
+      LOG_WARN("Invalid map thresholds (free=" << free_thresh
+               << ", occupied=" << occupied_thresh
+               << "); using ROS map_server defaults.");
+      free_thresh = kDefaultFreeThresh;
+      occupied_thresh = kDefaultOccupiedThresh;
     }
 
      try {
@@ -143,15 +155,22 @@ struct MapConfig {
     }
     return true;
   }
+  std::string ToYaml(const std::string &image_override = "") const {
+    std::ostringstream yaml;
+    yaml << "image: " << (image_override.empty() ? image : image_override)
+         << std::endl;
+    yaml << "resolution: " << resolution << std::endl;
+    yaml << "origin: [" << origin[0] << ", " << origin[1] << ", "
+         << origin[2] << "]" << std::endl;
+    yaml << "negate: " << negate << std::endl;
+    yaml << "occupied_thresh: " << occupied_thresh << std::endl;
+    yaml << "free_thresh: " << free_thresh << std::endl;
+    return yaml.str();
+  }
   void Save(const std::string &filename) {
     std::ofstream file(filename);
     if (file.is_open()) {
-      file << "image: " << image << std::endl;
-      file << "resolution: " << resolution << std::endl;
-      file << "origin: [" << origin[0] << ", " << origin[1] << ", " << origin[2] << "]" << std::endl;
-      file << "negate: " << negate << std::endl;
-      file << "occupied_thresh: " << occupied_thresh << std::endl;
-      file << "free_thresh: " << free_thresh << std::endl;
+      file << ToYaml();
       file.close();
       LOG_INFO("配置已成功写入到文件 " << filename);
     } else {
@@ -351,9 +370,10 @@ class OccupancyMap {
     for (int y = 0; y < height(); y++) {
       for (int x = 0; x < width(); x++) {
         // unsigned int i = x + (height() - y - 1) * map->info.width;
-        if (map_data(y, x) >= 0 && map_data(y, x) <= map_config.free_thresh) {  // [0,free)
+        const double occupancy = map_data(y, x) / 100.0;
+        if (map_data(y, x) >= 0 && occupancy <= map_config.free_thresh) {
           fputc(254, out);
-        } else if (map_data(y, x) >= map_config.occupied_thresh) {  // (occ,255]
+        } else if (occupancy >= map_config.occupied_thresh) {
           fputc(000, out);
         } else {  //occ [0.25,0.65]
           fputc(205, out);

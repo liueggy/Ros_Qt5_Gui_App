@@ -606,7 +606,6 @@ void RosbridgeComm::ConnectAsync() {
   });
 
   SUBSCRIBE_SCOPED_TO(message_bus_subscriptions_, MSG_ID_COMMAND_REQUEST, [this](const std::string& json_request) {
-    LOG_INFO("recv eggy command request:" << json_request);
     PubCommandRequest(json_request);
   });
 
