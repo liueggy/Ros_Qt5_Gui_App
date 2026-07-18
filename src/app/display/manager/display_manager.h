@@ -63,6 +63,7 @@ class DisplayManager : public QObject {
   bool laser_data_received_{false};
   bool laser_data_stale_{true};
   bool laser_data_cleared_{true};
+  std::map<int, std::vector<Point>> relocation_laser_cache_;
 
 
  signals:
@@ -98,6 +99,7 @@ class DisplayManager : public QObject {
   void UpdateFreshnessStatus();
   std::vector<Point> transLaserPoint(const std::vector<Point> &point);
   std::vector<Point> mapPointsToScene(const std::vector<Point> &point);
+  void RefreshRelocationLaserPreview();
   QPushButton *btn_move_focus_;
 
  public:

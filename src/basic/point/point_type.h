@@ -48,11 +48,18 @@ struct RobotState : public RobotPose, RobotSpeed {
 struct LaserScan {
   LaserScan() = default;
   LaserScan(int i, std::vector<Point> d) : id(i), data(d) {}
-  int id;                   // 激光ID
-  std::vector<Point> data;  // 点坐标
+  int id = {0};             // 激光ID
+  std::vector<Point> data;  // 正常显示点；points_in_map=true 时为 map 坐标
+  std::vector<Point> robot_relative_data;  // 车体坐标，用于重定位预览
   bool points_in_map{false};  // true: data 已经由 TF 转换到 map 坐标系
   void push_back(Point p) { data.push_back(p); }
-  void clear() { data.clear(); }
+  void clear() {
+    data.clear();
+    robot_relative_data.clear();
+  }
+  const std::vector<Point>& RelocationPreviewData() const {
+    return robot_relative_data.empty() ? data : robot_relative_data;
+  }
 };
 // 机器人路径 由点集组成
 

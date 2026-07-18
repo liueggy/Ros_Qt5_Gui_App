@@ -1090,6 +1090,12 @@ void RosbridgeComm::LaserCallback(const ROSBridgePublishMsg& msg) {
   basic::RobotPose map_from_laser;
   const bool transform_ready =
       TryGetTransform("map", frame_id, &map_from_laser);
+  const std::string base_frame =
+      NormalizeFrameId(GET_CONFIG_VALUE("BaseFrameId", "base_link"));
+  basic::RobotPose base_from_laser;
+  const bool robot_relative_transform_ready =
+      frame_id == base_frame ||
+      TryGetTransform(base_frame, frame_id, &base_from_laser);
 
   // 转换激光扫描数据为点云
   basic::LaserScan laser_points;
@@ -1109,8 +1115,17 @@ void RosbridgeComm::LaserCallback(const ROSBridgePublishMsg& msg) {
       basic::Point p;
       p.x = x;
       p.y = y;
+      basic::Point robot_relative_point = p;
+      if (robot_relative_transform_ready) {
+        if (frame_id != base_frame) {
+          robot_relative_point = basic::absoluteSum(base_from_laser, p);
+        }
+        laser_points.robot_relative_data.push_back(robot_relative_point);
+      }
       if (transform_ready) {
         p = basic::absoluteSum(map_from_laser, p);
+      } else if (robot_relative_transform_ready) {
+        p = robot_relative_point;
       }
       laser_points.push_back(p);
     }
@@ -1486,8 +1501,8 @@ void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
     const auto& covariance = pose_with_covariance["covariance"];
     if (covariance.Size() >= 36 && covariance[0].IsNumber() &&
         covariance[7].IsNumber() && covariance[35].IsNumber()) {
-      estimate.xy_variance = std::max(covariance[0].GetDouble(),
-                                      covariance[7].GetDouble());
+      estimate.xy_variance = (std::max)(covariance[0].GetDouble(),
+                                        covariance[7].GetDouble());
       estimate.yaw_variance = covariance[35].GetDouble();
     } else {
       estimate.xy_variance = std::numeric_limits<double>::infinity();

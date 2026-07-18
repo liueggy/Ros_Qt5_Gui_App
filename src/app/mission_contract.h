@@ -3,11 +3,46 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
+#include <cmath>
 #include <nlohmann/json.hpp>
 
 #include "point_type.h"
 
 namespace AppContract {
+
+struct RelocationSampleEvaluation {
+  double distance = {0.0};
+  double angle_error = {0.0};
+  bool acceptable = {false};
+};
+
+inline RelocationSampleEvaluation EvaluateRelocationSample(
+    const basic::RobotPose& target,
+    const basic::LocalizationEstimate& estimate) {
+  constexpr double kPi = 3.14159265358979323846;
+  constexpr double kMaxPositionErrorMeters = 0.35;
+  constexpr double kMaxHeadingErrorRadians = 15.0 * kPi / 180.0;
+  constexpr double kMaxPositionVariance = 0.50;
+  constexpr double kMaxHeadingVariance = 0.30;
+
+  const double dx = estimate.pose.x - target.x;
+  const double dy = estimate.pose.y - target.y;
+  const double distance = std::hypot(dx, dy);
+  const double angle_error = std::abs(std::atan2(
+      std::sin(estimate.pose.theta - target.theta),
+      std::cos(estimate.pose.theta - target.theta)));
+  const bool finite = std::isfinite(distance) && std::isfinite(angle_error) &&
+                      std::isfinite(estimate.xy_variance) &&
+                      std::isfinite(estimate.yaw_variance);
+  return {
+      distance,
+      angle_error,
+      finite && distance <= kMaxPositionErrorMeters &&
+          angle_error <= kMaxHeadingErrorRadians &&
+          estimate.xy_variance <= kMaxPositionVariance &&
+          estimate.yaw_variance <= kMaxHeadingVariance,
+  };
+}
 
 inline nlohmann::json BuildMissionRequest(const nlohmann::json& route,
                                           const QString& request_id,

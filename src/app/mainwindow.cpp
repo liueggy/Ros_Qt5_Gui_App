@@ -2258,6 +2258,9 @@ void MainWindow::StartManualRelocation() {
     return;
   }
   localization_confirmed_ = false;
+  relocation_pending_ = false;
+  ++relocation_attempt_id_;
+  relocation_stable_samples_ = 0;
   UpdateInspectionRouteSummary();
   statusBar()->showMessage(tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
   display_manager_->StartReloc();
@@ -2604,6 +2607,7 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   QString reason;
   if (!IsRelocationPoseValid(pose, &reason)) {
     QMessageBox::warning(this, tr("重定位位置无效"), reason);
+    display_manager_->StartReloc();
     return;
   }
 
@@ -2646,17 +2650,9 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
 
 void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
   if (!relocation_pending_) return;
-  const RobotPose& pose = estimate.pose;
-  const double dx = pose.x - relocation_target_.x;
-  const double dy = pose.y - relocation_target_.y;
-  const double distance = std::hypot(dx, dy);
-  const double angle_error = std::abs(std::atan2(
-      std::sin(pose.theta - relocation_target_.theta),
-      std::cos(pose.theta - relocation_target_.theta)));
-  const bool localization_quality_ok =
-      estimate.xy_variance <= 0.20 && estimate.yaw_variance <= 0.12;
-  if (distance <= 0.20 && angle_error <= deg2rad(10.0) &&
-      localization_quality_ok) {
+  const auto evaluation =
+      AppContract::EvaluateRelocationSample(relocation_target_, estimate);
+  if (evaluation.acceptable) {
     ++relocation_stable_samples_;
   } else {
     relocation_stable_samples_ = 0;
@@ -2672,8 +2668,8 @@ void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
   }
   statusBar()->showMessage(
       tr("重定位成功：位置误差 %1 m，角度误差 %2°，耗时 %3 s")
-          .arg(distance, 0, 'f', 2)
-          .arg(rad2deg(angle_error), 0, 'f', 2)
+          .arg(evaluation.distance, 0, 'f', 2)
+          .arg(rad2deg(evaluation.angle_error), 0, 'f', 2)
           .arg(relocation_elapsed_.elapsed() / 1000.0, 0, 'f', 2),
       8000);
   nlohmann::json clear_request;

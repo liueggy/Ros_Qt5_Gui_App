@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <gtest/gtest.h>
+#include <limits>
 
 namespace {
 
@@ -94,6 +95,62 @@ TEST(MissionContractTest, MissionTrackerCorrelatesAndRecoversFromTimeouts) {
   EXPECT_TRUE(tracker.AcceptanceTimedOut(QStringLiteral("mission-c")));
   EXPECT_EQ(tracker.phase(), AppContract::MissionPhase::Idle);
   EXPECT_TRUE(tracker.requestId().isEmpty());
+}
+
+TEST(RelocationContractTest, AcceptsCovariancePublishedByQtInitialPose) {
+  const basic::RobotPose target(1.0, 2.0, 0.5);
+  basic::LocalizationEstimate estimate;
+  estimate.pose = target;
+  estimate.xy_variance = 0.257;
+  estimate.yaw_variance = 0.0686;
+
+  const auto evaluation =
+      AppContract::EvaluateRelocationSample(target, estimate);
+
+  EXPECT_TRUE(evaluation.acceptable);
+  EXPECT_DOUBLE_EQ(evaluation.distance, 0.0);
+  EXPECT_DOUBLE_EQ(evaluation.angle_error, 0.0);
+}
+
+TEST(RelocationContractTest, RejectsPositionAndHeadingMismatch) {
+  const basic::RobotPose target(1.0, 2.0, 0.5);
+  basic::LocalizationEstimate estimate;
+  estimate.xy_variance = 0.1;
+  estimate.yaw_variance = 0.05;
+
+  estimate.pose = basic::RobotPose(1.36, 2.0, 0.5);
+  EXPECT_FALSE(
+      AppContract::EvaluateRelocationSample(target, estimate).acceptable);
+
+  estimate.pose = basic::RobotPose(1.0, 2.0, 0.5 + deg2rad(16.0));
+  EXPECT_FALSE(
+      AppContract::EvaluateRelocationSample(target, estimate).acceptable);
+}
+
+TEST(RelocationContractTest, RejectsInvalidOrUncertainEstimate) {
+  const basic::RobotPose target(1.0, 2.0, 0.5);
+  basic::LocalizationEstimate estimate;
+  estimate.pose = target;
+  estimate.xy_variance = 0.51;
+  estimate.yaw_variance = 0.05;
+  EXPECT_FALSE(
+      AppContract::EvaluateRelocationSample(target, estimate).acceptable);
+
+  estimate.xy_variance = std::numeric_limits<double>::infinity();
+  EXPECT_FALSE(
+      AppContract::EvaluateRelocationSample(target, estimate).acceptable);
+}
+
+TEST(LaserScanContractTest, PrefersRobotRelativePointsForRelocation) {
+  basic::LaserScan scan;
+  scan.data.emplace_back(10.0, 20.0);
+  scan.robot_relative_data.emplace_back(1.0, 2.0);
+
+  const auto& preview = scan.RelocationPreviewData();
+
+  ASSERT_EQ(preview.size(), 1U);
+  EXPECT_DOUBLE_EQ(preview.front().x, 1.0);
+  EXPECT_DOUBLE_EQ(preview.front().y, 2.0);
 }
 
 TEST(MissionContractTest, ProfileSwitchNeedsMatchingAckAndReadyStatus) {

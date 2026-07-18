@@ -81,9 +81,23 @@ DisplayManager::DisplayManager() {
   SUBSCRIBE_QOBJECT(this, MSG_ID_LASER_SCAN, [this](const LaserScan& data) {
     auto* laser_display = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
     if (laser_display) {
-      std::vector<Point> transformed_points =
-          data.points_in_map ? mapPointsToScene(data.data)
-                             : transLaserPoint(data.data);
+      if (!data.robot_relative_data.empty() || !data.points_in_map) {
+        relocation_laser_cache_[data.id] = data.RelocationPreviewData();
+        constexpr std::size_t kMaxRelocationLaserSources = 8;
+        while (relocation_laser_cache_.size() >
+               kMaxRelocationLaserSources) {
+          relocation_laser_cache_.erase(relocation_laser_cache_.begin());
+        }
+      }
+      std::vector<Point> transformed_points;
+      if (is_reloc_mode_ && !data.RelocationPreviewData().empty() &&
+          (!data.robot_relative_data.empty() || !data.points_in_map)) {
+        transformed_points = transLaserPoint(data.RelocationPreviewData());
+      } else {
+        transformed_points = data.points_in_map
+                                 ? mapPointsToScene(data.data)
+                                 : transLaserPoint(data.data);
+      }
       laser_display->UpdateLaserData(data.id, transformed_points);
       laser_data_received_ = true;
       laser_data_stale_ = false;
@@ -102,6 +116,7 @@ DisplayManager::DisplayManager() {
 void DisplayManager::slotSetRobotPose(const RobotPose& pose) {
   FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_ROBOT, false);
   UpdateRobotPose(pose);
+  RefreshRelocationLaserPreview();
   // enable move after 300ms
   QTimer::singleShot(300, [this]() {
     FactoryDisplay::Instance()->SetMoveEnable(DISPLAY_ROBOT, true);
@@ -120,6 +135,7 @@ void DisplayManager::slotRobotScenePoseChanged(const RobotPose& pose) {
     robot_pose_.theta = pose.theta;
     set_reloc_pose_widget_->SetPose(
         RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta));
+    RefreshRelocationLaserPreview();
   }
 }
 void DisplayManager::InitUi() {
@@ -212,7 +228,8 @@ std::vector<Point>
 DisplayManager::transLaserPoint(const std::vector<Point>& point) {
   // point为车身坐标系下的坐标 需要根据当前机器人坐标转换为map
   std::vector<Point> res;
-  for (auto one_point : point) {
+  res.reserve(point.size());
+  for (const auto& one_point : point) {
     // 根据机器人坐标转换为map坐标系下
     basic::RobotPose map_pose = basic::absoluteSum(
         basic::RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta),
@@ -223,6 +240,19 @@ DisplayManager::transLaserPoint(const std::vector<Point>& point) {
     res.push_back(Point(x, y));
   }
   return res;
+}
+
+void DisplayManager::RefreshRelocationLaserPreview() {
+  if (!is_reloc_mode_ || relocation_laser_cache_.empty()) {
+    return;
+  }
+  auto* laser_display = dynamic_cast<LaserPoints*>(GetDisplay(DISPLAY_LASER));
+  if (!laser_display) {
+    return;
+  }
+  for (const auto& entry : relocation_laser_cache_) {
+    laser_display->UpdateLaserData(entry.first, transLaserPoint(entry.second));
+  }
 }
 
 std::vector<Point>
@@ -263,6 +293,7 @@ void DisplayManager::SetRelocMode(bool is_start) {
         RobotPose(robot_pose_.x, robot_pose_.y, robot_pose_.theta));
     set_reloc_pose_widget_->move(QPoint(18, 18));
     set_reloc_pose_widget_->show();
+    RefreshRelocationLaserPreview();
   } else {
     set_reloc_pose_widget_->hide();
   }
@@ -420,6 +451,7 @@ void DisplayManager::UpdateFreshnessStatus() {
   if (laser_data_received_ && laser_data_timer_.elapsed() > kLaserClearMs &&
       !laser_data_cleared_) {
     laser->ClearData();
+    relocation_laser_cache_.clear();
     laser_data_cleared_ = true;
   }
   laser_data_stale_ = laser_stale;
