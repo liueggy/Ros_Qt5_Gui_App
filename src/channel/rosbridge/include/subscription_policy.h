@@ -11,6 +11,7 @@ struct TopicPolicy {
 // frames adds latency without improving the operator's view. Command, safety,
 // mission and diagnostic topics intentionally do not use these policies.
 inline constexpr TopicPolicy kMap{1, 500};
+inline constexpr TopicPolicy kBattery{1, 500};
 inline constexpr TopicPolicy kLocalCostMap{1, 200};
 inline constexpr TopicPolicy kGlobalCostMap{1, 500};
 inline constexpr TopicPolicy kLaserScan{1, 100};

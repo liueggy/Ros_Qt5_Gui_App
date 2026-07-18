@@ -108,7 +108,6 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_MISSION_REQUEST, "/eggy/mission/request")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_MISSION_STATUS, "/eggy/mission/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_MISSION_RESULT, "/eggy/mission/result")
-  SET_DEFAULT_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS, "/auto_explore/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_TEMP, "/stm32/dht11/temperature")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_HUMI, "/stm32/dht11/humidity")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_VOICE_COMMAND, "/stm32/voice_command")
@@ -373,7 +372,10 @@ void RosbridgeComm::ConnectAsync() {
   subscribers_[GET_TOPIC_NAME(DISPLAY_LASER)] = std::move(laser_topic);
 
   // 电池状态话题订阅
-  auto battery_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(MSG_ID_BATTERY_STATE), "sensor_msgs/BatteryState", 1);
+  auto battery_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_BATTERY_STATE),
+      "sensor_msgs/BatteryState", policy::kBattery.queue_length);
+  battery_topic->SetThrottleRate(policy::kBattery.throttle_rate_ms);
   callback_handles_[GET_TOPIC_NAME(MSG_ID_BATTERY_STATE)] = battery_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { BatteryCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_BATTERY_STATE)] = std::move(battery_topic);
@@ -466,14 +468,6 @@ void RosbridgeComm::ConnectAsync() {
         });
     subscribers_[topic_name] = std::move(topic);
   }
-
-  auto auto_explore_status_topic = std::make_unique<ROSTopic>(
-      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS), "std_msgs/String", 5);
-  callback_handles_[GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS)] =
-      auto_explore_status_topic->Subscribe(
-          [this](const ROSBridgePublishMsg& msg) { AutoExploreStatusCallback(msg); });
-  subscribers_[GET_TOPIC_NAME(MSG_ID_AUTO_EXPLORE_STATUS)] =
-      std::move(auto_explore_status_topic);
 
   // DHT11 温湿度话题订阅
   auto dht11_temp_topic = std::make_unique<ROSTopic>(
@@ -1417,13 +1411,6 @@ void RosbridgeComm::StringMessageCallback(const ROSBridgePublishMsg& msg, const 
   const auto& msg_json = msg.msg_json_;
   if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
   PUBLISH(ToString(id), std::string(msg_json["data"].GetString()));
-}
-
-void RosbridgeComm::AutoExploreStatusCallback(const ROSBridgePublishMsg& msg) {
-  if (msg.msg_json_.IsNull()) return;
-  const auto& msg_json = msg.msg_json_;
-  if (!msg_json.HasMember("data") || !msg_json["data"].IsString()) return;
-  PUBLISH(MSG_ID_AUTO_EXPLORE_STATUS, std::string(msg_json["data"].GetString()));
 }
 
 /**

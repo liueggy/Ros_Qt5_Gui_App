@@ -176,14 +176,36 @@ TEST(DiagnosticPolicyTest, ActiveModeKeepsUnrelatedSensorFailure) {
   EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 1);
 }
 
-TEST(TelemetryLoggingContract, AutoExploreFramesAreNotWrittenToDisk) {
+TEST(TelemetryContract, AutoExploreDoesNotUseADuplicateRosbridgeStream) {
   const QFileInfo test_source(QString::fromUtf8(__FILE__));
   QFile mainwindow(test_source.dir().filePath(QStringLiteral("mainwindow.cpp")));
   ASSERT_TRUE(mainwindow.open(QIODevice::ReadOnly | QIODevice::Text));
-  const QByteArray source = mainwindow.readAll();
+  const QByteArray mainwindow_source = mainwindow.readAll();
 
-  EXPECT_TRUE(source.contains("MSG_ID_AUTO_EXPLORE_STATUS"));
-  EXPECT_FALSE(source.contains("auto explore status:"));
+  QFile rosbridge(test_source.dir().filePath(
+      QStringLiteral("../channel/rosbridge/rosbridge_comm.cpp")));
+  ASSERT_TRUE(rosbridge.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray rosbridge_source = rosbridge.readAll();
+
+  EXPECT_FALSE(mainwindow_source.contains("MSG_ID_AUTO_EXPLORE_STATUS"));
+  EXPECT_FALSE(rosbridge_source.contains("auto_explore_status_topic"));
+}
+
+TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile logger(test_source.dir().filePath(
+      QStringLiteral("../common/logger/logger.cc")));
+  ASSERT_TRUE(logger.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray logger_source = logger.readAll();
+
+  QFile map_display(test_source.dir().filePath(
+      QStringLiteral("display/display_occ_map.cpp")));
+  ASSERT_TRUE(map_display.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray map_source = map_display.readAll();
+
+  EXPECT_TRUE(logger_source.contains("MaxLogFileSize, \"5242880\""));
+  EXPECT_TRUE(logger_source.contains("StrictLogFileSizeCheck"));
+  EXPECT_FALSE(map_source.contains("map update calling:"));
 }
 
 }  // namespace

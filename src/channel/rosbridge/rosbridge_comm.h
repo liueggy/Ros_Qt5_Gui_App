@@ -72,7 +72,6 @@ class RosbridgeComm : public VirtualChannelNode {
   void CommandResponseCallback(const ROSBridgePublishMsg& msg);
   void CommandStatusCallback(const ROSBridgePublishMsg& msg);
   void StringMessageCallback(const ROSBridgePublishMsg& msg, const MsgId& id);
-  void AutoExploreStatusCallback(const ROSBridgePublishMsg& msg);
   void Dht11TempCallback(const ROSBridgePublishMsg& msg);
   void Dht11HumiCallback(const ROSBridgePublishMsg& msg);
   void VoiceCommandCallback(const ROSBridgePublishMsg& msg);

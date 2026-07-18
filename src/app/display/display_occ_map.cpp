@@ -33,8 +33,6 @@ DisplayOccMap::DisplayOccMap(const std::string &display_type,
   SUBSCRIBE_QOBJECT(this, MSG_ID_OCCUPANCY_MAP, [this](const OccupancyMap& data) {
     map_data_ = data;
     ParseOccupyMap();
-    LOG_INFO("map update calling:" << map_image_.width() << " "
-            << map_image_.height() << std::endl);
   });
 }
 

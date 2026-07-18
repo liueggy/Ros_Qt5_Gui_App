@@ -10,7 +10,7 @@ Logger::Logger() {
   el::Configurations defaultConf;
   defaultConf.setToDefault();
   // 设置最大文件大小
-  defaultConf.setGlobally(el::ConfigurationType::MaxLogFileSize, "100000000");
+  defaultConf.setGlobally(el::ConfigurationType::MaxLogFileSize, "5242880");
   // 是否写入文件
   defaultConf.setGlobally(el::ConfigurationType::ToFile, "true");
   // 是否输出控制台
@@ -22,6 +22,7 @@ Logger::Logger() {
   // 设置配置文件
   el::Loggers::reconfigureLogger("default", defaultConf);
 
+  el::Loggers::addFlag(el::LoggingFlag::StrictLogFileSizeCheck);
   el::Loggers::addFlag(el::LoggingFlag::ImmediateFlush);
   // 防止Fatal级别日志中断程序
   el::Loggers::addFlag(el::LoggingFlag::DisableApplicationAbortOnFatalLog);
