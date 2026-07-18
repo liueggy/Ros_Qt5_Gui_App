@@ -39,6 +39,7 @@
 #include <numeric>
 #include <opencv2/opencv.hpp>
 #include <utility>
+#include <vector>
 #include "AutoHideDockContainer.h"
 #include "DockAreaTabBar.h"
 #include "DockAreaTitleBar.h"
@@ -234,18 +235,57 @@ AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
   return display;
 }
 
-QString FormatAiInspectionBanner(const AiInspectionDisplay& display) {
-  QStringList lines;
-  lines << QStringLiteral("AI分析结果");
-  if (!display.waypoint.isEmpty()) {
-    lines << QStringLiteral("点位：%1").arg(display.waypoint);
+QString FormatAiInspectionBanner(
+    const std::vector<AiInspectionDisplay>& displays) {
+  int abnormal_count = 0;
+  QStringList rows;
+  QString conclusion;
+  for (const auto& display : displays) {
+    const bool abnormal = display.status != QStringLiteral("正常");
+    abnormal_count += abnormal ? 1 : 0;
+    if (conclusion.isEmpty() && abnormal && !display.conclusion.isEmpty()) {
+      conclusion = display.conclusion;
+    }
+    const QString status_color = abnormal ? UiStyle::Palette::Danger
+                                          : UiStyle::Palette::Success;
+    rows << QStringLiteral(
+                "<tr><td style='padding:4px 12px 4px 0;color:%1'>%2</td>"
+                "<td style='padding:4px 12px 4px 0'>%3</td>"
+                "<td style='padding:4px 12px 4px 0'><b>%4</b></td>"
+                "<td style='padding:4px 0;color:%5'><b>● %6</b></td></tr>")
+                .arg(UiStyle::Palette::TextSecondary,
+                     (display.waypoint.isEmpty() ? QStringLiteral("未命名点位")
+                                                 : display.waypoint)
+                         .toHtmlEscaped(),
+                     display.targetName.toHtmlEscaped(),
+                     display.reading.toHtmlEscaped(), status_color,
+                     display.status.toHtmlEscaped());
   }
-  lines << QStringLiteral("%1：%2").arg(display.targetName, display.reading);
-  lines << QStringLiteral("状态：%1").arg(display.status);
-  if (!display.conclusion.isEmpty()) {
-    lines << QStringLiteral("结论：%1").arg(display.conclusion);
+  if (conclusion.isEmpty()) {
+    for (const auto& display : displays) {
+      if (!display.conclusion.isEmpty()) {
+        conclusion = display.conclusion;
+        break;
+      }
+    }
   }
-  return lines.join(QStringLiteral("\n"));
+  const QString overall_color = abnormal_count > 0 ? UiStyle::Palette::Danger
+                                                    : UiStyle::Palette::Success;
+  const QString overall = abnormal_count > 0
+                              ? QStringLiteral("%1 项需复核").arg(abnormal_count)
+                              : QStringLiteral("全部正常");
+  QString html = QStringLiteral(
+                     "<div><b style='font-size:%1px'>巡检结论</b>"
+                     "&nbsp;&nbsp;<span style='color:%2'><b>%3</b></span></div>"
+                     "<table cellspacing='0' cellpadding='0' width='100%'>%4</table>")
+                     .arg(UiStyle::FontBasePx())
+                     .arg(overall_color, overall, rows.join(QString()));
+  if (!conclusion.isEmpty()) {
+    html += QStringLiteral("<div style='margin-top:6px;color:%1'>建议：%2</div>")
+                .arg(UiStyle::Palette::TextSecondary,
+                     conclusion.toHtmlEscaped());
+  }
+  return html;
 }
 QString SummarizeKimiObject(const nlohmann::json& api) {
   if (!api.is_object()) {
@@ -882,7 +922,7 @@ void MainWindow::registerChannel() {
       bool inspection_ok = false;
       int completed_points = 0;
       if (inspection_kimi_banner_) {
-        AiInspectionDisplay ai_display;
+        std::vector<AiInspectionDisplay> ai_displays;
         try {
           const auto data = nlohmann::json::parse(json_str);
           inspection_ok = AppContract::JsonBoolOr(data, "ok", false);
@@ -894,7 +934,7 @@ void MainWindow::registerChannel() {
             for (const auto& point : pts) {
               const AiInspectionDisplay candidate = ExtractAiInspectionDisplay(point);
               if (candidate.valid) {
-                ai_display = candidate;
+                ai_displays.push_back(candidate);
               }
               const auto navigation = point.contains("navigation")
                                           ? point["navigation"]
@@ -925,13 +965,24 @@ void MainWindow::registerChannel() {
             }
           }
         } catch (const std::exception&) {}
-        if (ai_display.valid) {
-          inspection_kimi_banner_->setText(FormatAiInspectionBanner(ai_display));
+        if (!ai_displays.empty()) {
+          const bool has_abnormal = std::any_of(
+              ai_displays.cbegin(), ai_displays.cend(),
+              [](const AiInspectionDisplay& display) {
+                return display.status != QStringLiteral("正常");
+              });
+          inspection_kimi_banner_->setStyleSheet(QStringLiteral(
+              "QLabel { background:%1; color:%2; border:1px solid %3; "
+              "border-radius:8px; padding:10px 14px; font-size:%4px; }")
+              .arg(has_abnormal ? UiStyle::Palette::DangerBg
+                                : UiStyle::Palette::SuccessBg,
+                   UiStyle::Palette::Text,
+                   has_abnormal ? UiStyle::Palette::DangerBorder
+                                : UiStyle::Palette::SuccessBorder)
+              .arg(UiStyle::FontBasePx()));
+          inspection_kimi_banner_->setText(
+              FormatAiInspectionBanner(ai_displays));
           inspection_kimi_banner_->setVisible(true);
-          if (command_center_widget_) {
-            command_center_widget_->SetCameraInspectionResult(
-                ai_display.targetName, ai_display.reading, ai_display.status);
-          }
           if (inspection_status_card_) {
             const QString flashStyle = QStringLiteral(
                 "QFrame { background:%1; border:2px solid %2; border-radius:12px; }"
@@ -1626,8 +1677,8 @@ void MainWindow::setupUi() {
                                             "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }")
                                             .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
                                                  UiStyle::Palette::TextSecondary,
-                                                 UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
-                                                 UiStyle::Palette::TerminalBorder));
+                                                 UiStyle::Palette::SurfaceAlt, UiStyle::Palette::TextSecondary,
+                                                 UiStyle::Palette::Border));
   auto* inspection_status_layout = new QVBoxLayout(inspection_status_card);
   inspection_status_layout->setContentsMargins(14, 12, 14, 14);
   inspection_status_layout->setSpacing(8);
@@ -1651,14 +1702,15 @@ void MainWindow::setupUi() {
   inspection_result_view_ = new QPlainTextEdit();
   inspection_result_view_->setReadOnly(true);
   inspection_result_view_->setPlaceholderText(QStringLiteral("暂无记录"));
-  inspection_result_view_->setMinimumHeight(110);
-  inspection_result_view_->setMaximumHeight(160);
+  inspection_result_view_->setMinimumHeight(72);
+  inspection_result_view_->setMaximumHeight(105);
   inspection_status_layout->addLayout(inspection_status_header);
   inspection_status_layout->addWidget(inspection_progress_bar_);
   inspection_status_layout->addWidget(inspection_status_label_);
   inspection_status_layout->addWidget(inspection_result_view_);
   inspection_kimi_banner_ = new QLabel();
   inspection_kimi_banner_->setWordWrap(true);
+  inspection_kimi_banner_->setTextFormat(Qt::RichText);
   inspection_kimi_banner_->setStyleSheet(QStringLiteral(
                                              "QLabel { background:%1; color:%2; border:1px solid %3; "
                                              "border-radius:8px; padding:10px 14px; font-size:%4px; font-weight:700; }")

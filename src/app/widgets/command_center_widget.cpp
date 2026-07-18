@@ -129,17 +129,6 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   camera_header->addWidget(camera_state_label_);
   camera_header->addWidget(camera_start_btn_);
   camera_layout->addLayout(camera_header);
-  camera_inspection_label_ = new QLabel(camera_group);
-  camera_inspection_label_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-  camera_inspection_label_->setStyleSheet(QStringLiteral(
-                                              "QLabel { color:%1; background:%2; border:1px solid %3; "
-                                              "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:600; }")
-                                              .arg(UiStyle::Palette::TextSecondary)
-                                              .arg(UiStyle::Palette::SurfaceAlt)
-                                              .arg(UiStyle::Palette::Border)
-                                              .arg(UiStyle::FontMiniPx()));
-  camera_inspection_label_->setVisible(false);
-  camera_layout->addWidget(camera_inspection_label_);
 
   connect(camera_start_btn_, &QPushButton::clicked, this, &CommandCenterWidget::StartCamera);
 
@@ -903,42 +892,6 @@ void CommandCenterWidget::UpdateMotionOwner(const std::string& json) {
     }
     SetMotionOwnerStatus({AppContract::MotionOwnerState::Stale, last_owner});
   });
-}
-
-void CommandCenterWidget::SetCameraInspectionResult(const QString& type,
-                                                    const QString& reading,
-                                                    const QString& status) {
-  if (!camera_inspection_label_) {
-    return;
-  }
-  if (reading.isEmpty() && status.isEmpty()) {
-    camera_inspection_label_->setVisible(false);
-    return;
-  }
-  const bool normal = (status == QStringLiteral("正常"));
-  const bool abnormal = (status == QStringLiteral("异常"));
-  const QString color = normal     ? UiStyle::Palette::Success
-                        : abnormal ? UiStyle::Palette::Danger
-                                   : UiStyle::Palette::Warning;
-  const QString bg = normal     ? UiStyle::Palette::SuccessBg
-                     : abnormal ? UiStyle::Palette::DangerBg
-                                : UiStyle::Palette::WarningBg;
-  const QString border = normal     ? UiStyle::Palette::SuccessBorder
-                         : abnormal ? UiStyle::Palette::DangerBorder
-                                    : UiStyle::Palette::WarningBorder;
-  camera_inspection_label_->setStyleSheet(QStringLiteral(
-                                              "QLabel { color:%1; background:%2; border:1px solid %3; "
-                                              "border-radius:8px; padding:8px 10px; font-size:%4px; font-weight:700; }")
-                                              .arg(color)
-                                              .arg(bg)
-                                              .arg(border)
-                                              .arg(UiStyle::FontMiniPx()));
-  const QString displayReading = reading.isEmpty() ? QStringLiteral("未识别") : reading;
-  const QString displayStatus = status.isEmpty() ? QStringLiteral("未识别") : status;
-  camera_inspection_label_->setText(
-      QStringLiteral("AI识别结果\n%1：%2\n状态：%3")
-          .arg(type.isEmpty() ? QStringLiteral("水表") : type, displayReading, displayStatus));
-  camera_inspection_label_->setVisible(true);
 }
 
 void CommandCenterWidget::SetCameraStateText(const QString& text) {

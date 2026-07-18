@@ -20,7 +20,7 @@ inline constexpr TopicPolicy kLocalPath{1, 100};
 inline constexpr TopicPolicy kOdometry{1, 50};
 inline constexpr TopicPolicy kLocalizationPose{1, 100};
 inline constexpr TopicPolicy kRobotFootprint{1, 100};
-inline constexpr TopicPolicy kImage{1, 100};
+inline constexpr TopicPolicy kImage{1, 66};
 // TF messages can contain different frame edges. Dropping a whole message can
 // break the transform graph, so keep their original queues and do not throttle.
 inline constexpr TopicPolicy kTf{10, 0};

@@ -27,7 +27,6 @@ class CommandCenterWidget : public QWidget {
 
   void SetDiagnosticSnapshot(const basic::DiagnosticSnapshot& snapshot);
   void SetNetworkStatus(const std::string& json);
-  void SetCameraInspectionResult(const QString& type, const QString& reading, const QString& status);
   void NotifyCameraFrameReceived();
   void SetExternalProfileSwitchBusy(bool busy, const QString& message = QString(),
                                     const QString& confirmedMode = QString());
@@ -76,7 +75,6 @@ class CommandCenterWidget : public QWidget {
 
   QLabel* motion_owner_label_{nullptr};
   QLabel* camera_state_label_{nullptr};
-  QLabel* camera_inspection_label_{nullptr};
   QPushButton* camera_start_btn_{nullptr};
   QToolButton* wifi_status_label_{nullptr};
   QToolButton* cellular_status_label_{nullptr};

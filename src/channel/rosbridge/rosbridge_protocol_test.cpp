@@ -98,7 +98,7 @@ TEST(RosbridgeSubscriptionPolicyTest, BoundsVisualizationQueuesAndLatency) {
   }
   EXPECT_LE(kOdometry.throttle_rate_ms, 50);
   EXPECT_LE(kLocalPath.throttle_rate_ms, 100);
-  EXPECT_LE(kImage.throttle_rate_ms, 100);
+  EXPECT_LE(kImage.throttle_rate_ms, 66);
   EXPECT_EQ(kBattery.queue_length, 1);
   EXPECT_EQ(kBattery.throttle_rate_ms, 500);
   EXPECT_EQ(kTf.queue_length, 10);

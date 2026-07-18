@@ -345,6 +345,23 @@ TEST(TelemetryContract, AutoExploreDoesNotUseADuplicateRosbridgeStream) {
   EXPECT_FALSE(rosbridge_source.contains("auto_explore_status_topic"));
 }
 
+TEST(InspectionUiContract, KeepsAnalysisInTaskPanelOnly) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile mainwindow(test_source.dir().filePath(QStringLiteral("mainwindow.cpp")));
+  ASSERT_TRUE(mainwindow.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray mainwindow_source = mainwindow.readAll();
+
+  QFile command_center(test_source.dir().filePath(
+      QStringLiteral("widgets/command_center_widget.cpp")));
+  ASSERT_TRUE(command_center.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray command_center_source = command_center.readAll();
+
+  EXPECT_FALSE(mainwindow_source.contains("SetCameraInspectionResult"));
+  EXPECT_FALSE(command_center_source.contains("camera_inspection_label_"));
+  EXPECT_TRUE(mainwindow_source.contains("巡检结论"));
+  EXPECT_TRUE(mainwindow_source.contains("setTextFormat(Qt::RichText)"));
+}
+
 TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {
   const QFileInfo test_source(QString::fromUtf8(__FILE__));
   QFile logger(test_source.dir().filePath(
