@@ -5,22 +5,23 @@
  */
 
 #include "rosbridge_comm.h"
-#include "include/rosbridge_contract.h"
-#include "include/protocol_validation.h"
-#include "include/subscription_policy.h"
-#include <opencv2/imgproc.hpp>
 #include <algorithm>
 #include <boost/asio.hpp>
 #include <cctype>
-#include <chrono>
 #include <charconv>
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/opencv.hpp>
 #include <thread>
 #include <vector>
+#include "include/display_subscription_policy.h"
+#include "include/protocol_validation.h"
 #include "include/ros_time.h"
+#include "include/rosbridge_contract.h"
+#include "include/subscription_policy.h"
 #include "msg/diagnostic_snapshot.h"
 
 namespace {
@@ -210,10 +211,27 @@ bool RosbridgeComm::Start() {
   }
 
   lifecycle_subscriptions_.clear();
+  {
+    std::lock_guard<std::mutex> visibility_lock(
+        display_stream_visibility_mutex_);
+    for (const std::string display_name :
+         {DISPLAY_LOCAL_COST_MAP, DISPLAY_GLOBAL_COST_MAP,
+          DISPLAY_GLOBAL_PATH, DISPLAY_LOCAL_PATH}) {
+      display_stream_visibility_[display_name] =
+          rosbridge2cpp::display_subscription_policy::IsDisplayStreamVisible(
+              config.display_config, display_name);
+    }
+    display_stream_visibility_dirty_ = true;
+  }
   SUBSCRIBE_SCOPED_TO(
       lifecycle_subscriptions_, MSG_ID_IMAGE_STREAM_VISIBILITY,
       [this](const std::pair<std::string, bool>& state) {
         SetImageStreamVisibility(state.first, state.second);
+      });
+  SUBSCRIBE_SCOPED_TO(
+      lifecycle_subscriptions_, MSG_ID_DISPLAY_STREAM_VISIBILITY,
+      [this](const std::pair<std::string, bool>& state) {
+        SetDisplayStreamVisibility(state.first, state.second);
       });
 
   connection_thread_ = std::thread(&RosbridgeComm::ConnectAsync, this);
@@ -340,15 +358,11 @@ void RosbridgeComm::ConnectAsync() {
   // 局部代价地图话题订阅
   auto local_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kLocalCostMap.queue_length);
   local_cost_map_topic->SetThrottleRate(policy::kLocalCostMap.throttle_rate_ms);
-  callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] = local_cost_map_topic->Subscribe(
-      [this](const ROSBridgePublishMsg& msg) { LocalCostMapCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] = std::move(local_cost_map_topic);
 
   // 全局代价地图话题订阅
   auto global_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kGlobalCostMap.queue_length);
   global_cost_map_topic->SetThrottleRate(policy::kGlobalCostMap.throttle_rate_ms);
-  callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = global_cost_map_topic->Subscribe(
-      [this](const ROSBridgePublishMsg& msg) { GlobalCostMapCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = std::move(global_cost_map_topic);
 
   // 激光扫描话题订阅
@@ -367,15 +381,11 @@ void RosbridgeComm::ConnectAsync() {
   // 全局路径话题订阅
   auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", policy::kGlobalPath.queue_length);
   global_path_topic->SetThrottleRate(policy::kGlobalPath.throttle_rate_ms);
-  callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = global_path_topic->Subscribe(
-      [this](const ROSBridgePublishMsg& msg) { PathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = std::move(global_path_topic);
 
   // 局部路径话题订阅
   auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", policy::kLocalPath.queue_length);
   local_path_topic->SetThrottleRate(policy::kLocalPath.throttle_rate_ms);
-  callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = local_path_topic->Subscribe(
-      [this](const ROSBridgePublishMsg& msg) { LocalPathCallback(msg); });
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = std::move(local_path_topic);
 
   // 里程计话题订阅
@@ -761,6 +771,7 @@ void RosbridgeComm::Process() {
   std::lock_guard<std::mutex> transport_lock(transport_mutex_);
   if (init_flag_ && ros_bridge_ && ros_bridge_->IsHealthy()) {
     ApplyImageStreamVisibilityLocked();
+    ApplyDisplayStreamVisibilityLocked();
     GetRobotPose();
   }
 }
@@ -1673,17 +1684,17 @@ void RosbridgeComm::ApplyImageStreamVisibilityLocked() {
       } else {
         operation_failed = true;
         LOG_WARN("Failed to enable image stream for " << image.location
-                                                       << ": " << image.topic);
+                                                      << ": " << image.topic);
       }
     } else if (!visible && callback != callback_handles_.end()) {
       if (subscriber->second->Unsubscribe(callback->second)) {
         callback_handles_.erase(callback);
         LOG_INFO("Disabled hidden image stream for " << image.location << ": "
-                                                      << image.topic);
+                                                     << image.topic);
       } else {
         operation_failed = true;
         LOG_WARN("Failed to disable image stream for " << image.location
-                                                        << ": " << image.topic);
+                                                       << ": " << image.topic);
       }
     }
   }
@@ -1692,6 +1703,98 @@ void RosbridgeComm::ApplyImageStreamVisibilityLocked() {
     image_stream_visibility_dirty_ = true;
   } else {
     next_image_subscription_retry_ = {};
+  }
+}
+
+void RosbridgeComm::SetDisplayStreamVisibility(
+    const std::string& display_name, bool visible) {
+  if (display_name != DISPLAY_LOCAL_COST_MAP &&
+      display_name != DISPLAY_GLOBAL_COST_MAP &&
+      display_name != DISPLAY_GLOBAL_PATH &&
+      display_name != DISPLAY_LOCAL_PATH) {
+    return;
+  }
+  std::lock_guard<std::mutex> visibility_lock(
+      display_stream_visibility_mutex_);
+  const auto current = display_stream_visibility_.find(display_name);
+  if (current != display_stream_visibility_.end() &&
+      current->second == visible) {
+    return;
+  }
+  display_stream_visibility_[display_name] = visible;
+  display_stream_visibility_dirty_ = true;
+}
+
+bool RosbridgeComm::IsDisplayStreamVisible(
+    const std::string& display_name) const {
+  std::lock_guard<std::mutex> visibility_lock(
+      display_stream_visibility_mutex_);
+  const auto current = display_stream_visibility_.find(display_name);
+  return current == display_stream_visibility_.end() || current->second;
+}
+
+void RosbridgeComm::ApplyDisplayStreamVisibilityLocked() {
+  const auto now = std::chrono::steady_clock::now();
+  if (now < next_display_subscription_retry_) return;
+  if (!display_stream_visibility_dirty_.exchange(false)) return;
+
+  bool operation_failed = false;
+  for (const std::string display_name :
+       {DISPLAY_LOCAL_COST_MAP, DISPLAY_GLOBAL_COST_MAP,
+        DISPLAY_GLOBAL_PATH, DISPLAY_LOCAL_PATH}) {
+    const std::string topic_name = GET_TOPIC_NAME(display_name);
+    const auto subscriber = subscribers_.find(topic_name);
+    if (subscriber == subscribers_.end()) continue;
+
+    const bool visible = IsDisplayStreamVisible(display_name);
+    const auto callback = callback_handles_.find(topic_name);
+    if (visible && callback == callback_handles_.end()) {
+      ROSCallbackHandle<FunVrROSPublishMsg> handle;
+      if (display_name == DISPLAY_LOCAL_COST_MAP) {
+        handle = subscriber->second->Subscribe(
+            [this](const ROSBridgePublishMsg& msg) {
+              LocalCostMapCallback(msg);
+            });
+      } else if (display_name == DISPLAY_GLOBAL_COST_MAP) {
+        handle = subscriber->second->Subscribe(
+            [this](const ROSBridgePublishMsg& msg) {
+              GlobalCostMapCallback(msg);
+            });
+      } else if (display_name == DISPLAY_GLOBAL_PATH) {
+        handle = subscriber->second->Subscribe(
+            [this](const ROSBridgePublishMsg& msg) { PathCallback(msg); });
+      } else {
+        handle = subscriber->second->Subscribe(
+            [this](const ROSBridgePublishMsg& msg) {
+              LocalPathCallback(msg);
+            });
+      }
+      if (handle.IsValid()) {
+        callback_handles_[topic_name] = std::move(handle);
+        LOG_INFO("Enabled visible display stream " << display_name << ": "
+                                                   << topic_name);
+      } else {
+        operation_failed = true;
+        LOG_WARN("Failed to enable display stream " << display_name << ": "
+                                                    << topic_name);
+      }
+    } else if (!visible && callback != callback_handles_.end()) {
+      if (subscriber->second->Unsubscribe(callback->second)) {
+        callback_handles_.erase(callback);
+        LOG_INFO("Disabled hidden display stream " << display_name << ": "
+                                                   << topic_name);
+      } else {
+        operation_failed = true;
+        LOG_WARN("Failed to disable display stream " << display_name << ": "
+                                                     << topic_name);
+      }
+    }
+  }
+  if (operation_failed) {
+    next_display_subscription_retry_ = now + std::chrono::seconds(1);
+    display_stream_visibility_dirty_ = true;
+  } else {
+    next_display_subscription_retry_ = {};
   }
 }
 
@@ -2075,5 +2178,3 @@ void RosbridgeComm::PubTopologyMapUpdate(const TopologyMap& topology_map) {
     it->second->Publish(msg);
   }
 }
-
-

@@ -5,11 +5,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "include/display_subscription_policy.h"
 #include "include/latest_value_queue.h"
 #include "include/protocol_validation.h"
 #include "include/ros_bridge.h"
-#include "include/rosbridge_contract.h"
 #include "include/ros_topic.h"
+#include "include/rosbridge_contract.h"
 #include "include/subscription_policy.h"
 #include "tf2_rosbridge.h"
 
@@ -59,6 +60,29 @@ TEST(RosbridgeContractTest, UsesDirectMoveBaseTopics) {
                "/camera/front/image_source/compressed");
   EXPECT_STREQ(rosbridge2cpp::contract::kOverlayCameraTopic,
                "/camera/front/image/compressed");
+}
+
+TEST(DisplaySubscriptionPolicyTest, HiddenHeavyLayersStayOffTheWire) {
+  std::vector<Config::DisplayConfig> displays = {
+      {"kGlobalCostMap", "/global_costmap", false},
+      {"kLocalPath", "/local_path", false},
+  };
+
+  EXPECT_FALSE(rosbridge2cpp::display_subscription_policy::IsDisplayStreamVisible(
+      displays, "kGlobalCostMap"));
+  EXPECT_FALSE(rosbridge2cpp::display_subscription_policy::IsDisplayStreamVisible(
+      displays, "kLocalPath"));
+}
+
+TEST(DisplaySubscriptionPolicyTest, MissingOrEnabledLayersRemainCompatible) {
+  std::vector<Config::DisplayConfig> displays = {
+      {"kGlobalPath", "/global_path", true},
+  };
+
+  EXPECT_TRUE(rosbridge2cpp::display_subscription_policy::IsDisplayStreamVisible(
+      displays, "kGlobalPath"));
+  EXPECT_TRUE(rosbridge2cpp::display_subscription_policy::IsDisplayStreamVisible(
+      displays, "kLocalCostMap"));
 }
 
 TEST(RosbridgeSubscriptionPolicyTest, BoundsVisualizationQueuesAndLatency) {

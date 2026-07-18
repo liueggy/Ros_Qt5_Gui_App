@@ -6,22 +6,22 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <thread>
 #include "algorithm.h"
 #include "config/config_manager.h"
 #include "core/framework/framework.h"
 #include "include/client/socket_websocket_connection.h"
+#include "include/latest_value_queue.h"
 #include "include/messages/rosbridge_publish_msg.h"
 #include "include/ros_bridge.h"
 #include "include/ros_topic.h"
 #include "include/types.h"
-#include "include/latest_value_queue.h"
 #include "logger/logger.h"
-#include "msg/diagnostic_snapshot.h"
 #include "msg/channel_publish_result.h"
+#include "msg/diagnostic_snapshot.h"
 #include "msg/msg_info.h"
 #include "point_type.h"
 #include "tf2_rosbridge.h"
@@ -81,6 +81,10 @@ class RosbridgeComm : public VirtualChannelNode {
   void SetImageStreamVisibility(const std::string& location, bool visible);
   void ApplyImageStreamVisibilityLocked();
   bool IsImageStreamVisible(const std::string& location) const;
+  void SetDisplayStreamVisibility(const std::string& display_name,
+                                  bool visible);
+  void ApplyDisplayStreamVisibilityLocked();
+  bool IsDisplayStreamVisible(const std::string& display_name) const;
   void TfCallback(const ROSBridgePublishMsg& msg);
 
   basic::RobotPose GetTransform(const std::string& from, const std::string& to);
@@ -101,6 +105,10 @@ class RosbridgeComm : public VirtualChannelNode {
   mutable std::mutex image_stream_visibility_mutex_;
   std::atomic_bool image_stream_visibility_dirty_ = {false};
   std::chrono::steady_clock::time_point next_image_subscription_retry_{};
+  std::unordered_map<std::string, bool> display_stream_visibility_;
+  mutable std::mutex display_stream_visibility_mutex_;
+  std::atomic_bool display_stream_visibility_dirty_ = {false};
+  std::chrono::steady_clock::time_point next_display_subscription_retry_{};
   // Owns the complete transport graph. A ROSBridge references its WebSocket,
   // and every ROSTopic references the ROSBridge, so reads and teardown must be
   // serialized as one unit across connect, reconnect, process and UI threads.
@@ -149,4 +157,3 @@ class RosbridgeComm : public VirtualChannelNode {
 };
 
 #endif  // ROSBRIDGE_COMM_H
-

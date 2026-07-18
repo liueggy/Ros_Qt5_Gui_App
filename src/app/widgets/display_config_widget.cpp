@@ -13,6 +13,7 @@
 #include <QSpacerItem>
 #include <algorithm>
 #include "config/config_manager.h"
+#include "core/framework/framework.h"
 #include "display/manager/display_factory.h"
 #include "display/manager/display_manager.h"
 #include "display/virtual_display.h"
@@ -833,6 +834,8 @@ void DisplayConfigWidget::OnToggleDisplay(const std::string& display_name, bool 
     if (it != config.display_config.end()) it->visible = visible;
     else config.display_config.push_back(Config::DisplayConfig(display_name, topic, visible));
   });
+  PUBLISH(MSG_ID_DISPLAY_STREAM_VISIBILITY,
+          std::make_pair(display_name, visible));
 }
 
 void DisplayConfigWidget::OnDisplayTopicChanged(const std::string& display_name, const QString& topic) {
@@ -1312,4 +1315,3 @@ void DisplayConfigWidget::LoadConfig() {
 void DisplayConfigWidget::SaveConfig() {
   AutoSaveConfig();
 }
-
