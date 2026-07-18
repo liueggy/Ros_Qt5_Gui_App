@@ -1,6 +1,8 @@
 #include "app/mission_contract.h"
 #include "app/diagnostic_policy.h"
 
+#include <QFile>
+#include <QFileInfo>
 #include <gtest/gtest.h>
 
 namespace {
@@ -172,6 +174,15 @@ TEST(DiagnosticPolicyTest, ActiveModeKeepsUnrelatedSensorFailure) {
 
   EXPECT_EQ(adapted.hardware.at("sensors").at("lidar").level, 2);
   EXPECT_EQ(AppContract::CountDiagnosticAbnormal(adapted), 1);
+}
+
+TEST(TelemetryLoggingContract, AutoExploreFramesAreNotWrittenToDisk) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile mainwindow(test_source.dir().filePath(QStringLiteral("mainwindow.cpp")));
+  ASSERT_TRUE(mainwindow.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray source = mainwindow.readAll();
+
+  EXPECT_FALSE(source.contains("auto explore status:"));
 }
 
 }  // namespace

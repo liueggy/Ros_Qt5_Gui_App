@@ -981,10 +981,6 @@ void MainWindow::registerChannel() {
     }, Qt::QueuedConnection);
   });
 
-  SUBSCRIBE_QOBJECT(this, MSG_ID_AUTO_EXPLORE_STATUS, [this](const std::string& json_str) {
-    LOG_INFO("auto explore status: " << json_str);
-  });
-
   SUBSCRIBE_QOBJECT(this, MSG_ID_DHT11_TEMP, [this](const double& temp) {
     if (label_dht11_temp_) {
       label_dht11_temp_->setText(QString::number(temp, 'f', 1) + " °C");
