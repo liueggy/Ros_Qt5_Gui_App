@@ -2,10 +2,10 @@
 #include "app/diagnostic_policy.h"
 #include "map/occupancy_map.h"
 
+#include <gtest/gtest.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
-#include <gtest/gtest.h>
 #include <limits>
 
 namespace {
@@ -16,12 +16,13 @@ TEST(MapConfigContract, RepairsReversedThresholdsBeforeUpload) {
   const QString yaml_path = directory.filePath(QStringLiteral("map.yaml"));
   QFile yaml(yaml_path);
   ASSERT_TRUE(yaml.open(QIODevice::WriteOnly | QIODevice::Text));
-  yaml.write("image: ./map.pgm\n"
-             "resolution: 0.05\n"
-             "origin: [0, 0, 0]\n"
-             "negate: 0\n"
-             "occupied_thresh: 0.25\n"
-             "free_thresh: 0.65\n");
+  yaml.write(
+      "image: ./map.pgm\n"
+      "resolution: 0.05\n"
+      "origin: [0, 0, 0]\n"
+      "negate: 0\n"
+      "occupied_thresh: 0.25\n"
+      "free_thresh: 0.65\n");
   yaml.close();
 
   basic::MapConfig config;
@@ -75,6 +76,25 @@ TEST(MissionContractTest, SingleGoalUsesUnifiedMissionEnvelope) {
   EXPECT_DOUBLE_EQ(request.at("route").at(0).at("x").get<double>(), pose.x);
   EXPECT_DOUBLE_EQ(request.at("route").at(0).at("y").get<double>(), pose.y);
   EXPECT_DOUBLE_EQ(request.at("route").at(0).at("yaw").get<double>(), pose.theta);
+}
+
+TEST(MissionContractTest, ToleratesNullableAndWrongTypedStatusFields) {
+  const nlohmann::json accepted = {
+      {"request_id", "qt-goal-fixed"},
+      {"stage", "accepted"},
+      {"point_index", nullptr},
+  };
+  EXPECT_EQ(AppContract::JsonStringOr(accepted, "request_id"),
+            "qt-goal-fixed");
+  EXPECT_EQ(AppContract::JsonIntOr(accepted, "point_index", -1), -1);
+
+  const nlohmann::json malformed = {
+      {"request_id", 42}, {"stage", nullptr}, {"ok", "true"}};
+  EXPECT_EQ(AppContract::JsonStringOr(malformed, "request_id", "missing"),
+            "missing");
+  EXPECT_EQ(AppContract::JsonStringOr(malformed, "stage", "unknown"),
+            "unknown");
+  EXPECT_FALSE(AppContract::JsonBoolOr(malformed, "ok", false));
 }
 
 TEST(MissionContractTest, MissionTrackerCorrelatesAndRecoversFromTimeouts) {

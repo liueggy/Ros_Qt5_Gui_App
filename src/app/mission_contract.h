@@ -11,6 +11,40 @@
 
 namespace AppContract {
 
+inline std::string JsonStringOr(const nlohmann::json& object,
+                                const char* key,
+                                std::string fallback = {}) {
+  if (!object.is_object()) {
+    return fallback;
+  }
+  const auto found = object.find(key);
+  return found != object.end() && found->is_string()
+             ? found->get<std::string>()
+             : fallback;
+}
+
+inline int JsonIntOr(const nlohmann::json& object, const char* key,
+                     int fallback) {
+  if (!object.is_object()) {
+    return fallback;
+  }
+  const auto found = object.find(key);
+  return found != object.end() && found->is_number_integer()
+             ? found->get<int>()
+             : fallback;
+}
+
+inline bool JsonBoolOr(const nlohmann::json& object, const char* key,
+                       bool fallback) {
+  if (!object.is_object()) {
+    return fallback;
+  }
+  const auto found = object.find(key);
+  return found != object.end() && found->is_boolean()
+             ? found->get<bool>()
+             : fallback;
+}
+
 struct RelocationSampleEvaluation {
   double distance = {0.0};
   double angle_error = {0.0};

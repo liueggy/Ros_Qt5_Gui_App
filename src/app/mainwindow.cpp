@@ -20,25 +20,25 @@
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QLabel>
-#include <QMessageBox>
-#include <QMouseEvent>
-#include <QMenu>
-#include <QMetaObject>
-#include <QScreen>
-#include <QStandardPaths>
-#include <QSplitter>
-#include <QStatusBar>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
+#include <QMenu>
+#include <QMessageBox>
+#include <QMetaObject>
+#include <QMouseEvent>
+#include <QScreen>
+#include <QSplitter>
+#include <QStandardPaths>
+#include <QStatusBar>
 #include <QStyle>
 #include <QUuid>
 #include <cmath>
 #include <iostream>
 #include <map>
 #include <numeric>
-#include <utility>
 #include <opencv2/opencv.hpp>
+#include <utility>
 #include "AutoHideDockContainer.h"
 #include "DockAreaTabBar.h"
 #include "DockAreaTitleBar.h"
@@ -84,11 +84,11 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   pill->setFixedSize(width, 34);
   pill->setToolTip(tooltip);
   pill->setStyleSheet(QStringLiteral(
-      "QFrame#topStatusPill { background:%1; border:1px solid %2; border-radius:4px; }"
-      "QFrame#topStatusPill:hover { background:%3; border-color:%4; }"
-      "QFrame#topStatusPill QLabel { background:transparent; border:none; }")
-      .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
-           UiStyle::Palette::Surface, UiStyle::Palette::BorderHover));
+                          "QFrame#topStatusPill { background:%1; border:1px solid %2; border-radius:4px; }"
+                          "QFrame#topStatusPill:hover { background:%3; border-color:%4; }"
+                          "QFrame#topStatusPill QLabel { background:transparent; border:none; }")
+                          .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
+                               UiStyle::Palette::Surface, UiStyle::Palette::BorderHover));
 
   auto* layout = new QHBoxLayout(pill);
   layout->setContentsMargins(8, 0, 8, 0);
@@ -103,7 +103,6 @@ QFrame* CreateTopStatusPill(const QString& icon_path, QWidget* value_widget,
   layout->addWidget(value_widget, 1);
   return pill;
 }
-
 
 QString JsonValueToText(const nlohmann::json& value) {
   if (value.is_string()) {
@@ -137,17 +136,17 @@ QString MeterReadingText(const nlohmann::json& meter) {
   if (!meter.is_object()) {
     return QStringLiteral("未识别");
   }
-  QString value = meter.contains("reading") ? JsonValueToText(meter["reading"])
-                : meter.contains("best_effort_reading") ? JsonValueToText(meter["best_effort_reading"])
-                : meter.contains("value") ? JsonValueToText(meter["value"])
-                : meter.contains("读数") ? JsonValueToText(meter["读数"])
-                : QString();
+  QString value = meter.contains("reading")               ? JsonValueToText(meter["reading"])
+                  : meter.contains("best_effort_reading") ? JsonValueToText(meter["best_effort_reading"])
+                  : meter.contains("value")               ? JsonValueToText(meter["value"])
+                  : meter.contains("读数")                ? JsonValueToText(meter["读数"])
+                                                          : QString();
   if (value.trimmed().isEmpty() || value.trimmed().toLower() == QStringLiteral("unknown")) {
     return QStringLiteral("未识别");
   }
-  const QString unit = meter.contains("unit") ? JsonValueToText(meter["unit"])
-                     : meter.contains("单位") ? JsonValueToText(meter["单位"])
-                     : QString();
+  const QString unit = meter.contains("unit")   ? JsonValueToText(meter["unit"])
+                       : meter.contains("单位") ? JsonValueToText(meter["单位"])
+                                                : QString();
   return unit.isEmpty() ? value : value + unit;
 }
 
@@ -269,13 +268,13 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
       return;
     }
     QStringList fields;
-    const QString value = meter.contains("value") ? JsonValueToText(meter["value"])
-                         : meter.contains("reading") ? JsonValueToText(meter["reading"])
-                         : meter.contains("读数") ? JsonValueToText(meter["读数"])
-                         : QString();
-    const QString unit = meter.contains("unit") ? JsonValueToText(meter["unit"])
-                       : meter.contains("单位") ? JsonValueToText(meter["单位"])
-                       : QString();
+    const QString value = meter.contains("value")     ? JsonValueToText(meter["value"])
+                          : meter.contains("reading") ? JsonValueToText(meter["reading"])
+                          : meter.contains("读数")    ? JsonValueToText(meter["读数"])
+                                                      : QString();
+    const QString unit = meter.contains("unit")   ? JsonValueToText(meter["unit"])
+                         : meter.contains("单位") ? JsonValueToText(meter["单位"])
+                                                  : QString();
     if (!value.isEmpty()) {
       fields << (unit.isEmpty() ? value : value + unit);
     }
@@ -317,9 +316,9 @@ QString SummarizeKimiObject(const nlohmann::json& api) {
       }
       const QString type = QString::fromStdString(
           reading.value("type", reading.value("class_name", std::string("读数"))));
-      const QString value = reading.contains("value") ? JsonValueToText(reading["value"])
-                          : reading.contains("reading") ? JsonValueToText(reading["reading"])
-                          : QString();
+      const QString value = reading.contains("value")     ? JsonValueToText(reading["value"])
+                            : reading.contains("reading") ? JsonValueToText(reading["reading"])
+                                                          : QString();
       const QString unit = reading.contains("unit") ? JsonValueToText(reading["unit"]) : QString();
       if (!value.isEmpty()) {
         summaries << QStringLiteral("%1: %2%3").arg(type, value, unit);
@@ -483,8 +482,7 @@ QString FormatInspectionResult(const std::string& json_text) {
           if (!kimi_summary.isEmpty()) {
             point_parts << QStringLiteral("结果:%1").arg(kimi_summary);
           } else if (kimi.contains("error")) {
-            point_parts << QStringLiteral("Kimi错误:%1").arg(
-                QString::fromStdString(kimi.value("error", std::string())));
+            point_parts << QStringLiteral("Kimi错误:%1").arg(QString::fromStdString(kimi.value("error", std::string())));
           }
         }
         lines << point_parts.join(QStringLiteral(" · "));
@@ -697,8 +695,8 @@ void MainWindow::registerChannel() {
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_LOCALIZATION_POSE,
                     [this](const LocalizationEstimate& estimate) {
-    CheckRelocationProgress(estimate);
-  });
+                      CheckRelocationProgress(estimate);
+                    });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
     HandleMapCommandResponse(json);
@@ -765,60 +763,64 @@ void MainWindow::registerChannel() {
       return;
     }
     QMetaObject::invokeMethod(this, [this, json_str]() {
-      nlohmann::json data;
       try {
-        data = nlohmann::json::parse(json_str);
-      } catch (const std::exception&) {
-        return;
-      }
-      if (!IsCurrentMissionMessage(data)) {
-        return;
-      }
-      const QString line = FormatInspectionStatus(json_str);
-      inspection_status_label_->setText(line);
-      AppendInspectionLogLine(line);
-      std::string stage;
-      stage = data.value("stage", data.value("state", std::string()));
-      const QString request_id =
-          QString::fromStdString(data.value("request_id", std::string()));
-      if (stage == "accepted") {
-        mission_tracker_.Accept(request_id);
-      }
-      UpdateInspectionProgress(data);
-      if (stage == "error" || stage == "rotation_sensor_stop" ||
-          stage == "tf_unavailable" || stage == "invalid_detection") {
-        inspection_status_label_->setStyleSheet(UiStyle::StatusDangerStyleSheet());
-      } else if (stage == "target_skipped" || stage == "target_lost" ||
-                 stage == "align_timeout") {
-        inspection_status_label_->setStyleSheet(UiStyle::StatusWarningStyleSheet());
-      } else if (stage == "kimi_complete" || stage == "complete" ||
-                 stage == "completed") {
-        inspection_status_label_->setStyleSheet(UiStyle::StatusSuccessStyleSheet());
-      } else {
-        inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
-      }
-      if (stage == "cancel_ignored") {
-        mission_tracker_.CancelTimedOut(request_id);
-        SetInspectionRunning(true);
-      } else if (stage == "rejected" || stage == "bad_request" ||
-                 stage == "busy") {
-        mission_tracker_.Finish(request_id);
-        SetInspectionRunning(false);
-        active_mission_point_count_ = 0;
-        active_mission_inspection_enabled_ = false;
-      }
-      if (AppContract::IsMissionTerminalStage(stage)) {
-        QTimer::singleShot(1200, this, [this, request_id]() {
-          if (!mission_tracker_.Matches(request_id)) {
-            return;
-          }
+        const nlohmann::json data = nlohmann::json::parse(json_str);
+        if (!IsCurrentMissionMessage(data)) {
+          return;
+        }
+        const QString line = FormatInspectionStatus(json_str);
+        inspection_status_label_->setText(line);
+        AppendInspectionLogLine(line);
+        std::string stage = AppContract::JsonStringOr(data, "stage");
+        if (stage.empty()) {
+          stage = AppContract::JsonStringOr(data, "state");
+        }
+        const QString request_id = QString::fromStdString(
+            AppContract::JsonStringOr(data, "request_id"));
+        if (stage == "accepted") {
+          mission_tracker_.Accept(request_id);
+        }
+        UpdateInspectionProgress(data);
+        if (stage == "error" || stage == "rotation_sensor_stop" ||
+            stage == "tf_unavailable" || stage == "invalid_detection") {
+          inspection_status_label_->setStyleSheet(
+              UiStyle::StatusDangerStyleSheet());
+        } else if (stage == "target_skipped" || stage == "target_lost" ||
+                   stage == "align_timeout") {
+          inspection_status_label_->setStyleSheet(
+              UiStyle::StatusWarningStyleSheet());
+        } else if (stage == "kimi_complete" || stage == "complete" ||
+                   stage == "completed") {
+          inspection_status_label_->setStyleSheet(
+              UiStyle::StatusSuccessStyleSheet());
+        } else {
+          inspection_status_label_->setStyleSheet(
+              UiStyle::StatusInfoStyleSheet());
+        }
+        if (stage == "cancel_ignored") {
+          mission_tracker_.CancelTimedOut(request_id);
+          SetInspectionRunning(true);
+        } else if (stage == "rejected" || stage == "bad_request" ||
+                   stage == "busy") {
           mission_tracker_.Finish(request_id);
           SetInspectionRunning(false);
           active_mission_point_count_ = 0;
           active_mission_inspection_enabled_ = false;
-        });
-      }
-    }, Qt::QueuedConnection);
+        }
+        if (AppContract::IsMissionTerminalStage(stage)) {
+          QTimer::singleShot(1200, this, [this, request_id]() {
+            if (!mission_tracker_.Matches(request_id)) {
+              return;
+            }
+            mission_tracker_.Finish(request_id);
+            SetInspectionRunning(false);
+            active_mission_point_count_ = 0;
+            active_mission_inspection_enabled_ = false;
+          });
+        }
+      } catch (const std::exception& error) {
+        LOG_ERROR("Ignored invalid mission status payload: " << error.what());
+      } }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE_QOBJECT(
@@ -873,7 +875,7 @@ void MainWindow::registerChannel() {
         return;
       }
       const QString request_id = QString::fromStdString(
-          mission_result.value("request_id", std::string()));
+          AppContract::JsonStringOr(mission_result, "request_id"));
       if (inspection_result_view_) {
         AppendInspectionLogLine(FormatInspectionResult(json_str));
       }
@@ -883,7 +885,7 @@ void MainWindow::registerChannel() {
         AiInspectionDisplay ai_display;
         try {
           const auto data = nlohmann::json::parse(json_str);
-          inspection_ok = data.value("ok", false);
+          inspection_ok = AppContract::JsonBoolOr(data, "ok", false);
           const auto pts = data.contains("points") ? data["points"]
                          : data.contains("results") ? data["results"]
                          : nlohmann::json::array();
@@ -988,8 +990,7 @@ void MainWindow::registerChannel() {
       }
       mission_tracker_.Finish(request_id);
       active_mission_point_count_ = 0;
-      active_mission_inspection_enabled_ = false;
-    }, Qt::QueuedConnection);
+      active_mission_inspection_enabled_ = false; }, Qt::QueuedConnection);
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_DHT11_TEMP, [this](const double& temp) {
@@ -1070,7 +1071,6 @@ void MainWindow::setupUi() {
   dock_manager_->setStyleSheet(UiStyle::DockStyleSheet());
   QVBoxLayout* center_layout = new QVBoxLayout();    // 垂直
   QHBoxLayout* center_h_layout = new QHBoxLayout();  // 水平
-
 
   QWidget* tools_strip = new QWidget();
   custom_title_bar_ = tools_strip;
@@ -1172,15 +1172,15 @@ void MainWindow::setupUi() {
   battery_bar_->setFormat(QStringLiteral("%p%"));
   battery_bar_->setFixedSize(QSize(68, 22));
   battery_bar_->setStyleSheet(QStringLiteral(
-      "QProgressBar#battery_bar_ { border:1px solid %1; background:%2; "
-      "border-radius:7px; text-align:center; color:%3; "
-      "font-size:%4px; font-weight:700; }"
-      "QProgressBar#battery_bar_::chunk { background:%1; border-radius:6px; }")
-      .arg(UiStyle::Palette::BorderHover)
-      .arg(UiStyle::Palette::PrimaryLight)
-      .arg(UiStyle::Palette::Primary)
-      .arg(UiStyle::Palette::Text)
-      .arg(QString::number(UiStyle::Font::Small))
+                                  "QProgressBar#battery_bar_ { border:1px solid %1; background:%2; "
+                                  "border-radius:7px; text-align:center; color:%3; "
+                                  "font-size:%4px; font-weight:700; }"
+                                  "QProgressBar#battery_bar_::chunk { background:%1; border-radius:6px; }")
+                                  .arg(UiStyle::Palette::BorderHover)
+                                  .arg(UiStyle::Palette::PrimaryLight)
+                                  .arg(UiStyle::Palette::Primary)
+                                  .arg(UiStyle::Palette::Text)
+                                  .arg(QString::number(UiStyle::Font::Small))
                                   .arg(UiStyle::FontSmallPx()));
   battery_bar_->setAlignment(Qt::AlignCenter);
   horizontalLayout_tools->addWidget(CreateTopStatusPill(
@@ -1286,8 +1286,10 @@ void MainWindow::setupUi() {
   //////////////////////////////////////////////////////////////编辑地图工具栏 - 现代化设计
   QWidget* tools_edit_map_widget = new QWidget();
   tools_edit_map_widget->setStyleSheet(QStringLiteral(
-    "QWidget { background-color:%1; border:1px solid %2; border-radius:8px; }" " QLabel { color:%3; }").arg(UiStyle::Palette::Surface,
-         UiStyle::Palette::Border, UiStyle::Palette::TextSecondary));
+                                           "QWidget { background-color:%1; border:1px solid %2; border-radius:8px; }"
+                                           " QLabel { color:%3; }")
+                                           .arg(UiStyle::Palette::Surface,
+                                                UiStyle::Palette::Border, UiStyle::Palette::TextSecondary));
   QVBoxLayout* layout_tools_edit_map = new QVBoxLayout();
   tools_edit_map_widget->setLayout(layout_tools_edit_map);
   layout_tools_edit_map->setSpacing(4);
@@ -1421,7 +1423,8 @@ void MainWindow::setupUi() {
   /////////////////////////////////////////////////中心主窗体
   QWidget* center_widget = new QWidget();
   center_widget->setStyleSheet(QStringLiteral(
-    "QWidget { background-color:%1; }").arg(UiStyle::Palette::Surface));
+                                   "QWidget { background-color:%1; }")
+                                   .arg(UiStyle::Palette::Surface));
   center_widget->setLayout(center_layout);
   CDockWidget* CentralDockWidget = new CDockWidget("CentralWidget");
   CentralDockWidget->setWidget(center_widget);
@@ -1614,14 +1617,14 @@ void MainWindow::setupUi() {
   inspection_status_card_ = inspection_status_card;
   inspection_status_card->setProperty("uiCard", true);
   inspection_status_card->setStyleSheet(QStringLiteral(
-      "QFrame { background:%1; border:1px solid %2; border-radius:12px; }"
-      "QLabel { background:transparent; border:none; color:%3; }"
-      "QPlainTextEdit { background:%4; color:%5; border:1px solid %6; "
-      "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }")
-      .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
-           UiStyle::Palette::TextSecondary,
-           UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
-           UiStyle::Palette::TerminalBorder));
+                                            "QFrame { background:%1; border:1px solid %2; border-radius:12px; }"
+                                            "QLabel { background:transparent; border:none; color:%3; }"
+                                            "QPlainTextEdit { background:%4; color:%5; border:1px solid %6; "
+                                            "border-radius:10px; padding:8px; font-family:'Microsoft YaHei UI'; }")
+                                            .arg(UiStyle::Palette::ToolbarBg, UiStyle::Palette::Border,
+                                                 UiStyle::Palette::TextSecondary,
+                                                 UiStyle::Palette::TerminalBg, UiStyle::Palette::TerminalText,
+                                                 UiStyle::Palette::TerminalBorder));
   auto* inspection_status_layout = new QVBoxLayout(inspection_status_card);
   inspection_status_layout->setContentsMargins(14, 12, 14, 14);
   inspection_status_layout->setSpacing(8);
@@ -1654,11 +1657,11 @@ void MainWindow::setupUi() {
   inspection_kimi_banner_ = new QLabel();
   inspection_kimi_banner_->setWordWrap(true);
   inspection_kimi_banner_->setStyleSheet(QStringLiteral(
-      "QLabel { background:%1; color:%2; border:1px solid %3; "
-      "border-radius:8px; padding:10px 14px; font-size:%4px; font-weight:700; }")
-      .arg(UiStyle::Palette::SuccessBg, UiStyle::Palette::Success,
-           UiStyle::Palette::SuccessBorder)
-      .arg(UiStyle::FontBasePx()));
+                                             "QLabel { background:%1; color:%2; border:1px solid %3; "
+                                             "border-radius:8px; padding:10px 14px; font-size:%4px; font-weight:700; }")
+                                             .arg(UiStyle::Palette::SuccessBg, UiStyle::Palette::Success,
+                                                  UiStyle::Palette::SuccessBorder)
+                                             .arg(UiStyle::FontBasePx()));
   inspection_kimi_banner_->setVisible(false);
   inspection_status_layout->addWidget(inspection_kimi_banner_);
 
@@ -2260,7 +2263,6 @@ void MainWindow::PublishImageStreamVisibility() const {
   }
 }
 
-
 void MainWindow::StartManualRelocation() {
   auto map = display_manager_->GetOccupancyMap();
   if (map.Rows() <= 0 || map.Cols() <= 0) {
@@ -2284,8 +2286,7 @@ void MainWindow::PublishNavGoalSafely(const RobotPose& pose) {
     return;
   }
   const QString request_id =
-      QStringLiteral("qt-goal-%1").arg(
-          QUuid::createUuid().toString(QUuid::WithoutBraces));
+      QStringLiteral("qt-goal-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
   StartMissionRequest(
       AppContract::BuildSingleGoalMission(pose, request_id).dump());
 }
@@ -2349,8 +2350,8 @@ void MainWindow::StartMissionRequest(const std::string& request) {
         QStringLiteral("0 / %1").arg(active_mission_point_count_));
   }
   const QString pending_text = inspection_enabled
-      ? QStringLiteral("任务已发送，等待小车开始导航与 AI 巡检…")
-      : QStringLiteral("任务已发送，等待小车开始导航…");
+                                   ? QStringLiteral("任务已发送，等待小车开始导航与 AI 巡检…")
+                                   : QStringLiteral("任务已发送，等待小车开始导航…");
   if (inspection_status_label_) {
     inspection_status_label_->setText(pending_text);
     inspection_status_label_->setStyleSheet(UiStyle::StatusInfoStyleSheet());
@@ -2381,7 +2382,8 @@ bool MainWindow::IsCurrentMissionMessage(const nlohmann::json& data) const {
   if (!inspection_running_ || !mission_tracker_.active()) {
     return false;
   }
-  const std::string request_id = data.value("request_id", std::string());
+  const std::string request_id =
+      AppContract::JsonStringOr(data, "request_id");
   return !request_id.empty() &&
          mission_tracker_.Matches(QString::fromStdString(request_id));
 }
@@ -2511,7 +2513,7 @@ void MainWindow::SetInspectionRunning(bool running) {
   if (inspection_save_button_) inspection_save_button_->setEnabled(!running);
   if (inspection_ai_checkbox_) {
     inspection_ai_checkbox_->setEnabled(!running &&
-                                         inspection_capability_ready_);
+                                        inspection_capability_ready_);
   }
   if (inspection_loop_checkbox_) inspection_loop_checkbox_->setEnabled(!running);
   if (inspection_return_home_checkbox_) {
@@ -2537,13 +2539,16 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
   if (!nav_goal_table_view_) {
     return;
   }
-  const std::string stage_value =
-      data.value("stage", data.value("state", std::string()));
+  std::string stage_value = AppContract::JsonStringOr(data, "stage");
+  if (stage_value.empty()) {
+    stage_value = AppContract::JsonStringOr(data, "state");
+  }
   const QString stage = QString::fromStdString(stage_value);
   const auto extra = data.contains("extra") && data["extra"].is_object()
                          ? data["extra"]
                          : nlohmann::json::object();
-  const int row = data.value("point_index", extra.value("index", -1));
+  const int row = AppContract::JsonIntOr(
+      data, "point_index", AppContract::JsonIntOr(extra, "index", -1));
   const int total = active_mission_point_count_;
   const QString stage_text = InspectionStageText(stage_value);
 
