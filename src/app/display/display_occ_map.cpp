@@ -40,7 +40,9 @@ DisplayOccMap::~DisplayOccMap() {
   // Background conversions capture this only while the object is alive. Wait
   // before QObject teardown; queued deliveries targeting this object are then
   // either applied before destruction or discarded by Qt with the receiver.
-  map_tasks_.waitForFinished();
+  if (map_task_.isRunning()) {
+    map_task_.waitForFinished();
+  }
 }
 bool DisplayOccMap::SetDisplayConfig(const std::string &config_name,
                                      const std::any &config_data) {
@@ -87,6 +89,11 @@ void DisplayOccMap::SetDiscoveryAnimation(bool enabled, int duration_ms) {
 }
 
 void DisplayOccMap::ParseOccupyMap() {
+  const std::uint64_t requested_generation = ++map_generation_;
+  if (map_parse_in_progress_) {
+    return;
+  }
+  map_parse_in_progress_ = true;
   // 在后台线程计算像素数据，避免阻塞 UI；
   // 完成后通过 QMetaObject::invokeMethod 回到主线程更新 map_image_ 和场景。
   OccupancyMap map_copy = map_data_;
@@ -94,8 +101,8 @@ void DisplayOccMap::ParseOccupyMap() {
   const bool previous_map_valid = rendered_map_valid_;
   const QImage previous_image = map_image_;
   const bool animate_discovery = discovery_animation_enabled_;
-  const std::uint64_t generation = ++map_generation_;
-  map_tasks_.addFuture(QtConcurrent::run(
+  const std::uint64_t generation = requested_generation;
+  map_task_ = QtConcurrent::run(
       [this, map_copy, previous_map, previous_map_valid, previous_image,
        animate_discovery, generation]() mutable {
     const int cols = map_copy.Cols();
@@ -112,6 +119,12 @@ void DisplayOccMap::ParseOccupyMap() {
             ? previous_image.copy()
             : QImage(cols, rows, QImage::Format_ARGB32);
     if (local_image.isNull()) {
+      QMetaObject::invokeMethod(this, [this, generation]() {
+        map_parse_in_progress_ = false;
+        if (generation != map_generation_.load()) {
+          ParseOccupyMap();
+        }
+      }, Qt::QueuedConnection);
       return;
     }
     QImage discovery_overlay;
@@ -149,10 +162,10 @@ void DisplayOccMap::ParseOccupyMap() {
         if (compatible_previous && map_value == previous_value) {
           continue;
         }
-        dirty_x_min = std::min(dirty_x_min, i);
-        dirty_y_min = std::min(dirty_y_min, j);
-        dirty_x_max = std::max(dirty_x_max, i);
-        dirty_y_max = std::max(dirty_y_max, j);
+        dirty_x_min = (std::min)(dirty_x_min, i);
+        dirty_y_min = (std::min)(dirty_y_min, j);
+        dirty_x_max = (std::max)(dirty_x_max, i);
+        dirty_y_max = (std::max)(dirty_y_max, j);
         if (map_value > 0) {
           int alpha = static_cast<int>(std::clamp(map_value * 2.55, 0.0, 255.0));
           row[j * bpl] = qRgba(obstacle.red(), obstacle.green(), obstacle.blue(), alpha);
@@ -179,9 +192,6 @@ void DisplayOccMap::ParseOccupyMap() {
     QMetaObject::invokeMethod(this, [this, local_image, discovery_overlay,
                                      discovered_cells, dirty_rect, map_copy,
                                      generation]() mutable {
-      if (generation != map_generation_.load()) {
-        return;
-      }
       map_image_ = local_image;
       rendered_map_ = map_copy;
       rendered_map_valid_ = true;
@@ -206,8 +216,12 @@ void DisplayOccMap::ParseOccupyMap() {
         CenterOnScene(mapToScene(x, y));
         init_flag_ = true;
       }
+      map_parse_in_progress_ = false;
+      if (generation != map_generation_.load()) {
+        ParseOccupyMap();
+      }
     }, Qt::QueuedConnection);
-  }));
+  });
 }
 void DisplayOccMap::EraseMapRange(const QPointF &pose, double range) {
   float x = pose.x();

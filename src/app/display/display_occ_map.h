@@ -10,7 +10,7 @@
 #include <atomic>
 #include <cstdint>
 #include <Eigen/Dense>
-#include <QFutureSynchronizer>
+#include <QFuture>
 #include <QTimeLine>
 #include "occupancy_map.h"
 #include "virtual_display.h"
@@ -58,7 +58,8 @@ class DisplayOccMap : public VirtualDisplay {
   QPointF line_start_pose_;
   QImage line_tmp_image_;  // 用于存储绘制线条的图像，以便在绘制完成后进行处理
   std::atomic<std::uint64_t> map_generation_{0};
-  QFutureSynchronizer<void> map_tasks_;
+  QFuture<void> map_task_;
+  bool map_parse_in_progress_ = false;
  private:
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
              QWidget *widget = nullptr) override;

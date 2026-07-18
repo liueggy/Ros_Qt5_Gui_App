@@ -5,6 +5,10 @@
 #include "messages/rosbridge_msg.h"
 
 class ROSBridgePublishMsg : public ROSBridgeMsg {
+private:
+	// Declared before msg_json_ so its allocator is destroyed after the value.
+	rapidjson::Document owned_msg_storage_;
+
 public:
 	ROSBridgePublishMsg() : ROSBridgeMsg() {}
 
@@ -16,10 +20,6 @@ public:
 
 	virtual ~ROSBridgePublishMsg() = default;
 
-	// Warning: This conversion moves the 'msg' field
-	// out of the given JSON data into this class
-	// 'msg' will become null afterwards.
-	//
 	// This method parses the "topic" and "msg" fields from
 	// incoming publish messages into this class
 	bool FromJSON(rapidjson::Document &data) {
@@ -41,14 +41,22 @@ public:
 			return false;
 		}
 
+		// Incoming envelopes stay alive for the duration of callback dispatch.
+		// Move the root value to avoid copying large maps and camera payloads.
 		msg_json_ = data["msg"];
 
 		return true;
 	}
 
-	rapidjson::Document ToJSON(rapidjson::Document::AllocatorType& alloc)
+	void SetMessage(const rapidjson::Value& message)
+	{
+		msg_json_.CopyFrom(message, owned_msg_storage_.GetAllocator());
+	}
+
+	rapidjson::Document ToJSON(rapidjson::Document::AllocatorType& /*alloc*/)
 	{
 		rapidjson::Document d(rapidjson::kObjectType);
+		auto& alloc = d.GetAllocator();
 		d.AddMember("op", getOpCodeString(), alloc);
 
 		add_if_value_changed(d, alloc, "id", id_);
@@ -58,8 +66,11 @@ public:
 
 		d.AddMember("latch", latch_, alloc);
 
-		if (!msg_json_.IsNull())
-			d.AddMember("msg", msg_json_, alloc);
+		if (!msg_json_.IsNull()) {
+			rapidjson::Value payload;
+			payload.CopyFrom(msg_json_, alloc);
+			d.AddMember("msg", payload, alloc);
+		}
 
 		return d;
 	}
@@ -74,6 +85,4 @@ public:
 	// The json data in the different wire-level representations
 	rapidjson::Value msg_json_;
 
-private:
-	/* data */
 };

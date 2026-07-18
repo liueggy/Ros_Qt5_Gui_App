@@ -11,6 +11,7 @@
 #include "include/protocol_validation.h"
 #include "include/ros_bridge.h"
 #include "include/ros_topic.h"
+#include "include/messages/rosbridge_publish_msg.h"
 #include "include/rosbridge_contract.h"
 #include "include/subscription_policy.h"
 #include "tf2_rosbridge.h"
@@ -152,6 +153,41 @@ TEST(RosTopicLifecycleTest, RecoversAfterSubscribeAndUnsubscribeSendFailures) {
   transport.send_success = true;
   EXPECT_TRUE(topic.Unsubscribe(valid_handle));
   EXPECT_EQ(transport.send_count, 4);
+}
+
+TEST(RosbridgePublishMsgTest, OwnsPayloadAndSerializesRepeatedly) {
+  rapidjson::Document payload;
+  payload.SetObject();
+  payload.AddMember(
+      "data",
+      rapidjson::Value(R"({"request_id":"mission-1","waypoints":[1,2]})",
+                       payload.GetAllocator()),
+      payload.GetAllocator());
+
+  ROSBridgePublishMsg message(true);
+  message.topic_ = "/eggy/mission/request";
+  message.SetMessage(payload);
+
+  ASSERT_TRUE(payload.HasMember("data"));
+  EXPECT_TRUE(payload["data"].IsString());
+
+  rapidjson::Document unused_allocator_owner;
+  const auto first = message.ToJSON(unused_allocator_owner.GetAllocator());
+  const auto second = message.ToJSON(unused_allocator_owner.GetAllocator());
+  ASSERT_TRUE(first.HasMember("msg"));
+  ASSERT_TRUE(second.HasMember("msg"));
+  EXPECT_STREQ(first["msg"]["data"].GetString(),
+               second["msg"]["data"].GetString());
+  EXPECT_STREQ(payload["data"].GetString(), first["msg"]["data"].GetString());
+}
+
+TEST(RosbridgePublishMsgTest, ParsesIncomingEnvelopeWithoutPayloadCopy) {
+  auto envelope = Parse(
+      R"({"op":"publish","topic":"/scan","msg":{"ranges":[1.0,2.0]}})");
+  ROSBridgePublishMsg message;
+  ASSERT_TRUE(message.FromJSON(envelope));
+  ASSERT_TRUE(message.msg_json_.HasMember("ranges"));
+  EXPECT_EQ(message.msg_json_["ranges"].Size(), 2u);
 }
 
 TEST(ProtocolValidationTest, RejectsInvalidEnvelopeFieldTypesAndSizes) {

@@ -2081,12 +2081,18 @@ bool RosbridgeComm::PubStringRequest(const MsgId& id, const std::string& json_re
   msg.AddMember("data", rapidjson::Value(json_request.c_str(), allocator), allocator);
 
   bool success = false;
-  {
-    std::lock_guard<std::mutex> transport_lock(transport_mutex_);
-    auto it = publishers_.find(GET_TOPIC_NAME(ToString(id)));
-    if (it != publishers_.end()) {
-      success = it->second->Publish(msg);
+  try {
+    {
+      std::lock_guard<std::mutex> transport_lock(transport_mutex_);
+      auto it = publishers_.find(GET_TOPIC_NAME(ToString(id)));
+      if (it != publishers_.end()) {
+        success = it->second->Publish(msg);
+      }
     }
+  } catch (const std::exception& error) {
+    LOG_ERROR("failed to publish " << ToString(id) << ": " << error.what());
+  } catch (...) {
+    LOG_ERROR("failed to publish " << ToString(id) << ": unknown exception");
   }
   basic::ChannelPublishResult result;
   result.message_id = ToString(id);

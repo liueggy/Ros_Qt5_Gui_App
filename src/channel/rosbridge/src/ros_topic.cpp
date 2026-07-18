@@ -156,7 +156,7 @@ namespace rosbridge2cpp {
 		ROSBridgePublishMsg cmd(true);
 		cmd.id_ = publish_id;
 		cmd.topic_ = topic_name_;
-		cmd.msg_json_ = message;
+		cmd.SetMessage(message);
 		cmd.latch_ = latch_;
 
 		//Queue is not implemented for JSON
