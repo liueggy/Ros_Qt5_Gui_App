@@ -29,8 +29,8 @@ class TopologyLine : public VirtualDisplay {
   
   bool is_part_of_bidirectional_ = {false};              // 是否是双向连接的一部分
   bool is_selected_ = {false};
-  int line_width_ = {5};                               // 线段宽度
-  int arrow_size_ = {20};                              // 加大箭头
+  qreal line_width_ = {2.0};                           // 屏幕像素宽度
+  qreal arrow_size_ = {10.0};                          // 轻量方向箭头
   bool is_highlighted_ = {false};
   
   // 关联的点位显示对象
@@ -79,15 +79,24 @@ class TopologyLine : public VirtualDisplay {
   bool IsPartOfBidirectional() const { return is_part_of_bidirectional_; }
   
   // 设置是否为双向连接的一部分
-  void SetPartOfBidirectional(bool is_part_of_bidirectional) { 
-    is_part_of_bidirectional_ = is_part_of_bidirectional; 
-    update(); 
+  void SetPartOfBidirectional(bool is_part_of_bidirectional) {
+    if (is_part_of_bidirectional_ == is_part_of_bidirectional) return;
+    is_part_of_bidirectional_ = is_part_of_bidirectional;
+    updateBoundingRect();
   }
   
   // 预览模式控制
-  void SetPreviewMode(bool preview_mode) { is_preview_mode_ = preview_mode; update(); }
+  void SetPreviewMode(bool preview_mode) {
+    if (is_preview_mode_ == preview_mode) return;
+    is_preview_mode_ = preview_mode;
+    updateBoundingRect();
+  }
   bool IsPreviewMode() const { return is_preview_mode_; }
-  void SetPreviewEndPos(const QPointF &pos) { preview_end_pos_ = pos; update(); }
+  void SetPreviewEndPos(const QPointF &pos) {
+    if (preview_end_pos_ == pos) return;
+    preview_end_pos_ = pos;
+    updateBoundingRect();
+  }
   
   // 重写点击检测
   bool contains(const QPointF &point) const override;

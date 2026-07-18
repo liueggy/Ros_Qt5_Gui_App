@@ -68,14 +68,6 @@ void TopologyLine::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
     return; // 如果没有起点item，不绘制
   }
   
-  // 动态更新bounding rect
-  updateBoundingRect();
-  
-  // 确保边界矩形有效，如果无效则重新计算
-  if (bounding_rect_.isEmpty() || bounding_rect_.width() < 10 || bounding_rect_.height() < 10) {
-    updateBoundingRect();
-  }
-  
   QPointF start_pos = mapFromScene(start_item_->scenePos());
   QPointF end_pos;
   
@@ -102,18 +94,15 @@ void TopologyLine::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
   
   // 设置绘制属性
   painter->setRenderHint(QPainter::Antialiasing, true);
-  painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
   
   // 选择颜色和样式
   QColor main_color = line_color_;
   Qt::PenStyle pen_style = Qt::SolidLine;
-  bool draw_shadow = true;
   
   if (is_preview_mode_) {
     // 预览模式：使用灰色动态虚线，无阴影
     main_color = preview_color_;
     pen_style = Qt::CustomDashLine;
-    draw_shadow = false;
   } else if (is_selected_) {
     main_color = selected_color_;
     // 选中状态添加脉动效果
@@ -123,28 +112,9 @@ void TopologyLine::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
     main_color = highlighted_color_;
   }
   
-  // 绘制阴影效果
-  if (draw_shadow && !is_preview_mode_) {
-    QPen shadow_pen(shadow_color_, line_width_ + 2, pen_style);
-    shadow_pen.setCapStyle(Qt::RoundCap);
-    shadow_pen.setJoinStyle(Qt::RoundJoin);
-    painter->setPen(shadow_pen);
-    painter->drawLine(start_pos + QPointF(2, 2), end_pos + QPointF(2, 2));
-  }
-  
-  // 创建渐变效果
-  QLinearGradient gradient(start_pos, end_pos);
-  if (is_preview_mode_) {
-    gradient.setColorAt(0, main_color);
-    gradient.setColorAt(1, main_color.darker(120));
-  } else {
-    gradient.setColorAt(0, main_color);
-    gradient.setColorAt(0.5, main_color.lighter(120));
-    gradient.setColorAt(1, main_color.darker(110));
-  }
-  
-  // 设置主画笔
-  QPen main_pen(QBrush(gradient), line_width_, pen_style);
+  // Cosmetic pen keeps the route visually light at every map zoom level.
+  QPen main_pen(main_color, is_selected_ ? 3.0 : line_width_, pen_style);
+  main_pen.setCosmetic(true);
   main_pen.setCapStyle(Qt::RoundCap);
   main_pen.setJoinStyle(Qt::RoundJoin);
   
@@ -162,61 +132,30 @@ void TopologyLine::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
   // 绘制主线段（总是单条线段）
   painter->drawLine(start_pos, end_pos);
   
-  // 选中状态添加流光效果
-  if (is_selected_ && !is_preview_mode_) {
-    drawFlowingLight(painter, start_pos, end_pos, main_color);
-  }
- 
-  drawMovingArrows(painter, start_pos, end_pos, main_color);
-  
-  if (is_preview_mode_) {
-    // 预览模式：固定箭头在终点
-    drawStaticArrow(painter, start_pos, end_pos, main_color);
-  }
+  drawStaticArrow(painter, start_pos, end_pos, main_color);
 }
 
 void TopologyLine::drawStaticArrow(QPainter *painter, const QPointF &start, const QPointF &end, const QColor &color) {
-  // 计算箭头位置（在终点前一段距离）
   QPointF direction = end - start;
   qreal length = qSqrt(direction.x() * direction.x() + direction.y() * direction.y());
   if (length == 0) return;
-  
+
   direction /= length;
-  QPointF arrow_tip = end - direction * 8; // 箭头尖端距离终点8像素
-  
-  // 计算箭头的各个点（更宽更美观的箭头）
-  QPointF arrow_base1 = calculateArrowHead(arrow_tip, end, M_PI / 4);    // 45度角
-  QPointF arrow_base2 = calculateArrowHead(arrow_tip, end, -M_PI / 4);   // -45度角
-  QPointF arrow_mid = arrow_tip - direction * (arrow_size_ * 0.3); // 箭头中部凹陷点
-  
-  // 创建箭头多边形（更美观的形状）
-  QPolygonF arrow;
-  arrow << end << arrow_base1 << arrow_mid << arrow_base2;
-  
-  // 创建箭头渐变
-  QLinearGradient arrow_gradient(arrow_mid, end);
-  arrow_gradient.setColorAt(0, color.darker(120));
-  arrow_gradient.setColorAt(0.5, color);
-  arrow_gradient.setColorAt(1, color.lighter(130));
-  
-  // 保存当前状态
-  painter->save();
-  
-  // 绘制箭头阴影（如果不是预览模式）
-  if (!is_preview_mode_) {
-    QPolygonF shadow_arrow = arrow.translated(1.5, 1.5);
-    painter->setBrush(shadow_color_);
-    painter->setPen(Qt::NoPen);
-    painter->drawPolygon(shadow_arrow);
-  }
-  
-  // 绘制主箭头
-  painter->setBrush(QBrush(arrow_gradient));
-  painter->setPen(QPen(color.darker(150), 1, Qt::SolidLine));
-  painter->drawPolygon(arrow);
-  
-  // 恢复状态
-  painter->restore();
+  const QPointF perpendicular(-direction.y(), direction.x());
+  const QTransform transform = painter->worldTransform();
+  const qreal view_scale =
+      (std::max)(0.01, qSqrt(transform.m11() * transform.m11() +
+                            transform.m12() * transform.m12()));
+  const qreal arrow_length = 8.0 / view_scale;
+  const qreal arrow_half_width = 3.5 / view_scale;
+  const QPointF arrow_base = end - direction * arrow_length;
+
+  QPen arrow_pen(color, is_selected_ ? 3.0 : line_width_);
+  arrow_pen.setCosmetic(true);
+  arrow_pen.setCapStyle(Qt::RoundCap);
+  painter->setPen(arrow_pen);
+  painter->drawLine(end, arrow_base + perpendicular * arrow_half_width);
+  painter->drawLine(end, arrow_base - perpendicular * arrow_half_width);
 }
 
 void TopologyLine::drawMovingArrows(QPainter *painter, const QPointF &start, const QPointF &end, const QColor &color) {
@@ -532,30 +471,12 @@ QRectF TopologyLine::calculateDynamicBoundingRect() const {
     end_pos = offset_positions.second;
   }
   
-  // 计算包含起点和终点的矩形，并添加足够的边距
-  qreal margin = 100; // 增加更大的边距确保完整显示，包括箭头和阴影
+  // Only invalidate the pixels occupied by the line, arrow and hit target.
+  const qreal margin = arrow_size_ + line_width_ + 6.0;
   qreal left = (std::min)(start_pos.x(), end_pos.x()) - margin;
   qreal top = (std::min)(start_pos.y(), end_pos.y()) - margin;
   qreal right = (std::max)(start_pos.x(), end_pos.x()) + margin;
   qreal bottom = (std::max)(start_pos.y(), end_pos.y()) + margin;
-  
-  // 确保边界矩形有最小尺寸，防止线段消失
-  qreal min_width = 400;
-  qreal min_height = 400;
-  qreal width = right - left;
-  qreal height = bottom - top;
-  
-  if (width < min_width) {
-    qreal center_x = (left + right) / 2;
-    left = center_x - min_width / 2;
-    right = center_x + min_width / 2;
-  }
-  
-  if (height < min_height) {
-    qreal center_y = (top + bottom) / 2;
-    top = center_y - min_height / 2;
-    bottom = center_y + min_height / 2;
-  }
   
   // 转换为相对于自身位置的本地坐标系
   QPointF current_pos = pos();
@@ -564,18 +485,17 @@ QRectF TopologyLine::calculateDynamicBoundingRect() const {
 }
 
 void TopologyLine::updateBoundingRect() {
-  prepareGeometryChange(); // 告诉场景几何形状即将改变
   QRectF new_rect = calculateDynamicBoundingRect();
   
   // 确保边界矩形有效，即使为空也要设置一个最小矩形
   if (new_rect.isEmpty()) {
     // 如果计算出的矩形为空，使用一个默认的最小矩形
-    QPointF current_pos = pos();
-    new_rect = QRectF(-100, -100, 200, 200);
+    new_rect = QRectF(-20, -20, 40, 40);
   }
-  
+
+  if (bounding_rect_ == new_rect) return;
+  prepareGeometryChange();
   SetBoundingRect(new_rect);
-  // 强制更新显示
   update();
 }
 

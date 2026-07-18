@@ -361,6 +361,29 @@ TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {
   EXPECT_FALSE(map_source.contains("map update calling:"));
 }
 
+TEST(MapRenderingContract, TopologyRoutesDoNotContinuouslyInvalidateScene) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile line_source_file(test_source.dir().filePath(
+      QStringLiteral("display/topology_line.cpp")));
+  ASSERT_TRUE(line_source_file.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray line_source = line_source_file.readAll();
+
+  QFile manager_source_file(test_source.dir().filePath(
+      QStringLiteral("display/manager/scene_manager.cpp")));
+  ASSERT_TRUE(manager_source_file.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray manager_source = manager_source_file.readAll();
+
+  const int paint_begin = line_source.indexOf("void TopologyLine::paint");
+  const int paint_end = line_source.indexOf("void TopologyLine::drawStaticArrow");
+  ASSERT_GE(paint_begin, 0);
+  ASSERT_GT(paint_end, paint_begin);
+  const QByteArray paint_source =
+      line_source.mid(paint_begin, paint_end - paint_begin);
+  EXPECT_FALSE(paint_source.contains("updateBoundingRect()"));
+  EXPECT_TRUE(paint_source.contains("setCosmetic(true)"));
+  EXPECT_FALSE(manager_source.contains("advance_timer_->start(16)"));
+}
+
 TEST(RosbridgeLatencyContract, KeepsInboundWorkOffTheSocketThread) {
   const QFileInfo test_source(QString::fromUtf8(__FILE__));
   QFile socket_source_file(test_source.dir().filePath(QStringLiteral(

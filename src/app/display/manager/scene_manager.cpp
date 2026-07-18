@@ -1351,9 +1351,9 @@ void SceneManager::ClearCommandHistory() {
 }
 
 void SceneManager::StartAdvanceTimer() {
-  if (advance_timer_ && !advance_timer_->isActive()) {
-    advance_timer_->start(16); // 约60FPS
-  }
+  // Topology routes are static scene annotations. Repainting every route at
+  // 60 FPS starves robot-pose and laser updates during navigation.
+  StopAdvanceTimer();
 }
 
 void SceneManager::StopAdvanceTimer() {
