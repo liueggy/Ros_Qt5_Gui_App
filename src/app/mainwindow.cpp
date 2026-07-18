@@ -697,9 +697,7 @@ void MainWindow::registerChannel() {
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_LOCALIZATION_POSE,
                     [this](const LocalizationEstimate& estimate) {
-    const std::uint64_t sample_generation =
-        ++localization_sample_generation_;
-    CheckRelocationProgress(estimate, sample_generation);
+    CheckRelocationProgress(estimate);
   });
 
   SUBSCRIBE_QOBJECT(this, MSG_ID_COMMAND_RESPONSE, [this](const std::string& json) {
@@ -2273,7 +2271,6 @@ void MainWindow::StartManualRelocation() {
   localization_confirmed_ = false;
   relocation_pending_ = false;
   ++relocation_attempt_id_;
-  relocation_min_sample_generation_ = localization_sample_generation_ + 1;
   UpdateInspectionRouteSummary();
   statusBar()->showMessage(tr("手动重定位：请在地图上选择位置和朝向。"), 6000);
   display_manager_->StartReloc();
@@ -2623,7 +2620,7 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   const int attempt_id = ++relocation_attempt_id_;
   relocation_pending_ = true;
   relocation_target_ = pose;
-  relocation_min_sample_generation_ = localization_sample_generation_ + 1;
+  relocation_started_at_ = std::chrono::steady_clock::now();
   relocation_elapsed_.restart();
   statusBar()->showMessage(
       tr("正在重定位到 (%1, %2, %3°)…")
@@ -2655,14 +2652,12 @@ void MainWindow::BeginRelocation(const RobotPose& pose) {
   });
 }
 
-void MainWindow::CheckRelocationProgress(
-    const LocalizationEstimate& estimate,
-    std::uint64_t sample_generation) {
+void MainWindow::CheckRelocationProgress(const LocalizationEstimate& estimate) {
   if (!relocation_pending_) return;
   const auto evaluation =
       AppContract::EvaluateRelocationSample(relocation_target_, estimate);
   if (!AppContract::IsRelocationConfirmationSample(
-          sample_generation, relocation_min_sample_generation_, evaluation)) {
+          estimate.received_at, relocation_started_at_, evaluation)) {
     return;
   }
 

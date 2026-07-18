@@ -28,7 +28,7 @@
 #include <QToolButton>
 #include <QTreeView>
 #include <QWidgetAction>
-#include <cstdint>
+#include <chrono>
 #include <memory>
 #include <nlohmann/json_fwd.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -156,8 +156,7 @@ class MainWindow : public QMainWindow {
   bool previous_terminal_visible_{false};
   bool previous_front_camera_visible_{false};
   RobotPose relocation_target_;
-  std::uint64_t localization_sample_generation_ = {0};
-  std::uint64_t relocation_min_sample_generation_ = {0};
+  std::chrono::steady_clock::time_point relocation_started_at_;
   int relocation_attempt_id_ = {0};
   QElapsedTimer relocation_elapsed_;
 
@@ -192,8 +191,7 @@ class MainWindow : public QMainWindow {
   void SetInspectionRunning(bool running);
   void UpdateInspectionProgress(const nlohmann::json& data);
   void BeginRelocation(const RobotPose& pose);
-  void CheckRelocationProgress(const LocalizationEstimate& estimate,
-                               std::uint64_t sample_generation);
+  void CheckRelocationProgress(const LocalizationEstimate& estimate);
   bool IsRelocationPoseValid(const RobotPose& pose, QString* reason);
 };
 #endif  // MAINWINDOW_H

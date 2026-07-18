@@ -1467,6 +1467,7 @@ void RosbridgeComm::OdomCallback(const ROSBridgePublishMsg& msg) {
 }
 
 void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
+  const auto received_at = std::chrono::steady_clock::now();
   if (msg.msg_json_.IsNull() || !msg.msg_json_.HasMember("pose")) return;
   const auto& pose_with_covariance = msg.msg_json_["pose"];
   if (!pose_with_covariance.IsObject() ||
@@ -1488,6 +1489,7 @@ void RosbridgeComm::LocalizationPoseCallback(const ROSBridgePublishMsg& msg) {
   };
 
   LocalizationEstimate estimate;
+  estimate.received_at = received_at;
   estimate.pose.x = position["x"].GetDouble();
   estimate.pose.y = position["y"].GetDouble();
   const double qx = number_or(orientation, "x", 0.0);

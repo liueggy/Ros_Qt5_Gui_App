@@ -3,7 +3,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
-#include <cstdint>
+#include <chrono>
 #include <cmath>
 #include <nlohmann/json.hpp>
 
@@ -18,10 +18,10 @@ struct RelocationSampleEvaluation {
 };
 
 inline bool IsRelocationConfirmationSample(
-    std::uint64_t sample_generation,
-    std::uint64_t minimum_sample_generation,
+    std::chrono::steady_clock::time_point sample_received_at,
+    std::chrono::steady_clock::time_point relocation_started_at,
     const RelocationSampleEvaluation& evaluation) {
-  return sample_generation >= minimum_sample_generation &&
+  return sample_received_at >= relocation_started_at &&
          evaluation.acceptable;
 }
 

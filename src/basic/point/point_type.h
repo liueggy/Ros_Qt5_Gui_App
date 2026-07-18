@@ -10,6 +10,7 @@
 #ifndef POINT_TYPE_H
 #define POINT_TYPE_H
 #include <Eigen/Dense>
+#include <chrono>
 #include <iomanip>
 #include "point.h"
 namespace basic {
@@ -18,6 +19,7 @@ struct LocalizationEstimate {
   RobotPose pose;
   double xy_variance = {0};
   double yaw_variance = {0};
+  std::chrono::steady_clock::time_point received_at;
 };
 typedef std::vector<Point> RobotPath;
 typedef Eigen::Vector3d Color;

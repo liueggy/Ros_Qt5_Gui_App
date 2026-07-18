@@ -125,15 +125,19 @@ TEST(RelocationContractTest, AcceptsCovariancePublishedByQtInitialPose) {
 TEST(RelocationContractTest, ConfirmsFirstNewAcceptableAmclSample) {
   AppContract::RelocationSampleEvaluation acceptable;
   acceptable.acceptable = true;
+  const auto relocation_started_at =
+      std::chrono::steady_clock::time_point(std::chrono::milliseconds(42));
 
-  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(41, 42,
-                                                            acceptable));
-  EXPECT_TRUE(AppContract::IsRelocationConfirmationSample(42, 42,
-                                                           acceptable));
+  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(
+      std::chrono::steady_clock::time_point(std::chrono::milliseconds(41)),
+      relocation_started_at, acceptable));
+  EXPECT_TRUE(AppContract::IsRelocationConfirmationSample(
+      relocation_started_at, relocation_started_at, acceptable));
 
   acceptable.acceptable = false;
-  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(43, 42,
-                                                            acceptable));
+  EXPECT_FALSE(AppContract::IsRelocationConfirmationSample(
+      std::chrono::steady_clock::time_point(std::chrono::milliseconds(43)),
+      relocation_started_at, acceptable));
 }
 
 TEST(RelocationContractTest, RejectsPositionAndHeadingMismatch) {
