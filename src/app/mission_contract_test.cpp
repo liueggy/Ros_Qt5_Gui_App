@@ -182,6 +182,7 @@ TEST(TelemetryLoggingContract, AutoExploreFramesAreNotWrittenToDisk) {
   ASSERT_TRUE(mainwindow.open(QIODevice::ReadOnly | QIODevice::Text));
   const QByteArray source = mainwindow.readAll();
 
+  EXPECT_TRUE(source.contains("MSG_ID_AUTO_EXPLORE_STATUS"));
   EXPECT_FALSE(source.contains("auto explore status:"));
 }
 

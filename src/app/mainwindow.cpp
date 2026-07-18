@@ -981,6 +981,12 @@ void MainWindow::registerChannel() {
     }, Qt::QueuedConnection);
   });
 
+  // The auto-mapping panel consumes this status through its own subscription.
+  // Keep a quiet application-level sink so the message bus does not log every
+  // frame as an unhandled topic.
+  SUBSCRIBE_QOBJECT(this, MSG_ID_AUTO_EXPLORE_STATUS,
+                    [](const std::string&) {});
+
   SUBSCRIBE_QOBJECT(this, MSG_ID_DHT11_TEMP, [this](const double& temp) {
     if (label_dht11_temp_) {
       label_dht11_temp_->setText(QString::number(temp, 'f', 1) + " °C");
