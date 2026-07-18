@@ -60,16 +60,21 @@ bool DisplayOccMap::SetDisplayConfig(const std::string &config_name,
 void DisplayOccMap::paint(QPainter *painter,
                           const QStyleOptionGraphicsItem *option,
                           QWidget *widget) {
+  // Keep the underlying occupancy image pixel-exact for map editing and
+  // navigation export, while using high-quality interpolation only for the
+  // transformed on-screen representation. This softens stair-stepped edges at
+  // fit-to-window and fractional zoom levels without changing any map cell.
+  painter->save();
+  painter->setRenderHint(QPainter::SmoothPixmapTransform, true);
   painter->drawImage(0, 0, map_image_);
   if (!discovery_overlay_.isNull() && discovery_timeline_ &&
       discovery_timeline_->state() == QTimeLine::Running) {
     const qreal progress =
         std::clamp(discovery_timeline_->currentFrame() / 100.0, 0.0, 1.0);
-    painter->save();
     painter->setOpacity(1.0 - progress);
     painter->drawImage(0, 0, discovery_overlay_);
-    painter->restore();
   }
+  painter->restore();
 }
 void DisplayOccMap::SetDiscoveryAnimation(bool enabled, int duration_ms) {
   discovery_animation_enabled_ = enabled;
