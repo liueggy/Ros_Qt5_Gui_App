@@ -157,8 +157,24 @@ struct AiInspectionDisplay {
   QString targetName = {QStringLiteral("水表")};
   QString reading = {QStringLiteral("未识别")};
   QString status = {QStringLiteral("未识别")};
+  QString confidence;
   QString conclusion;
 };
+
+QString InspectionConfidenceText(const nlohmann::json& meter) {
+  if (!meter.is_object() || !meter.contains("confidence")) {
+    return QString();
+  }
+  const auto& confidence = meter["confidence"];
+  if (confidence.is_number()) {
+    double value = confidence.get<double>();
+    if (value <= 1.0) {
+      value *= 100.0;
+    }
+    return QStringLiteral("%1%").arg(value, 0, 'f', 0);
+  }
+  return JsonValueToText(confidence);
+}
 
 nlohmann::json ExtractKimiApiObject(const nlohmann::json& kimi) {
   if (!kimi.is_object()) {
@@ -206,6 +222,7 @@ AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
       display.reading = MeterReadingText(wm);
       display.status = NormalizeInspectionStatus(
           wm.contains("status") ? JsonValueToText(wm["status"]) : QString());
+      display.confidence = InspectionConfidenceText(wm);
       if (display.reading == QStringLiteral("未识别")) {
         display.status = QStringLiteral("异常");
       }
@@ -216,6 +233,7 @@ AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
       display.reading = MeterReadingText(pg);
       display.status = NormalizeInspectionStatus(
           pg.contains("status") ? JsonValueToText(pg["status"]) : QString());
+      display.confidence = InspectionConfidenceText(pg);
       if (display.reading == QStringLiteral("未识别")) {
         display.status = QStringLiteral("异常");
       }
@@ -248,17 +266,23 @@ QString FormatAiInspectionBanner(
     }
     const QString status_color = abnormal ? UiStyle::Palette::Danger
                                           : UiStyle::Palette::Success;
+    const QString confidence = display.confidence.isEmpty()
+                                   ? QStringLiteral("可信度 —")
+                                   : QStringLiteral("可信度 %1").arg(display.confidence);
     rows << QStringLiteral(
                 "<tr><td style='padding:4px 12px 4px 0;color:%1'>%2</td>"
                 "<td style='padding:4px 12px 4px 0'>%3</td>"
                 "<td style='padding:4px 12px 4px 0'><b>%4</b></td>"
-                "<td style='padding:4px 0;color:%5'><b>● %6</b></td></tr>")
+                "<td style='padding:4px 12px 4px 0;color:%5'>%6</td>"
+                "<td style='padding:4px 0;color:%7'><b>● %8</b></td></tr>")
                 .arg(UiStyle::Palette::TextSecondary,
                      (display.waypoint.isEmpty() ? QStringLiteral("未命名点位")
                                                  : display.waypoint)
                          .toHtmlEscaped(),
                      display.targetName.toHtmlEscaped(),
-                     display.reading.toHtmlEscaped(), status_color,
+                     display.reading.toHtmlEscaped(),
+                     UiStyle::Palette::TextSecondary,
+                     confidence.toHtmlEscaped(), status_color,
                      display.status.toHtmlEscaped());
   }
   if (conclusion.isEmpty()) {
@@ -286,6 +310,29 @@ QString FormatAiInspectionBanner(
                      conclusion.toHtmlEscaped());
   }
   return html;
+}
+
+void ShowInspectionResultBanner(
+    QLabel* banner, const std::vector<AiInspectionDisplay>& displays) {
+  if (!banner || displays.empty()) {
+    return;
+  }
+  const bool has_abnormal = std::any_of(
+      displays.cbegin(), displays.cend(),
+      [](const AiInspectionDisplay& display) {
+        return display.status != QStringLiteral("正常");
+      });
+  banner->setStyleSheet(QStringLiteral(
+      "QLabel { background:%1; color:%2; border:1px solid %3; "
+      "border-radius:8px; padding:10px 14px; font-size:%4px; }")
+      .arg(has_abnormal ? UiStyle::Palette::DangerBg
+                        : UiStyle::Palette::SuccessBg,
+           UiStyle::Palette::Text,
+           has_abnormal ? UiStyle::Palette::DangerBorder
+                        : UiStyle::Palette::SuccessBorder)
+      .arg(UiStyle::FontBasePx()));
+  banner->setText(FormatAiInspectionBanner(displays));
+  banner->setVisible(true);
 }
 QString SummarizeKimiObject(const nlohmann::json& api) {
   if (!api.is_object()) {
@@ -966,23 +1013,7 @@ void MainWindow::registerChannel() {
           }
         } catch (const std::exception&) {}
         if (!ai_displays.empty()) {
-          const bool has_abnormal = std::any_of(
-              ai_displays.cbegin(), ai_displays.cend(),
-              [](const AiInspectionDisplay& display) {
-                return display.status != QStringLiteral("正常");
-              });
-          inspection_kimi_banner_->setStyleSheet(QStringLiteral(
-              "QLabel { background:%1; color:%2; border:1px solid %3; "
-              "border-radius:8px; padding:10px 14px; font-size:%4px; }")
-              .arg(has_abnormal ? UiStyle::Palette::DangerBg
-                                : UiStyle::Palette::SuccessBg,
-                   UiStyle::Palette::Text,
-                   has_abnormal ? UiStyle::Palette::DangerBorder
-                                : UiStyle::Palette::SuccessBorder)
-              .arg(UiStyle::FontBasePx()));
-          inspection_kimi_banner_->setText(
-              FormatAiInspectionBanner(ai_displays));
-          inspection_kimi_banner_->setVisible(true);
+          ShowInspectionResultBanner(inspection_kimi_banner_, ai_displays);
           if (inspection_status_card_) {
             const QString flashStyle = QStringLiteral(
                 "QFrame { background:%1; border:2px solid %2; border-radius:12px; }"
@@ -2607,6 +2638,21 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
       data, "point_index", AppContract::JsonIntOr(extra, "index", -1));
   const int total = active_mission_point_count_;
   const QString stage_text = InspectionStageText(stage_value);
+
+  // Surface each point's result as soon as analysis finishes. The final
+  // mission result will replace this with the route summary later.
+  if (stage == QStringLiteral("kimi_complete") && inspection_kimi_banner_ &&
+      extra.contains("kimi") && extra["kimi"].is_object()) {
+    nlohmann::json point = nlohmann::json::object();
+    point["kimi"] = extra["kimi"];
+    point["waypoint"] = extra.contains("waypoint") && extra["waypoint"].is_object()
+                            ? extra["waypoint"]
+                            : nlohmann::json{{"id", "point_" + std::to_string(row + 1)}};
+    const AiInspectionDisplay display = ExtractAiInspectionDisplay(point);
+    if (display.valid) {
+      ShowInspectionResultBanner(inspection_kimi_banner_, {display});
+    }
+  }
 
   if (row >= 0 && row < total) {
     for (int completed = 0; completed < row; ++completed) {

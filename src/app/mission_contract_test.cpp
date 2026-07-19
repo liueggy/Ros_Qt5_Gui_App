@@ -366,6 +366,9 @@ TEST(InspectionUiContract, KeepsAnalysisInTaskPanelOnly) {
   EXPECT_FALSE(mainwindow_source.contains("SetCameraInspectionResult"));
   EXPECT_FALSE(command_center_source.contains("camera_inspection_label_"));
   EXPECT_TRUE(mainwindow_source.contains("巡检结论"));
+  EXPECT_TRUE(mainwindow_source.contains("可信度"));
+  EXPECT_TRUE(mainwindow_source.contains("stage == QStringLiteral(\"kimi_complete\")"));
+  EXPECT_TRUE(mainwindow_source.contains("ShowInspectionResultBanner"));
   EXPECT_TRUE(mainwindow_source.contains("setTextFormat(Qt::RichText)"));
 }
 
