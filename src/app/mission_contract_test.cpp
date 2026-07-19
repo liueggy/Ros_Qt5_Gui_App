@@ -369,7 +369,26 @@ TEST(InspectionUiContract, KeepsAnalysisInTaskPanelOnly) {
   EXPECT_TRUE(mainwindow_source.contains("可信度"));
   EXPECT_TRUE(mainwindow_source.contains("stage == QStringLiteral(\"kimi_complete\")"));
   EXPECT_TRUE(mainwindow_source.contains("ShowInspectionResultBanner"));
+  EXPECT_TRUE(mainwindow_source.contains("PreferredInspectionClass(point)"));
   EXPECT_TRUE(mainwindow_source.contains("setTextFormat(Qt::RichText)"));
+}
+
+TEST(MissionContractTest, InspectionResultUsesConfiguredGaugeClass) {
+  const nlohmann::json pressure_point = {
+      {"waypoint", {{"id", "NAV_POINT_0#1"},
+                     {"expected_class", "pressure_gauge"}}},
+      {"target", {{"class_name", "pressure_gauge"}, {"score", 0.91}}},
+      {"kimi", {{"request", {{"expected_class", "pressure_gauge"}}}}},
+  };
+  EXPECT_EQ(AppContract::PreferredInspectionClass(pressure_point),
+            "pressure_gauge");
+
+  const nlohmann::json detected_water_point = {
+      {"waypoint", {{"expected_class", "any"}}},
+      {"target", {{"class_name", "water_meter"}}},
+  };
+  EXPECT_EQ(AppContract::PreferredInspectionClass(detected_water_point),
+            "water_meter");
 }
 
 TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {

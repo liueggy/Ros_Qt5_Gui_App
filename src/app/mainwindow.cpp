@@ -215,27 +215,44 @@ AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
   }
   if (result.contains("readings") && result["readings"].is_object()) {
     const auto& readings = result["readings"];
-    if (readings.contains("water_meter") && readings["water_meter"].is_object()) {
-      const auto& wm = readings["water_meter"];
+    auto apply_reading = [&display, &readings](const char* key,
+                                               const QString& target_name) {
+      if (!readings.contains(key) || !readings[key].is_object()) {
+        return false;
+      }
+      const auto& meter = readings[key];
       display.valid = true;
-      display.targetName = QStringLiteral("水表");
-      display.reading = MeterReadingText(wm);
+      display.targetName = target_name;
+      display.reading = MeterReadingText(meter);
       display.status = NormalizeInspectionStatus(
-          wm.contains("status") ? JsonValueToText(wm["status"]) : QString());
-      display.confidence = InspectionConfidenceText(wm);
+          meter.contains("status") ? JsonValueToText(meter["status"]) : QString());
+      display.confidence = InspectionConfidenceText(meter);
       if (display.reading == QStringLiteral("未识别")) {
         display.status = QStringLiteral("异常");
       }
-    } else if (readings.contains("pressure_gauge") && readings["pressure_gauge"].is_object()) {
-      const auto& pg = readings["pressure_gauge"];
-      display.valid = true;
-      display.targetName = QStringLiteral("压力表");
-      display.reading = MeterReadingText(pg);
-      display.status = NormalizeInspectionStatus(
-          pg.contains("status") ? JsonValueToText(pg["status"]) : QString());
-      display.confidence = InspectionConfidenceText(pg);
-      if (display.reading == QStringLiteral("未识别")) {
-        display.status = QStringLiteral("异常");
+      return true;
+    };
+
+    const std::string preferred = AppContract::PreferredInspectionClass(point);
+    if (preferred == "pressure_gauge") {
+      apply_reading("pressure_gauge", QStringLiteral("压力表"));
+    } else if (preferred == "water_meter") {
+      apply_reading("water_meter", QStringLiteral("水表"));
+    }
+
+    if (!display.valid) {
+      const bool pressure_readable =
+          readings.contains("pressure_gauge") && readings["pressure_gauge"].is_object() &&
+          MeterReadingText(readings["pressure_gauge"]) != QStringLiteral("未识别");
+      const bool water_readable =
+          readings.contains("water_meter") && readings["water_meter"].is_object() &&
+          MeterReadingText(readings["water_meter"]) != QStringLiteral("未识别");
+      if (pressure_readable && !water_readable) {
+        apply_reading("pressure_gauge", QStringLiteral("压力表"));
+      } else if (water_readable) {
+        apply_reading("water_meter", QStringLiteral("水表"));
+      } else if (!apply_reading("pressure_gauge", QStringLiteral("压力表"))) {
+        apply_reading("water_meter", QStringLiteral("水表"));
       }
     }
   }
