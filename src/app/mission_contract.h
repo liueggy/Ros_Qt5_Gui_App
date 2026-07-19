@@ -65,6 +65,11 @@ inline bool IsMissionTerminalStage(const std::string& stage) {
          stage == "emergency_stopped";
 }
 
+inline bool CanConfigureInspectionOption(bool mission_running,
+                                         bool /*capability_ready*/) {
+  return !mission_running;
+}
+
 inline RelocationSampleEvaluation EvaluateRelocationSample(
     const basic::RobotPose& target,
     const basic::LocalizationEstimate& estimate) {

@@ -1618,7 +1618,8 @@ void MainWindow::setupUi() {
   inspection_ai_checkbox_->setToolTip(
       QStringLiteral("开启后，每个点到达后执行视觉搜索与 AI 分析；需要先进入巡检模式"));
   inspection_ai_checkbox_->setChecked(false);
-  inspection_ai_checkbox_->setEnabled(false);
+  inspection_ai_checkbox_->setEnabled(
+      AppContract::CanConfigureInspectionOption(false, false));
 
   inspection_return_home_checkbox_ = new QCheckBox("任务结束返航");
   inspection_return_home_checkbox_->setStyleSheet(UiStyle::CheckBoxStyleSheet());
@@ -1867,13 +1868,12 @@ void MainWindow::setupUi() {
             if (!inspection_ai_checkbox_) {
               return;
             }
-            inspection_ai_checkbox_->setEnabled(!inspection_running_ && ready);
+            inspection_ai_checkbox_->setEnabled(
+                AppContract::CanConfigureInspectionOption(inspection_running_,
+                                                          ready));
             inspection_ai_checkbox_->setToolTip(
                 ready ? tr("开启后，每个点位导航完成都会执行视觉搜索和 AI 分析。")
-                      : tr("当前巡检能力尚未就绪，请切换巡检模式并等待状态就绪。"));
-            if (!ready) {
-              inspection_ai_checkbox_->setChecked(false);
-            }
+                      : tr("可以预先选择；开始任务前需切换巡检模式并等待视觉与 AI 服务就绪。"));
           });
 
   //////////////////////////////////////////////////////小车终端
@@ -2567,8 +2567,9 @@ void MainWindow::SetInspectionRunning(bool running) {
   if (inspection_load_button_) inspection_load_button_->setEnabled(!running);
   if (inspection_save_button_) inspection_save_button_->setEnabled(!running);
   if (inspection_ai_checkbox_) {
-    inspection_ai_checkbox_->setEnabled(!running &&
-                                        inspection_capability_ready_);
+    inspection_ai_checkbox_->setEnabled(
+        AppContract::CanConfigureInspectionOption(
+            running, inspection_capability_ready_));
   }
   if (inspection_loop_checkbox_) inspection_loop_checkbox_->setEnabled(!running);
   if (inspection_return_home_checkbox_) {

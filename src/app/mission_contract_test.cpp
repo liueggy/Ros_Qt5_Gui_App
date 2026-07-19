@@ -79,6 +79,13 @@ TEST(MissionContractTest, SingleGoalUsesUnifiedMissionEnvelope) {
   EXPECT_DOUBLE_EQ(request.at("route").at(0).at("yaw").get<double>(), pose.theta);
 }
 
+TEST(MissionContractTest, AiInspectionCanBeSelectedBeforeProfileIsReady) {
+  EXPECT_TRUE(AppContract::CanConfigureInspectionOption(false, false));
+  EXPECT_TRUE(AppContract::CanConfigureInspectionOption(false, true));
+  EXPECT_FALSE(AppContract::CanConfigureInspectionOption(true, false));
+  EXPECT_FALSE(AppContract::CanConfigureInspectionOption(true, true));
+}
+
 TEST(MissionContractTest, ToleratesNullableAndWrongTypedStatusFields) {
   const nlohmann::json accepted = {
       {"request_id", "qt-goal-fixed"},
