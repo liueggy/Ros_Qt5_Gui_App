@@ -263,6 +263,21 @@ AiInspectionDisplay ExtractAiInspectionDisplay(const nlohmann::json& point) {
   if (display.conclusion.isEmpty() && result.contains("summary")) {
     display.conclusion = JsonValueToText(result["summary"]);
   }
+  const std::string configured = AppContract::ConfiguredInspectionClass(point);
+  const std::string detected = AppContract::DetectedInspectionClass(point);
+  if (!configured.empty() && !detected.empty() && configured != detected) {
+    auto class_text = [](const std::string& value) {
+      return value == "pressure_gauge" ? QStringLiteral("压力表")
+                                        : QStringLiteral("水表");
+    };
+    const QString mismatch = QStringLiteral("实际识别为%1，与点位设置的%2不一致，请复核")
+                                 .arg(class_text(detected), class_text(configured));
+    display.conclusion = display.conclusion.isEmpty()
+                             ? mismatch
+                             : mismatch + QStringLiteral("；") + display.conclusion;
+    display.status = QStringLiteral("异常");
+    display.valid = true;
+  }
   if (!display.valid && !display.conclusion.isEmpty()) {
     display.valid = true;
     display.status = QStringLiteral("异常");

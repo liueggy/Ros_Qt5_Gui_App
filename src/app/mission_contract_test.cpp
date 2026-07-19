@@ -373,7 +373,7 @@ TEST(InspectionUiContract, KeepsAnalysisInTaskPanelOnly) {
   EXPECT_TRUE(mainwindow_source.contains("setTextFormat(Qt::RichText)"));
 }
 
-TEST(MissionContractTest, InspectionResultUsesConfiguredGaugeClass) {
+TEST(MissionContractTest, InspectionResultPrefersDetectedClassAndUsesConfigAsFallback) {
   const nlohmann::json pressure_point = {
       {"waypoint", {{"id", "NAV_POINT_0#1"},
                      {"expected_class", "pressure_gauge"}}},
@@ -388,6 +388,17 @@ TEST(MissionContractTest, InspectionResultUsesConfiguredGaugeClass) {
       {"target", {{"class_name", "water_meter"}}},
   };
   EXPECT_EQ(AppContract::PreferredInspectionClass(detected_water_point),
+            "water_meter");
+
+  const nlohmann::json mismatched_point = {
+      {"waypoint", {{"expected_class", "pressure_gauge"}}},
+      {"target", {{"class_name", "water_meter"}}},
+  };
+  EXPECT_EQ(AppContract::ConfiguredInspectionClass(mismatched_point),
+            "pressure_gauge");
+  EXPECT_EQ(AppContract::DetectedInspectionClass(mismatched_point),
+            "water_meter");
+  EXPECT_EQ(AppContract::PreferredInspectionClass(mismatched_point),
             "water_meter");
 }
 

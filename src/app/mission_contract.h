@@ -77,7 +77,7 @@ inline std::string NormalizeInspectionClass(std::string class_name) {
   return {};
 }
 
-inline std::string PreferredInspectionClass(const nlohmann::json& point) {
+inline std::string ConfiguredInspectionClass(const nlohmann::json& point) {
   if (!point.is_object()) {
     return {};
   }
@@ -90,6 +90,22 @@ inline std::string PreferredInspectionClass(const nlohmann::json& point) {
     const std::string expected = class_from(point["waypoint"], "expected_class");
     if (!expected.empty()) return expected;
   }
+  if (point.contains("kimi") && point["kimi"].is_object() &&
+      point["kimi"].contains("request") &&
+      point["kimi"]["request"].is_object()) {
+    return class_from(point["kimi"]["request"], "expected_class");
+  }
+  return {};
+}
+
+inline std::string DetectedInspectionClass(const nlohmann::json& point) {
+  if (!point.is_object()) {
+    return {};
+  }
+  auto class_from = [](const nlohmann::json& object,
+                       const char* key) -> std::string {
+    return NormalizeInspectionClass(JsonStringOr(object, key));
+  };
   if (point.contains("target") && point["target"].is_object()) {
     std::string detected = class_from(point["target"], "class_name");
     if (detected.empty()) detected = class_from(point["target"], "target_class");
@@ -102,12 +118,12 @@ inline std::string PreferredInspectionClass(const nlohmann::json& point) {
         class_from(point["search"]["target"], "class_name");
     if (!detected.empty()) return detected;
   }
-  if (point.contains("kimi") && point["kimi"].is_object() &&
-      point["kimi"].contains("request") &&
-      point["kimi"]["request"].is_object()) {
-    return class_from(point["kimi"]["request"], "expected_class");
-  }
   return {};
+}
+
+inline std::string PreferredInspectionClass(const nlohmann::json& point) {
+  const std::string detected = DetectedInspectionClass(point);
+  return detected.empty() ? ConfiguredInspectionClass(point) : detected;
 }
 
 inline bool CanConfigureInspectionOption(bool mission_running,
