@@ -58,8 +58,10 @@
 #include "display/manager/view_manager.h"
 #include "msg/channel_publish_result.h"
 #include "msg/diagnostic_snapshot.h"
+#include "msg/gps_info.h"
 #include "widgets/command_center_widget.h"
 #include "widgets/display_config_widget.h"
+#include "widgets/gps_location_widget.h"
 #include "widgets/speed_ctrl.h"
 #include "widgets/terminal_widget.h"
 #include "widgets/ui_style.h"
@@ -1119,6 +1121,16 @@ void MainWindow::registerChannel() {
     }
   });
 
+  SUBSCRIBE_QOBJECT(this, MSG_ID_GPS_FIX, [this](const basic::GpsFix& fix) {
+    if (gps_location_widget_) gps_location_widget_->SetFix(fix);
+  });
+
+  SUBSCRIBE_QOBJECT(this, MSG_ID_GPS_STATUS,
+                    [this](const basic::GpsStatus& status) {
+                      if (gps_location_widget_)
+                        gps_location_widget_->SetStatus(status);
+                    });
+
   SUBSCRIBE_QOBJECT(this, MSG_ID_VOICE_COMMAND, [this](const std::string& json_str) {
     if (label_voice_cmd_) {
       // 解析 {"func":"00","cmd":"04"} 显示为友好文本
@@ -1267,6 +1279,21 @@ void MainWindow::setupUi() {
   re_save_map_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
   re_save_map_btn->setStyleSheet(modernToolButtonStyle);
   horizontalLayout_tools->addWidget(re_save_map_btn);
+
+  QToolButton* gps_btn = new QToolButton();
+  gps_btn->setIcon(UiStyle::TintedIcon(
+      QStringLiteral(":/icons/tabler/map-pin.svg"), QSize(32, 32)));
+  gps_btn->setText(QStringLiteral("位置"));
+  gps_btn->setIconSize(QSize(24, 24));
+  gps_btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+  gps_btn->setStyleSheet(modernToolButtonStyle);
+  gps_btn->setToolTip(tr("查看小车卫星定位与 GPS 状态"));
+  connect(gps_btn, &QToolButton::clicked, this, [this]() {
+    if (!gps_location_dock_) return;
+    gps_location_dock_->toggleView(true);
+    gps_location_dock_->raise();
+  });
+  horizontalLayout_tools->addWidget(gps_btn);
   center_layout->addWidget(tools_strip);
 
   horizontalLayout_tools->addItem(
@@ -1564,6 +1591,9 @@ void MainWindow::setupUi() {
             channel_connected_ = connected;
             if (terminal_widget_) {
               terminal_widget_->SetConnected(connected);
+            }
+            if (gps_location_widget_) {
+              gps_location_widget_->SetTransportConnected(connected);
             }
             if (!top_connection_status_) {
               return;
@@ -1938,6 +1968,18 @@ void MainWindow::setupUi() {
                 ready ? tr("开启后，每个点位导航完成都会执行视觉搜索和 AI 分析。")
                       : tr("可以预先选择；开始任务前需切换巡检模式并等待视觉与 AI 服务就绪。"));
           });
+
+  //////////////////////////////////////////////////////卫星定位
+  gps_location_widget_ = new GpsLocationWidget();
+  gps_location_widget_->SetTransportConnected(channel_connected_);
+  gps_location_dock_ = new ads::CDockWidget(tr("卫星定位"));
+  gps_location_dock_->setWidget(gps_location_widget_);
+  ConfigureDockWidget(gps_location_dock_, QSize(760, 520), QSize(980, 660));
+  dock_manager_->addDockWidget(ads::DockWidgetArea::RightDockWidgetArea,
+                               gps_location_dock_, center_docker_area_);
+  gps_location_dock_->toggleView(false);
+  ConfigureFloatingOnOpen(gps_location_dock_, QSize(980, 660));
+  ui->menuView->addAction(gps_location_dock_->toggleViewAction());
 
   //////////////////////////////////////////////////////小车终端
   terminal_widget_ = new TerminalWidget();

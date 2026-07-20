@@ -17,6 +17,7 @@
                                       OneValue(kMissionRequest, ) OneValue(kMissionStatus, )                \
                                           OneValue(kMissionResult, ) OneValue(kAutoExploreStatus, )         \
                                               OneValue(kDht11Temp, ) OneValue(kDht11Humi, )                 \
+                                                  OneValue(kGpsFix, ) OneValue(kGpsStatus, )                \
                                                   OneValue(kVoiceCommand, ) OneValue(kNetworkStatus, )      \
                                                       OneValue(kCmdVelControl, )                           \
                                                       OneValue(kChannelPublishResult, )                   \
@@ -57,6 +58,8 @@ DEFINE_ENUM(MsgId, SOME_ENUM)
 #define MSG_ID_AUTO_EXPLORE_STATUS ToString(MsgId::kAutoExploreStatus)
 #define MSG_ID_DHT11_TEMP ToString(MsgId::kDht11Temp)
 #define MSG_ID_DHT11_HUMI ToString(MsgId::kDht11Humi)
+#define MSG_ID_GPS_FIX ToString(MsgId::kGpsFix)
+#define MSG_ID_GPS_STATUS ToString(MsgId::kGpsStatus)
 #define MSG_ID_VOICE_COMMAND ToString(MsgId::kVoiceCommand)
 #define MSG_ID_NETWORK_STATUS ToString(MsgId::kNetworkStatus)
 #define MSG_ID_CMD_VEL_CONTROL ToString(MsgId::kCmdVelControl)

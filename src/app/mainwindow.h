@@ -56,6 +56,7 @@ class DiagnosticDockWidget;
 class DisplayConfigWidget;
 class CommandCenterWidget;
 class TerminalWidget;
+class GpsLocationWidget;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -111,6 +112,8 @@ class MainWindow : public QMainWindow {
   ads::CDockWidget* diagnostic_dock_{nullptr};
   CommandCenterWidget* command_center_widget_{nullptr};
   ads::CDockWidget* command_center_dock_{nullptr};
+  GpsLocationWidget* gps_location_widget_{nullptr};
+  ads::CDockWidget* gps_location_dock_{nullptr};
   TerminalWidget* terminal_widget_{nullptr};
   ads::CDockWidget* terminal_dock_{nullptr};
   ads::CDockWidget* inspection_task_dock_{nullptr};

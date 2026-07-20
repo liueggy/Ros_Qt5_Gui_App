@@ -2,6 +2,7 @@
 #include "app/diagnostic_policy.h"
 #include "display/motion_visibility_filter.h"
 #include "map/occupancy_map.h"
+#include "msg/gps_info.h"
 
 #include <gtest/gtest.h>
 #include <QFile>
@@ -10,6 +11,23 @@
 #include <limits>
 
 namespace {
+
+TEST(GpsContract, RejectsInvalidOrUnavailableCoordinates) {
+  basic::GpsFix fix;
+  fix.status = 0;
+  fix.latitude = 30.679964;
+  fix.longitude = 104.1438578;
+  EXPECT_TRUE(fix.IsValid());
+
+  fix.status = -1;
+  EXPECT_FALSE(fix.IsValid());
+  fix.status = 0;
+  fix.latitude = 91.0;
+  EXPECT_FALSE(fix.IsValid());
+  fix.latitude = 30.0;
+  fix.longitude = 181.0;
+  EXPECT_FALSE(fix.IsValid());
+}
 
 TEST(MapConfigContract, RepairsReversedThresholdsBeforeUpload) {
   QTemporaryDir directory;

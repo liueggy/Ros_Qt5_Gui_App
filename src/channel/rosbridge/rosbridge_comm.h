@@ -23,6 +23,7 @@
 #include "logger/logger.h"
 #include "msg/channel_publish_result.h"
 #include "msg/diagnostic_snapshot.h"
+#include "msg/gps_info.h"
 #include "msg/msg_info.h"
 #include "point_type.h"
 #include "tf2_rosbridge.h"
@@ -75,6 +76,8 @@ class RosbridgeComm : public VirtualChannelNode {
   void StringMessageCallback(const ROSBridgePublishMsg& msg, const MsgId& id);
   void Dht11TempCallback(const ROSBridgePublishMsg& msg);
   void Dht11HumiCallback(const ROSBridgePublishMsg& msg);
+  void GpsFixCallback(const ROSBridgePublishMsg& msg);
+  void GpsStatusCallback(const ROSBridgePublishMsg& msg);
   void VoiceCommandCallback(const ROSBridgePublishMsg& msg);
   void ImageCallback(const ROSBridgePublishMsg& msg, const std::string& location);
   void ImageWorkerLoop();

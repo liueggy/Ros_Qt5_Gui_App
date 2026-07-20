@@ -110,6 +110,8 @@ RosbridgeComm::RosbridgeComm() {
   SET_DEFAULT_TOPIC_NAME(MSG_ID_MISSION_RESULT, "/eggy/mission/result")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_TEMP, "/stm32/dht11/temperature")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_DHT11_HUMI, "/stm32/dht11/humidity")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_GPS_FIX, "/gps/fix")
+  SET_DEFAULT_TOPIC_NAME(MSG_ID_GPS_STATUS, "/gps/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_VOICE_COMMAND, "/stm32/voice_command")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_NETWORK_STATUS, "/eggy/network/status")
   SET_DEFAULT_TOPIC_NAME(MSG_ID_CMD_VEL_CONTROL, "/eggy/cmd_vel/control")
@@ -481,6 +483,21 @@ void RosbridgeComm::ConnectAsync() {
   callback_handles_[GET_TOPIC_NAME(MSG_ID_DHT11_HUMI)] = dht11_humi_topic->Subscribe(
       [this](const ROSBridgePublishMsg& msg) { Dht11HumiCallback(msg); });
   subscribers_[GET_TOPIC_NAME(MSG_ID_DHT11_HUMI)] = std::move(dht11_humi_topic);
+
+  auto gps_fix_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_GPS_FIX), "sensor_msgs/NavSatFix",
+      policy::kGps.queue_length);
+  gps_fix_topic->SetThrottleRate(policy::kGps.throttle_rate_ms);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_GPS_FIX)] = gps_fix_topic->Subscribe(
+      [this](const ROSBridgePublishMsg& msg) { GpsFixCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_GPS_FIX)] = std::move(gps_fix_topic);
+
+  auto gps_status_topic = std::make_unique<ROSTopic>(
+      *ros_bridge_, GET_TOPIC_NAME(MSG_ID_GPS_STATUS), "std_msgs/String",
+      policy::kGps.queue_length);
+  callback_handles_[GET_TOPIC_NAME(MSG_ID_GPS_STATUS)] = gps_status_topic->Subscribe(
+      [this](const ROSBridgePublishMsg& msg) { GpsStatusCallback(msg); });
+  subscribers_[GET_TOPIC_NAME(MSG_ID_GPS_STATUS)] = std::move(gps_status_topic);
 
   // 语音命令话题订阅
   auto voice_topic = std::make_unique<ROSTopic>(
@@ -1259,6 +1276,83 @@ void RosbridgeComm::Dht11HumiCallback(const ROSBridgePublishMsg& msg) {
     double humi = j["data"].GetDouble();
     PUBLISH(MSG_ID_DHT11_HUMI, humi);
   }
+}
+
+void RosbridgeComm::GpsFixCallback(const ROSBridgePublishMsg& msg) {
+  if (msg.msg_json_.IsNull() || !msg.msg_json_.IsObject()) return;
+  const auto& j = msg.msg_json_;
+  if (!j.HasMember("latitude") || !j["latitude"].IsNumber() ||
+      !j.HasMember("longitude") || !j["longitude"].IsNumber()) return;
+
+  basic::GpsFix fix;
+  fix.latitude = j["latitude"].GetDouble();
+  fix.longitude = j["longitude"].GetDouble();
+  if (j.HasMember("altitude") && j["altitude"].IsNumber())
+    fix.altitude = j["altitude"].GetDouble();
+  if (j.HasMember("status") && j["status"].IsObject()) {
+    const auto& status = j["status"];
+    if (status.HasMember("status") && status["status"].IsInt())
+      fix.status = status["status"].GetInt();
+    if (status.HasMember("service") && status["service"].IsInt())
+      fix.service = status["service"].GetInt();
+  }
+  if (j.HasMember("position_covariance") && j["position_covariance"].IsArray() &&
+      j["position_covariance"].Size() >= 5 &&
+      j["position_covariance"][0].IsNumber() &&
+      j["position_covariance"][4].IsNumber()) {
+    fix.horizontal_variance =
+        (j["position_covariance"][0].GetDouble() +
+         j["position_covariance"][4].GetDouble()) / 2.0;
+  }
+  if (j.HasMember("header") && j["header"].IsObject()) {
+    const auto& header = j["header"];
+    if (header.HasMember("frame_id") && header["frame_id"].IsString())
+      fix.frame_id = header["frame_id"].GetString();
+    if (header.HasMember("stamp") && header["stamp"].IsObject()) {
+      const auto& stamp = header["stamp"];
+      if (stamp.HasMember("secs") && stamp["secs"].IsInt64())
+        fix.stamp_sec = stamp["secs"].GetInt64();
+      if (stamp.HasMember("nsecs") && stamp["nsecs"].IsUint())
+        fix.stamp_nsec = stamp["nsecs"].GetUint();
+    }
+  }
+  PUBLISH_LATEST(MSG_ID_GPS_FIX, fix);
+}
+
+void RosbridgeComm::GpsStatusCallback(const ROSBridgePublishMsg& msg) {
+  if (msg.msg_json_.IsNull() || !msg.msg_json_.IsObject() ||
+      !msg.msg_json_.HasMember("data") || !msg.msg_json_["data"].IsString()) return;
+  rapidjson::Document status_json;
+  status_json.Parse(msg.msg_json_["data"].GetString());
+  if (status_json.HasParseError() || !status_json.IsObject()) return;
+  basic::GpsStatus status;
+  auto get_bool = [&status_json](const char* key, bool fallback = false) {
+    return status_json.HasMember(key) && status_json[key].IsBool()
+               ? status_json[key].GetBool() : fallback;
+  };
+  auto get_int = [&status_json](const char* key) {
+    return status_json.HasMember(key) && status_json[key].IsInt()
+               ? status_json[key].GetInt() : 0;
+  };
+  auto get_double = [&status_json](const char* key) {
+    return status_json.HasMember(key) && status_json[key].IsNumber()
+               ? status_json[key].GetDouble() : 0.0;
+  };
+  status.connected = get_bool("connected");
+  status.nmea_online = get_bool("nmea_online");
+  status.fix = get_bool("fix");
+  status.fix_quality = get_int("fix_quality");
+  status.satellites = get_int("satellites");
+  status.satellites_visible = get_int("satellites_visible");
+  status.baud = get_int("baud");
+  status.hdop = get_double("hdop");
+  status.nmea_age_sec = get_double("nmea_age_sec");
+  status.fix_age_sec = get_double("fix_age_sec");
+  if (status_json.HasMember("frame_id") && status_json["frame_id"].IsString())
+    status.frame_id = status_json["frame_id"].GetString();
+  if (status_json.HasMember("last_error") && status_json["last_error"].IsString())
+    status.last_error = status_json["last_error"].GetString();
+  PUBLISH_LATEST(MSG_ID_GPS_STATUS, status);
 }
 
 /**
