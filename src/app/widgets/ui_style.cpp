@@ -342,8 +342,14 @@ QString ApplicationStyleSheet() {
            QString::number(Space::MD), Primary, PrimaryLight,
            Scrollbar, ScrollbarHvr, BorderHover, dock_tab, DisabledText,
            DisabledBg, TextSecondary);
-  const QString message_box_style = QStringLiteral(
+  return base_style + MessageBoxStyleSheet();
+}
+
+QString MessageBoxStyleSheet() {
+  using namespace Palette;
+  return QStringLiteral(
       "QMessageBox { background:%1; color:%2; }"
+      "QMessageBox QWidget { background:transparent; color:%2; }"
       "QMessageBox QLabel { background:transparent; color:%2; min-width:320px;"
       " padding:8px 4px; }"
       "QMessageBox QPushButton { background:%1; color:%2; border:1px solid %3;"
@@ -355,7 +361,6 @@ QString ApplicationStyleSheet() {
       "QMessageBox QPushButton:disabled { background:%9; color:%10; border-color:%3; }")
       .arg(Surface, Text, Border, QString::number(Radius::MD), SurfaceHover,
            BorderHover, Primary, PrimaryLight, DisabledBg, DisabledText);
-  return base_style + message_box_style;
 }
 
 QString DockStyleSheet() {

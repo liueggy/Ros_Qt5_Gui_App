@@ -65,9 +65,10 @@ TEST(UiThemeContract, AppliesDarkThemeToExistingWidgetWithoutRecreation) {
 TEST(UiThemeContract, MessageBoxesUseExplicitThemeColors) {
   for (const bool dark : {false, true}) {
     UiStyle::SetDarkTheme(dark);
-    const QString style = UiStyle::ApplicationStyleSheet();
+    const QString style = UiStyle::MessageBoxStyleSheet();
 
     EXPECT_TRUE(style.contains(QStringLiteral("QMessageBox")));
+    EXPECT_TRUE(style.contains(QStringLiteral("QMessageBox QWidget")));
     EXPECT_TRUE(style.contains(QStringLiteral("QMessageBox QLabel")));
     EXPECT_TRUE(style.contains(UiStyle::Palette::Surface));
     EXPECT_TRUE(style.contains(UiStyle::Palette::Text));

@@ -130,6 +130,7 @@ int ControlHeightPx();
 
 // ── App-level sheet ──────────────────────────
 QString ApplicationStyleSheet();
+QString MessageBoxStyleSheet();
 QString DockStyleSheet();
 void SetDarkTheme(bool dark);
 bool IsDarkTheme();

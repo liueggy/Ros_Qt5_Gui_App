@@ -82,6 +82,9 @@ bool ConfirmAutoMappingAction(QWidget* parent, const QString& title,
                               const QString& accept_text) {
   QMessageBox dialog(QMessageBox::Question, title, message,
                      QMessageBox::NoButton, parent);
+  // This dialog is parented to a panel with a broad local QWidget style.
+  // Bind the modal theme directly so the parent cannot override its surface.
+  dialog.setStyleSheet(UiStyle::MessageBoxStyleSheet());
   QPushButton* accept = dialog.addButton(accept_text, QMessageBox::AcceptRole);
   QPushButton* cancel = dialog.addButton(QObject::tr("取消"),
                                          QMessageBox::RejectRole);
