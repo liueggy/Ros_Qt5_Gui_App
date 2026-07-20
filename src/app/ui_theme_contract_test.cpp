@@ -62,6 +62,18 @@ TEST(UiThemeContract, AppliesDarkThemeToExistingWidgetWithoutRecreation) {
   EXPECT_TRUE(button.styleSheet().contains(UiStyle::Palette::Surface));
 }
 
+TEST(UiThemeContract, MessageBoxesUseExplicitThemeColors) {
+  for (const bool dark : {false, true}) {
+    UiStyle::SetDarkTheme(dark);
+    const QString style = UiStyle::ApplicationStyleSheet();
+
+    EXPECT_TRUE(style.contains(QStringLiteral("QMessageBox")));
+    EXPECT_TRUE(style.contains(QStringLiteral("QMessageBox QLabel")));
+    EXPECT_TRUE(style.contains(UiStyle::Palette::Surface));
+    EXPECT_TRUE(style.contains(UiStyle::Palette::Text));
+  }
+}
+
 TEST(UiThemeContract, RetintsCachedMonochromeButtonIcon) {
   UiStyle::ApplyApplicationTheme(qApp, nullptr, false);
   QWidget root;

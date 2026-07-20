@@ -77,6 +77,20 @@ QString FriendlyAutoMappingMessage(const QString& message, const QString& state)
   return message.trimmed();
 }
 
+bool ConfirmAutoMappingAction(QWidget* parent, const QString& title,
+                              const QString& message,
+                              const QString& accept_text) {
+  QMessageBox dialog(QMessageBox::Question, title, message,
+                     QMessageBox::NoButton, parent);
+  QPushButton* accept = dialog.addButton(accept_text, QMessageBox::AcceptRole);
+  QPushButton* cancel = dialog.addButton(QObject::tr("取消"),
+                                         QMessageBox::RejectRole);
+  dialog.setDefaultButton(cancel);
+  dialog.setEscapeButton(cancel);
+  dialog.exec();
+  return dialog.clickedButton() == accept;
+}
+
 }  // namespace
 
 CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
@@ -973,11 +987,10 @@ void CommandCenterWidget::StartAutoMapping() {
       auto_mapping_state_ != QStringLiteral("rejected")) {
     return;
   }
-  const auto answer = QMessageBox::question(
-      this, tr("开始自动建图"),
-      tr("小车将自主移动并保存新地图。请确认周围无人、无悬空台阶，急停可随时使用。\n\n是否开始？"),
-      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-  if (answer != QMessageBox::Yes) {
+  if (!ConfirmAutoMappingAction(
+          this, tr("开始自动建图"),
+          tr("小车将自主移动并保存新地图。请确认周围无人、无悬空台阶，急停可随时使用。\n\n是否开始？"),
+          tr("开始建图"))) {
     return;
   }
   auto_mapping_request_id_ = QStringLiteral("qt-auto-map-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
@@ -993,10 +1006,10 @@ void CommandCenterWidget::PauseResumeAutoMapping() {
 }
 
 void CommandCenterWidget::StopAutoMapping() {
-  if (QMessageBox::question(
+  if (!ConfirmAutoMappingAction(
           this, tr("停止自动建图"),
           tr("小车会立即停止，当前地图将作为草稿保存。确定停止吗？"),
-          QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+          tr("停止并保存"))) {
     return;
   }
   SendAutoMappingCommand(QStringLiteral("stop"));

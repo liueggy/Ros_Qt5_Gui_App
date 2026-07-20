@@ -297,7 +297,7 @@ int ControlHeightPx() { return Control::Height; }
 QString ApplicationStyleSheet() {
   using namespace Palette;
   const QString dock_tab = IsDarkTheme() ? SurfaceAlt : QStringLiteral("#eef1ee");
-  return QStringLiteral(
+  const QString base_style = QStringLiteral(
              "QWidget { color:%1; font-size:%2px; }"
              "QMainWindow, QDialog { background:%3; }"
              "QToolTip { color:%1; background:%4; border:1px solid %5; border-radius:%6px; padding:6px %8px; }"
@@ -342,6 +342,20 @@ QString ApplicationStyleSheet() {
            QString::number(Space::MD), Primary, PrimaryLight,
            Scrollbar, ScrollbarHvr, BorderHover, dock_tab, DisabledText,
            DisabledBg, TextSecondary);
+  const QString message_box_style = QStringLiteral(
+      "QMessageBox { background:%1; color:%2; }"
+      "QMessageBox QLabel { background:transparent; color:%2; min-width:320px;"
+      " padding:8px 4px; }"
+      "QMessageBox QPushButton { background:%1; color:%2; border:1px solid %3;"
+      " border-radius:%4px; min-width:84px; min-height:32px; padding:4px 14px;"
+      " font-weight:600; }"
+      "QMessageBox QPushButton:hover { background:%5; border-color:%6; color:%7; }"
+      "QMessageBox QPushButton:pressed { background:%8; border-color:%7; }"
+      "QMessageBox QPushButton:focus { border:2px solid %7; }"
+      "QMessageBox QPushButton:disabled { background:%9; color:%10; border-color:%3; }")
+      .arg(Surface, Text, Border, QString::number(Radius::MD), SurfaceHover,
+           BorderHover, Primary, PrimaryLight, DisabledBg, DisabledText);
+  return base_style + message_box_style;
 }
 
 QString DockStyleSheet() {
