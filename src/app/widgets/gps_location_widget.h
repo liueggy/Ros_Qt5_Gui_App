@@ -17,6 +17,9 @@ class GlobeWidget final : public QWidget {
 
   void SetPosition(double latitude, double longitude, bool valid);
   void FocusPosition();
+  void SetCloudsVisible(bool visible);
+  void ZoomIn();
+  void ZoomOut();
 
  protected:
   void paintEvent(QPaintEvent* event) override;
@@ -30,7 +33,10 @@ class GlobeWidget final : public QWidget {
   void RenderGlobe();
   QPointF Project(double latitude, double longitude, bool* visible) const;
 
-  QImage texture_;
+  void ChangeZoom(double delta);
+
+  QImage surface_texture_;
+  QImage cloud_texture_;
   QImage globe_;
   QPoint drag_origin_;
   double drag_latitude_{0.0};
@@ -42,6 +48,7 @@ class GlobeWidget final : public QWidget {
   double zoom_{0.92};
   bool dragging_{false};
   bool gps_valid_{false};
+  bool clouds_visible_{false};
   bool dirty_{true};
 };
 

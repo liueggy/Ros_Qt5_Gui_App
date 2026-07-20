@@ -29,6 +29,17 @@ TEST(GpsContract, RejectsInvalidOrUnavailableCoordinates) {
   EXPECT_FALSE(fix.IsValid());
 }
 
+TEST(GpsGlobeContract, SupportsCloudFreeDetailZoom) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile source(test_source.dir().filePath(
+      QStringLiteral("widgets/gps_location_widget.cpp")));
+  ASSERT_TRUE(source.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray text = source.readAll();
+  EXPECT_TRUE(text.contains("earth_blue_marble_no_clouds.jpg"));
+  EXPECT_TRUE(text.contains("clouds_visible_ ? cloud_texture_ : surface_texture_"));
+  EXPECT_TRUE(text.contains("std::clamp(zoom_ + delta, 0.65, 5.0)"));
+}
+
 TEST(MapConfigContract, RepairsReversedThresholdsBeforeUpload) {
   QTemporaryDir directory;
   ASSERT_TRUE(directory.isValid());

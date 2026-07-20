@@ -3,6 +3,7 @@
 #include <QGridLayout>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QCheckBox>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPainter>
@@ -10,6 +11,7 @@
 #include <QResizeEvent>
 #include <QSplitter>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <algorithm>
@@ -47,9 +49,13 @@ GlobeWidget::GlobeWidget(QWidget* parent) : QWidget(parent) {
   setMinimumSize(420, 420);
   setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
   setCursor(Qt::OpenHandCursor);
-  texture_.load(QStringLiteral(":/images/earth_blue_marble.jpg"));
-  if (!texture_.isNull())
-    texture_ = texture_.convertToFormat(QImage::Format_RGB32);
+  surface_texture_.load(
+      QStringLiteral(":/images/earth_blue_marble_no_clouds.jpg"));
+  cloud_texture_.load(QStringLiteral(":/images/earth_blue_marble.jpg"));
+  if (!surface_texture_.isNull())
+    surface_texture_ = surface_texture_.convertToFormat(QImage::Format_RGB32);
+  if (!cloud_texture_.isNull())
+    cloud_texture_ = cloud_texture_.convertToFormat(QImage::Format_RGB32);
 }
 
 void GlobeWidget::SetPosition(double latitude, double longitude, bool valid) {
@@ -68,6 +74,22 @@ void GlobeWidget::FocusPosition() {
   dirty_ = true;
   update();
 }
+
+void GlobeWidget::SetCloudsVisible(bool visible) {
+  if (clouds_visible_ == visible) return;
+  clouds_visible_ = visible;
+  dirty_ = true;
+  update();
+}
+
+void GlobeWidget::ChangeZoom(double delta) {
+  zoom_ = std::clamp(zoom_ + delta, 0.65, 5.0);
+  dirty_ = true;
+  update();
+}
+
+void GlobeWidget::ZoomIn() { ChangeZoom(zoom_ < 1.5 ? 0.25 : 0.5); }
+void GlobeWidget::ZoomOut() { ChangeZoom(zoom_ > 1.5 ? -0.5 : -0.25); }
 
 void GlobeWidget::resizeEvent(QResizeEvent*) { dirty_ = true; }
 
@@ -96,9 +118,7 @@ void GlobeWidget::mouseReleaseEvent(QMouseEvent*) {
 }
 
 void GlobeWidget::wheelEvent(QWheelEvent* event) {
-  zoom_ = std::clamp(zoom_ + event->angleDelta().y() / 1200.0, 0.65, 1.18);
-  dirty_ = true;
-  update();
+  ChangeZoom(event->angleDelta().y() > 0 ? 0.25 : -0.25);
   event->accept();
 }
 
@@ -106,7 +126,8 @@ void GlobeWidget::RenderGlobe() {
   const int side = std::max(64, std::min(width(), height()) - 32);
   globe_ = QImage(side, side, QImage::Format_ARGB32_Premultiplied);
   globe_.fill(Qt::transparent);
-  if (texture_.isNull()) return;
+  const QImage& texture = clouds_visible_ ? cloud_texture_ : surface_texture_;
+  if (texture.isNull()) return;
 
   const double radius = side * 0.5 * zoom_;
   const double center = side * 0.5;
@@ -114,7 +135,7 @@ void GlobeWidget::RenderGlobe() {
   const double lon0 = ToRad(view_longitude_);
   const double sx = std::sin(lon0), cx = std::cos(lon0);
   const double sy = std::sin(lat0), cy = std::cos(lat0);
-  const int tw = texture_.width(), th = texture_.height();
+  const int tw = texture.width(), th = texture.height();
 
   for (int py = 0; py < side; ++py) {
     auto* dst = reinterpret_cast<QRgb*>(globe_.scanLine(py));
@@ -133,7 +154,7 @@ void GlobeWidget::RenderGlobe() {
       if (tx < 0) tx += tw;
       const int ty = std::clamp(static_cast<int>((0.5 - lat / kPi) * th),
                                 0, th - 1);
-      QColor color(texture_.pixel(tx, ty));
+      QColor color(texture.pixel(tx, ty));
       const double light = std::clamp(0.48 + 0.62 * nz - 0.18 * nx, 0.28, 1.08);
       color.setRed(std::clamp(static_cast<int>(color.red() * light), 0, 255));
       color.setGreen(std::clamp(static_cast<int>(color.green() * light), 0, 255));
@@ -202,6 +223,25 @@ GpsLocationWidget::GpsLocationWidget(QWidget* parent) : QWidget(parent) {
   header->addWidget(title);
   header->addWidget(subtitle);
   header->addStretch();
+  auto* clouds = new QCheckBox(QStringLiteral("云层"));
+  clouds->setChecked(false);
+  clouds->setToolTip(QStringLiteral("云层为固定卫星影像；关闭后更适合查看地表"));
+  clouds->setStyleSheet(UiStyle::CompactCheckBoxStyleSheet());
+  header->addWidget(clouds);
+  auto* zoom_out = new QToolButton();
+  zoom_out->setText(QStringLiteral("−"));
+  zoom_out->setToolTip(QStringLiteral("缩小地球"));
+  zoom_out->setAccessibleName(zoom_out->toolTip());
+  zoom_out->setFixedSize(36, 32);
+  zoom_out->setStyleSheet(UiStyle::MiniToolButtonStyleSheet());
+  auto* zoom_in = new QToolButton();
+  zoom_in->setText(QStringLiteral("+"));
+  zoom_in->setToolTip(QStringLiteral("放大地表细节"));
+  zoom_in->setAccessibleName(zoom_in->toolTip());
+  zoom_in->setFixedSize(36, 32);
+  zoom_in->setStyleSheet(UiStyle::MiniToolButtonStyleSheet());
+  header->addWidget(zoom_out);
+  header->addWidget(zoom_in);
   header->addWidget(state_badge_);
   root->addLayout(header);
 
@@ -273,6 +313,11 @@ GpsLocationWidget::GpsLocationWidget(QWidget* parent) : QWidget(parent) {
   splitter->setStretchFactor(1, 2);
   splitter->setSizes({560, 360});
   root->addWidget(splitter, 1);
+
+  connect(clouds, &QCheckBox::toggled, globe_,
+          &GlobeWidget::SetCloudsVisible);
+  connect(zoom_out, &QToolButton::clicked, globe_, &GlobeWidget::ZoomOut);
+  connect(zoom_in, &QToolButton::clicked, globe_, &GlobeWidget::ZoomIn);
 
   freshness_timer_ = new QTimer(this);
   freshness_timer_->setInterval(500);

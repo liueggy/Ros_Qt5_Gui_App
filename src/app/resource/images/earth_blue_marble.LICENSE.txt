@@ -4,4 +4,5 @@ and NASA's Earth Observatory.
 
 Source: https://svs.gsfc.nasa.gov/3615/
 Asset: flat_earth03.jpg (2048x1024), released 2009-09-21.
+Asset: earth_noClouds.0330.jpg (2048x1024), released 2009-09-21.
 Usage: https://www.nasa.gov/nasa-brand-center/images-and-media/
