@@ -183,6 +183,8 @@ class VirtualDisplay : public QObject, public QGraphicsItem {
   void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
   void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
   void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
+
+ protected:
   virtual QVariant itemChange(GraphicsItemChange change,
                               const QVariant &value) override;
  private slots:
