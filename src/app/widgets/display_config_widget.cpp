@@ -14,6 +14,8 @@
 #include <algorithm>
 #include "config/config_manager.h"
 #include "core/framework/framework.h"
+#include "display/display_cost_map.h"
+#include "display/display_path.h"
 #include "display/manager/display_factory.h"
 #include "display/manager/display_manager.h"
 #include "display/virtual_display.h"
@@ -1142,6 +1144,16 @@ void DisplayConfigWidget::UpdateMapStyleColorButtons(
 void DisplayConfigWidget::UpdateDisplayVisibility(const std::string& display_name, bool visible) {
   auto display = Display::FactoryDisplay::Instance()->GetDisplay(display_name);
   if (display) {
+    // A stale path/costmap temporarily hides itself while remembering its
+    // previous visibility. Clear that temporary state before applying the
+    // operator's explicit choice, otherwise the next fresh message can
+    // restore an obsolete value and undo this checkbox.
+    if (auto* path = dynamic_cast<Display::DisplayPath*>(display)) {
+      path->SetDataStale(false);
+    } else if (auto* costmap =
+                   dynamic_cast<Display::DisplayCostMap*>(display)) {
+      costmap->SetDataStale(false);
+    }
     display->setVisible(visible);
     LOG_INFO("Display " << display_name << " visibility set to " << (visible ? "visible" : "hidden"));
   }

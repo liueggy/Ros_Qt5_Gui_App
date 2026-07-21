@@ -423,6 +423,22 @@ TEST(InspectionUiContract, OpensCameraAndPreservesNavigationLayersAfterProfileSw
       "GetDisplay(DISPLAY_GLOBAL_PATH)->setVisible(false)"));
 }
 
+TEST(DisplayLayerContract, UserToggleOverridesTemporaryStaleVisibility) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile display_config(test_source.dir().filePath(
+      QStringLiteral("widgets/display_config_widget.cpp")));
+  ASSERT_TRUE(display_config.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray source = display_config.readAll();
+
+  EXPECT_TRUE(source.contains(
+      "dynamic_cast<Display::DisplayPath*>(display)"));
+  EXPECT_TRUE(source.contains(
+      "dynamic_cast<Display::DisplayCostMap*>(display)"));
+  EXPECT_TRUE(source.contains("SetDataStale(false)"));
+  EXPECT_TRUE(source.indexOf("SetDataStale(false)") <
+              source.indexOf("display->setVisible(visible)"));
+}
+
 TEST(MissionContractTest, InspectionResultPrefersDetectedClassAndUsesConfigAsFallback) {
   const nlohmann::json pressure_point = {
       {"waypoint", {{"id", "NAV_POINT_0#1"},
