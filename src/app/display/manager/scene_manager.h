@@ -4,6 +4,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QPointer>
 #include <memory>
 #include <QTimer>
 #include <vector>
@@ -37,9 +38,10 @@ class SceneManager : public QGraphicsScene {
  private:
   SetPoseWidget *set_nav_pose_widget_;
   QGraphicsView *view_ptr_;
-  Display::VirtualDisplay *curr_handle_display_{nullptr};
+  QPointer<Display::VirtualDisplay> curr_handle_display_;
   DisplayManager *display_manager_;
   std::unique_ptr<NavGoalWidget> nav_goal_widget_;
+  std::string nav_goal_point_name_;
   std::unique_ptr<TopologyRouteWidget> topology_route_widget_;
 
   TopologyMap topology_map_;
@@ -126,6 +128,9 @@ class SceneManager : public QGraphicsScene {
   void SetPointMoveEnable(bool is_enable);
   void cleanupTopologyDisplays(const std::vector<std::string> &point_names);
   PointShape* createTopologyPointDisplay(const TopologyMap::PointInfo &point_info);
+  PointShape* findTopologyPointDisplay(const std::string &point_name) const;
+  void resetNavGoalInteraction();
+  void removeTopologyPointDisplay(const std::string &point_name);
   
   // 拓扑连接相关方法
   void handleTopologyLinking(const QString &point_name);

@@ -7,10 +7,38 @@
 #include <gtest/gtest.h>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
 #include <QTemporaryDir>
 #include <limits>
 
 namespace {
+
+TEST(MapEditorLifetimeContract, DoesNotRetainDeletedWaypointPointers) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  const QDir app_dir = test_source.dir();
+
+  QFile header(app_dir.filePath(
+      QStringLiteral("display/manager/scene_manager.h")));
+  ASSERT_TRUE(header.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray header_text = header.readAll();
+  EXPECT_TRUE(header_text.contains("QPointer<Display::VirtualDisplay> curr_handle_display_"));
+  EXPECT_TRUE(header_text.contains("resetNavGoalInteraction"));
+  EXPECT_TRUE(header_text.contains("removeTopologyPointDisplay"));
+
+  QFile manager(app_dir.filePath(
+      QStringLiteral("display/manager/scene_manager.cpp")));
+  ASSERT_TRUE(manager.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray manager_text = manager.readAll();
+  EXPECT_TRUE(manager_text.contains("QPointer<VirtualDisplay> display_guard"));
+  EXPECT_FALSE(manager_text.contains("[this, display, widget_ptr]"));
+
+  QFile commands(app_dir.filePath(
+      QStringLiteral("display/manager/map_edit_command.cpp")));
+  ASSERT_TRUE(commands.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray command_text = commands.readAll();
+  EXPECT_TRUE(command_text.contains(
+      "manager->removeTopologyPointDisplay(point_name_)"));
+}
 
 TEST(GpsContract, RejectsInvalidOrUnavailableCoordinates) {
   basic::GpsFix fix;

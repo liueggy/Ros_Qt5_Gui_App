@@ -77,7 +77,7 @@ QVariant PointShape::itemChange(GraphicsItemChange change,
     default:
       break;
   };
-  return QGraphicsItem::itemChange(change, value);
+  return VirtualDisplay::itemChange(change, value);
 }
 bool PointShape::UpdateData(const RobotPose& pose) {
   robot_pose_ = pose;

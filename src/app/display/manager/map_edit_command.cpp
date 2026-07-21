@@ -101,23 +101,15 @@ AddPointCommand::AddPointCommand(const std::string& name, const TopologyMap::Poi
     : point_name_(name), point_info_(info) {}
 
 void AddPointCommand::Undo(SceneManager* manager) {
-  auto display = FactoryDisplay::Instance()->GetDisplay(point_name_);
-  if (display) {
+  if (manager->findTopologyPointDisplay(point_name_)) {
     manager->topology_map_.RemovePoint(point_name_);
-    FactoryDisplay::Instance()->RemoveDisplay(display);
-    manager->removeItem(display);
-    delete display;
+    manager->removeTopologyPointDisplay(point_name_);
   }
 }
 
 void AddPointCommand::Redo(SceneManager* manager) {
   manager->topology_map_.AddPoint(point_info_);
-  auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
-                                   point_name_, 8, DISPLAY_MAP);
-  goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
-  auto map_pose = manager->display_manager_->wordPose2Map(point_info_.ToRobotPose());
-  goal_point->UpdateData(map_pose);
-  manager->addItem(goal_point);
+  manager->createTopologyPointDisplay(point_info_);
 }
 
 RemovePointCommand::RemovePointCommand(const std::string& name, const TopologyMap::PointInfo& info,
@@ -126,12 +118,7 @@ RemovePointCommand::RemovePointCommand(const std::string& name, const TopologyMa
 
 void RemovePointCommand::Undo(SceneManager* manager) {
   manager->topology_map_.AddPoint(point_info_);
-  auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
-                                   point_name_, 8, DISPLAY_MAP);
-  goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
-  auto map_pose = manager->display_manager_->wordPose2Map(point_info_.ToRobotPose());
-  goal_point->UpdateData(map_pose);
-  manager->addItem(goal_point);
+  manager->createTopologyPointDisplay(point_info_);
   
   for (const auto& route_id : related_routes_) {
     size_t arrow_pos = route_id.find("->");
@@ -160,9 +147,7 @@ void RemovePointCommand::Redo(SceneManager* manager) {
       }
     }
     manager->topology_map_.RemovePoint(point_name_);
-    FactoryDisplay::Instance()->RemoveDisplay(display);
-    manager->removeItem(display);
-    delete display;
+    manager->removeTopologyPointDisplay(point_name_);
   }
 }
 

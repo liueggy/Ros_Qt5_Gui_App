@@ -69,8 +69,15 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
     old_point_names.push_back(point.name);
   }
   
+  if (topology_route_widget_) {
+    TopologyRouteWidget* stale_widget = topology_route_widget_.release();
+    stale_widget->hide();
+    stale_widget->disconnect();
+    stale_widget->deleteLater();
+  }
   // 清理现有的拓扑连线
   for (const auto line : topology_lines_) {
+    FactoryDisplay::Instance()->RemoveDisplay(line);
     removeItem(line);
     delete line;
   }
@@ -78,12 +85,11 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
   selected_topology_line_ = nullptr;
   
   // 删除原有的显示对象
+  resetNavGoalInteraction();
+  left_pressed_ = false;
+  right_pressed_ = false;
   for (const auto &point_name : old_point_names) {
-    auto display = FactoryDisplay::Instance()->GetDisplay(point_name);
-    if (display != nullptr) {
-      FactoryDisplay::Instance()->RemoveDisplay(display);
-      delete display;
-    }
+    removeTopologyPointDisplay(point_name);
   }
   
   // 更新拓扑地图数据
@@ -91,15 +97,11 @@ void SceneManager::UpdateTopologyMap(const TopologyMap &topology_map) {
 
   // 为每个点创建显示对象
   for (const auto &point : topology_map_.points) {
-    auto goal_point = new PointShape(PointShape::ePointType::kNavGoal, DISPLAY_GOAL,
-                                   point.name, 8, DISPLAY_MAP);
-    
-    goal_point->SetRotateEnable(false)->SetMoveEnable(false)->setVisible(true);
-    
-    // 使用统一的坐标转换：世界坐标 -> 地图坐标
+    auto goal_point = createTopologyPointDisplay(point);
+    goal_point->SetMoveEnable(false);
+
     auto robot_pose = point.ToRobotPose();
     auto map_pose = display_manager_->wordPose2Map(robot_pose);
-    goal_point->UpdateData(map_pose);
     
     LOG_INFO("Update Point: " << point.name << " at world pose(" 
              << robot_pose.x << ", " << robot_pose.y << ", " << robot_pose.theta 
@@ -219,14 +221,9 @@ void SceneManager::AddPointAtRobotPosition() {
   auto command = std::make_unique<AddPointCommand>(name, point_info);
   PushCommand(std::move(command));
   
-  // 创建点位显示对象
-  auto goal_point = new PointShape(PointShape::ePointType::kNavGoal,
-                                  DISPLAY_GOAL, name, 8, DISPLAY_MAP);
-    goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
-  
-  // 世界坐标 -> 地图坐标
+  createTopologyPointDisplay(point_info);
+
   auto map_pose = display_manager_->wordPose2Map(robot_pose);
-  goal_point->UpdateData(map_pose);
   
   // 添加到拓扑地图
   topology_map_.AddPoint(point_info);
@@ -237,7 +234,7 @@ void SceneManager::AddPointAtRobotPosition() {
            << ") -> map pose(" << map_pose.x << ", " << map_pose.y << ", " << map_pose.theta << ")");
   LOG_INFO("Total points: " << topology_map_.points.size());
   
-  curr_handle_display_ = goal_point;
+  curr_handle_display_ = findTopologyPointDisplay(name);
 }
 
 void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
@@ -307,7 +304,7 @@ void SceneManager::mousePressEvent(QGraphicsSceneMouseEvent *mouseEvent) {
                << ") -> world pose(" << world_pose.x << ", " << world_pose.y << ", " << world_pose.theta
                << ") -> map pose(" << map_pose.x << ", " << map_pose.y << ", " << map_pose.theta << ")");
       LOG_INFO("Total points: " << topology_map_.points.size());
-      curr_handle_display_ = goal_point;
+      curr_handle_display_ = findTopologyPointDisplay(name);
     } break;
     case MapEditMode::kErase: {
       auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
@@ -636,14 +633,12 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
   }
   
   // 清理旧的 widget：先隐藏并断开所有连接，然后销毁
-  if (nav_goal_widget_) {
-    nav_goal_widget_->hide();
-    nav_goal_widget_->disconnect();  // 断开所有信号槽连接
-    nav_goal_widget_.reset();  // 显式销毁旧实例
-  }
+  resetNavGoalInteraction();
+  curr_handle_display_ = display;
   
   QPointF view_pos = view_ptr_->mapFromScene(display->scenePos());
   std::string name = display->GetDisplayName();
+  nav_goal_point_name_ = name;
   auto point_info = topology_map_.GetPoint(name);
   LOG_INFO("blind nav goal widget display name:" << name <<" world pose:" << point_info.ToRobotPose());
   
@@ -667,9 +662,10 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
 
   // 使用原始指针进行连接，避免 lambda 中访问已销毁的智能指针
   NavGoalWidget* widget_ptr = nav_goal_widget_.get();
+  QPointer<VirtualDisplay> display_guard(display);
   
-  connect(widget_ptr, &NavGoalWidget::SignalHandleOver,
-          [this, display, widget_ptr](const NavGoalWidget::HandleResult &flag,
+  connect(widget_ptr, &NavGoalWidget::SignalHandleOver, this,
+          [this, display_guard, name, widget_ptr](const NavGoalWidget::HandleResult &flag,
                           const RobotPose &pose,const QString &new_name) {
             // 安全检查：确保 widget 仍然有效且是当前活跃的 widget
             if (!nav_goal_widget_ || nav_goal_widget_.get() != widget_ptr) {
@@ -677,17 +673,17 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
               return;
             }
             // 检查 display 是否仍然有效（防止点位被删除后访问）
-            if (!display ) {
+            if (!display_guard) {
               LOG_WARN("Display was deleted or changed, ignoring signal");
               return;
             }
 
-            std::string point_name = display->GetDisplayName();  
+            VirtualDisplay* display = display_guard.data();
+            std::string point_name = name;
 
             
             if (flag == NavGoalWidget::HandleResult::kSend) {
               // 检查点位坐标是否被修改，如果是则创建撤销命令
-              std::string point_name = display->GetDisplayName();
               if (point_move_start_positions_.find(point_name) != point_move_start_positions_.end()) {
                 auto old_info = point_move_start_positions_[point_name];
                 auto new_info = topology_map_.GetPoint(point_name);
@@ -700,9 +696,8 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
                 point_move_start_positions_.erase(point_name);
               }
               
+              resetNavGoalInteraction();
               emit display_manager_->signalPub2DGoal(pose);
-              nav_goal_widget_->hide();
-              curr_handle_display_ = nullptr;
             } else if (flag == NavGoalWidget::HandleResult::kRemove) {
               LOG_INFO("remove:" << point_name);
               
@@ -724,6 +719,7 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
                 
                 if (should_remove) {
                   related_routes.push_back(line->GetDisplayName());
+                  FactoryDisplay::Instance()->RemoveDisplay(line);
                   removeItem(line);
                   delete line;
                   it = topology_lines_.erase(it);
@@ -738,12 +734,8 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
               PushCommand(std::move(command));
               
               topology_map_.RemovePoint(point_name);
+              removeTopologyPointDisplay(point_name);
               emit signalTopologyMapUpdate(topology_map_);
-              curr_handle_display_ = nullptr;
-              FactoryDisplay::Instance()->RemoveDisplay(display);
-              nav_goal_widget_->disconnect();
-              delete display;
-              nav_goal_widget_->hide();
 
             } else if (flag == NavGoalWidget::HandleResult::kChangeName) {
               std::string old_name = point_name;  // 使用保存的点位名称
@@ -776,12 +768,11 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
                 }
               }
        
+              resetNavGoalInteraction();
               emit signalTopologyMapUpdate(topology_map_);
-              nav_goal_widget_->hide();
               LOG_INFO("Successfully updated point name: " << old_name << " -> " << new_name.toStdString());
             } else if (flag == NavGoalWidget::HandleResult::kCancel) {
               // 取消时，如果点位被修改过，恢复原位置
-              std::string point_name = display->GetDisplayName();
               if (point_move_start_positions_.find(point_name) != point_move_start_positions_.end()) {
                 auto old_info = point_move_start_positions_[point_name];
                 auto old_pose = old_info.ToRobotPose();
@@ -794,26 +785,25 @@ void SceneManager::blindNavGoalWidget(Display::VirtualDisplay *display, bool is_
                 point_move_start_positions_.erase(point_name);
               }
               
-              curr_handle_display_ = nullptr;
-              nav_goal_widget_->hide();
+              resetNavGoalInteraction();
             } else {
-              curr_handle_display_ = nullptr;
-              nav_goal_widget_->hide();
+              resetNavGoalInteraction();
             }
           });
           
-  connect(widget_ptr, &NavGoalWidget::SignalPoseChanged,
-          [this, display, widget_ptr](const RobotPose &pose) {
+  connect(widget_ptr, &NavGoalWidget::SignalPoseChanged, this,
+          [this, display_guard, name, widget_ptr](const RobotPose &pose) {
             // 安全检查：确保 widget 和 display 仍然有效
             if (!nav_goal_widget_ || nav_goal_widget_.get() != widget_ptr) {
               LOG_WARN("NavGoalWidget was replaced or destroyed, ignoring pose changed signal");
               return;
             }
-            if (!display) {
+            if (!display_guard) {
               LOG_WARN("Display was deleted or changed, ignoring pose changed signal");
               return;
             }
-            std::string point_name = display->GetDisplayName();
+            VirtualDisplay* display = display_guard.data();
+            std::string point_name = name;
             
             // 如果是第一次修改，保存旧位置用于撤销
             if (point_move_start_positions_.find(point_name) == point_move_start_positions_.end()) {
@@ -995,7 +985,7 @@ void SceneManager::blindTopologyRouteWidget(TopologyLine* line, bool is_edit) {
 
 void SceneManager::updateNavGoalWidgetPose(
     Display::VirtualDisplay *display, bool is_move) {
-  if (!nav_goal_widget_) {
+  if (!nav_goal_widget_ || !display) {
     return;  // widget 不存在，直接返回
   }
   
@@ -1030,6 +1020,61 @@ void SceneManager::updateNavGoalWidgetPose(
               << ") -> world pose(" << world_pose.x << ", " << world_pose.y << ", " << world_pose.theta << ")");
   }
 }
+
+PointShape* SceneManager::findTopologyPointDisplay(
+    const std::string &point_name) const {
+  return dynamic_cast<PointShape*>(
+      FactoryDisplay::Instance()->GetDisplay(point_name));
+}
+
+PointShape* SceneManager::createTopologyPointDisplay(
+    const TopologyMap::PointInfo &point_info) {
+  auto* goal_point = new PointShape(PointShape::ePointType::kNavGoal,
+                                    DISPLAY_GOAL, point_info.name, 8,
+                                    DISPLAY_MAP);
+  goal_point->SetRotateEnable(false)->SetMoveEnable(true)->setVisible(true);
+  goal_point->UpdateData(
+      display_manager_->wordPose2Map(point_info.ToRobotPose()));
+  return goal_point;
+}
+
+void SceneManager::resetNavGoalInteraction() {
+  curr_handle_display_.clear();
+  nav_goal_point_name_.clear();
+  point_move_start_positions_.clear();
+  if (!nav_goal_widget_) {
+    return;
+  }
+  NavGoalWidget* stale_widget = nav_goal_widget_.release();
+  stale_widget->hide();
+  stale_widget->disconnect();
+  stale_widget->deleteLater();
+}
+
+void SceneManager::removeTopologyPointDisplay(
+    const std::string &point_name) {
+  VirtualDisplay* display = FactoryDisplay::Instance()->GetDisplay(point_name);
+  if (!display) {
+    return;
+  }
+  if (curr_handle_display_ == display || nav_goal_point_name_ == point_name) {
+    resetNavGoalInteraction();
+  } else {
+    point_move_start_positions_.erase(point_name);
+  }
+  FactoryDisplay::Instance()->RemoveDisplay(display);
+  removeItem(display);
+  delete display;
+}
+
+void SceneManager::cleanupTopologyDisplays(
+    const std::vector<std::string> &point_names) {
+  resetNavGoalInteraction();
+  for (const auto &point_name : point_names) {
+    removeTopologyPointDisplay(point_name);
+  }
+}
+
 void SceneManager::eraseScenePointRange(const QPointF &pose, double range) {
   auto map_ptr = static_cast<DisplayOccMap *>(FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP));
   QPointF pose_map = map_ptr->mapFromScene(pose);
@@ -1180,6 +1225,7 @@ void SceneManager::deleteSelectedTopologyLine() {
     topology_map_.RemoveRoute(route_id);
     
     // 从场景中移除
+    FactoryDisplay::Instance()->RemoveDisplay(selected_topology_line_);
     removeItem(selected_topology_line_);    
     // 从显示列表中删除
     auto it = std::find(topology_lines_.begin(), topology_lines_.end(), selected_topology_line_);
@@ -1289,6 +1335,7 @@ void SceneManager::updateAllTopologyLinesStatus() {
 SceneManager::~SceneManager() {
   // 清理拓扑连线
   for (const auto line : topology_lines_) {
+    FactoryDisplay::Instance()->RemoveDisplay(line);
     removeItem(line);
     delete line;
   }
