@@ -515,6 +515,16 @@ TEST(MissionContractTest, InspectionResultPrefersDetectedClassAndUsesConfigAsFal
             "water_meter");
 }
 
+TEST(MissionContractTest, LiveInspectionResultsAccumulateOncePerRoutePoint) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile mainwindow(test_source.dir().filePath(QStringLiteral("mainwindow.cpp")));
+  ASSERT_TRUE(mainwindow.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray source = mainwindow.readAll();
+  EXPECT_TRUE(source.contains("inspection_ai_point_results_[row] = point.dump()"));
+  EXPECT_TRUE(source.contains("extra.contains(\"target\")"));
+  EXPECT_TRUE(source.contains("inspection_ai_point_results_.clear()"));
+}
+
 TEST(TelemetryLoggingContract, BoundsLogGrowthAndSkipsMapFrameNoise) {
   const QFileInfo test_source(QString::fromUtf8(__FILE__));
   QFile logger(test_source.dir().filePath(

@@ -2497,6 +2497,11 @@ void MainWindow::StartMissionRequest(const std::string& request) {
   }
   active_mission_inspection_enabled_ = inspection_enabled;
   active_mission_point_count_ = static_cast<int>(route.size());
+  inspection_ai_point_results_.clear();
+  if (inspection_kimi_banner_) {
+    inspection_kimi_banner_->clear();
+    inspection_kimi_banner_->setVisible(false);
+  }
   SetInspectionRunning(true);
   nav_goal_table_view_->ResetExecutionState();
   if (inspection_progress_bar_) {
@@ -2722,9 +2727,27 @@ void MainWindow::UpdateInspectionProgress(const nlohmann::json& data) {
     point["waypoint"] = extra.contains("waypoint") && extra["waypoint"].is_object()
                             ? extra["waypoint"]
                             : nlohmann::json{{"id", "point_" + std::to_string(row + 1)}};
-    const AiInspectionDisplay display = ExtractAiInspectionDisplay(point);
-    if (display.valid) {
-      ShowInspectionResultBanner(inspection_kimi_banner_, {display});
+    if (extra.contains("target") && extra["target"].is_object()) {
+      point["target"] = extra["target"];
+    }
+    if (row >= 0) {
+      // One card per route point. Repeated/latching status messages replace the
+      // same entry instead of duplicating it; multi-point missions accumulate.
+      inspection_ai_point_results_[row] = point.dump();
+    }
+    std::vector<AiInspectionDisplay> displays;
+    for (const auto& entry : inspection_ai_point_results_) {
+      try {
+        const AiInspectionDisplay display =
+            ExtractAiInspectionDisplay(nlohmann::json::parse(entry.second));
+        if (display.valid) {
+          displays.push_back(display);
+        }
+      } catch (const std::exception&) {
+      }
+    }
+    if (!displays.empty()) {
+      ShowInspectionResultBanner(inspection_kimi_banner_, displays);
     }
   }
 

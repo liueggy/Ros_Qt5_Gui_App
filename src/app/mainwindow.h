@@ -29,6 +29,7 @@
 #include <QTreeView>
 #include <QWidgetAction>
 #include <chrono>
+#include <map>
 #include <memory>
 #include <nlohmann/json_fwd.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -132,6 +133,7 @@ class MainWindow : public QMainWindow {
   QCheckBox* inspection_return_home_checkbox_{nullptr};
   QFrame* inspection_status_card_{nullptr};
   QLabel* inspection_kimi_banner_{nullptr};
+  std::map<int, std::string> inspection_ai_point_results_;
   QString last_inspection_log_line_;
   QLabel* label_dht11_temp_{nullptr};
   QLabel* label_dht11_humi_{nullptr};
