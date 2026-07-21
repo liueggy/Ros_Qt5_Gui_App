@@ -270,8 +270,10 @@ CommandCenterWidget::CommandCenterWidget(QWidget* parent) : QWidget(parent) {
   auto* auto_mapping_form = new QFormLayout();
   auto_mapping_form->setHorizontalSpacing(12);
   auto_mapping_form->setVerticalSpacing(8);
-  auto_mapping_duration_spin_ = new QSpinBox(auto_mapping_group);
-  auto_mapping_duration_spin_->setRange(1, 60);
+  auto_mapping_duration_spin_ = new QDoubleSpinBox(auto_mapping_group);
+  auto_mapping_duration_spin_->setRange(0.5, 60.0);
+  auto_mapping_duration_spin_->setSingleStep(0.5);
+  auto_mapping_duration_spin_->setDecimals(1);
   auto_mapping_duration_spin_->setValue(15);
   auto_mapping_duration_spin_->setSuffix(tr(" 分钟"));
   auto_mapping_speed_spin_ = new QDoubleSpinBox(auto_mapping_group);
@@ -1046,7 +1048,8 @@ void CommandCenterWidget::SendAutoMappingCommand(const QString& command) {
   }
   QJsonObject params;
   if (command == QStringLiteral("start")) {
-    params[QStringLiteral("max_duration_sec")] = auto_mapping_duration_spin_->value() * 60;
+    params[QStringLiteral("max_duration_sec")] =
+        qRound(auto_mapping_duration_spin_->value() * 60.0);
     params[QStringLiteral("max_linear_speed")] = auto_mapping_speed_spin_->value();
     params[QStringLiteral("return_home")] = auto_mapping_return_home_check_->isChecked();
     params[QStringLiteral("save_draft_on_abort")] = true;

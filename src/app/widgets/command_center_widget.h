@@ -88,7 +88,7 @@ class CommandCenterWidget : public QWidget {
   QLabel* auto_mapping_sensor_metric_{nullptr};
   QLabel* auto_mapping_safety_metric_{nullptr};
   QProgressBar* auto_mapping_progress_{nullptr};
-  QSpinBox* auto_mapping_duration_spin_{nullptr};
+  QDoubleSpinBox* auto_mapping_duration_spin_{nullptr};
   QDoubleSpinBox* auto_mapping_speed_spin_{nullptr};
   QCheckBox* auto_mapping_return_home_check_{nullptr};
   QPushButton* auto_mapping_start_btn_{nullptr};
