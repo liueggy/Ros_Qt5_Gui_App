@@ -1,0 +1,12 @@
+*.log
+logs/
+myeasylog.*
+state.ini
+config.json
+map.pgm
+map.yaml
+map.yml
+map.topology
+.codegraph/
+crash*.dmp
+*.mdmp
