@@ -359,11 +359,35 @@ void RosbridgeComm::ConnectAsync() {
   // 局部代价地图话题订阅
   auto local_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kLocalCostMap.queue_length);
   local_cost_map_topic->SetThrottleRate(policy::kLocalCostMap.throttle_rate_ms);
+  if (IsDisplayStreamVisible(DISPLAY_LOCAL_COST_MAP)) {
+    auto handle = local_cost_map_topic->Subscribe(
+        [this](const ROSBridgePublishMsg& msg) {
+          LocalCostMapCallback(msg);
+        });
+    if (handle.IsValid()) {
+      callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] =
+          std::move(handle);
+    } else {
+      display_stream_visibility_dirty_ = true;
+    }
+  }
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_COST_MAP)] = std::move(local_cost_map_topic);
 
   // 全局代价地图话题订阅
   auto global_cost_map_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP), "nav_msgs/OccupancyGrid", policy::kGlobalCostMap.queue_length);
   global_cost_map_topic->SetThrottleRate(policy::kGlobalCostMap.throttle_rate_ms);
+  if (IsDisplayStreamVisible(DISPLAY_GLOBAL_COST_MAP)) {
+    auto handle = global_cost_map_topic->Subscribe(
+        [this](const ROSBridgePublishMsg& msg) {
+          GlobalCostMapCallback(msg);
+        });
+    if (handle.IsValid()) {
+      callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] =
+          std::move(handle);
+    } else {
+      display_stream_visibility_dirty_ = true;
+    }
+  }
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_COST_MAP)] = std::move(global_cost_map_topic);
 
   // 激光扫描话题订阅
@@ -385,11 +409,33 @@ void RosbridgeComm::ConnectAsync() {
   // 全局路径话题订阅
   auto global_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH), "nav_msgs/Path", policy::kGlobalPath.queue_length);
   global_path_topic->SetThrottleRate(policy::kGlobalPath.throttle_rate_ms);
+  if (IsDisplayStreamVisible(DISPLAY_GLOBAL_PATH)) {
+    auto handle = global_path_topic->Subscribe(
+        [this](const ROSBridgePublishMsg& msg) { PathCallback(msg); });
+    if (handle.IsValid()) {
+      callback_handles_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] =
+          std::move(handle);
+    } else {
+      display_stream_visibility_dirty_ = true;
+    }
+  }
   subscribers_[GET_TOPIC_NAME(DISPLAY_GLOBAL_PATH)] = std::move(global_path_topic);
 
   // 局部路径话题订阅
   auto local_path_topic = std::make_unique<ROSTopic>(*ros_bridge_, GET_TOPIC_NAME(DISPLAY_LOCAL_PATH), "nav_msgs/Path", policy::kLocalPath.queue_length);
   local_path_topic->SetThrottleRate(policy::kLocalPath.throttle_rate_ms);
+  if (IsDisplayStreamVisible(DISPLAY_LOCAL_PATH)) {
+    auto handle = local_path_topic->Subscribe(
+        [this](const ROSBridgePublishMsg& msg) {
+          LocalPathCallback(msg);
+        });
+    if (handle.IsValid()) {
+      callback_handles_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] =
+          std::move(handle);
+    } else {
+      display_stream_visibility_dirty_ = true;
+    }
+  }
   subscribers_[GET_TOPIC_NAME(DISPLAY_LOCAL_PATH)] = std::move(local_path_topic);
 
   // 里程计话题订阅
