@@ -781,6 +781,28 @@ void CommandCenterWidget::AppendResponse(const std::string& json) {
     }
     AppendLog(success ? tr("成功") : tr("失败"), text);
     if (profile_response == AppContract::ProfileResponse::Accepted) {
+      const QString profile = profile_switch_tracker_.profile();
+      if (profile == QStringLiteral("navigation") ||
+          profile == QStringLiteral("inspection")) {
+        // The board starts the camera as part of these profiles.  Open the
+        // existing front-camera dock immediately so its rosbridge
+        // subscription is active before the first frame arrives.
+        ++camera_start_generation_;
+        camera_frame_received_ = false;
+        camera_waiting_first_frame_ = true;
+        SetCameraStateText(tr("等待画面"));
+        emit CameraViewRequested(true);
+        const int generation = camera_start_generation_;
+        QTimer::singleShot(10000, this, [this, generation]() {
+          if (generation != camera_start_generation_ ||
+              !camera_waiting_first_frame_) {
+            return;
+          }
+          camera_waiting_first_frame_ = false;
+          SetCameraStateText(tr("画面超时"));
+          SetStatusSummary(tr("模式已切换，但 Qt 未收到摄像头首帧"));
+        });
+      }
       QTimer::singleShot(1500, this, &CommandCenterWidget::SendStatusRequest);
     }
     return;

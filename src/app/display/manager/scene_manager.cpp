@@ -156,12 +156,12 @@ void SceneManager::SetEditMapMode(MapEditMode mode) {
       view_ptr_->setCursor(Qt::OpenHandCursor);
       SetPointMoveEnable(true);
       FactoryDisplay::Instance()->GetDisplay(DISPLAY_MAP)->SetMoveEnable(true);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_LOCAL_COST_MAP)->setVisible(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_GLOBAL_COST_MAP)->setVisible(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_ROBOT)->setVisible(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_ROBOT_FOOTPRINT)->setVisible(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_GLOBAL_PATH)->setVisible(false);
-      FactoryDisplay::Instance()->GetDisplay(DISPLAY_LOCAL_PATH)->setVisible(false);
+      // The normal edit cursor is also used after creating a waypoint.  Do
+      // not silently hide navigation telemetry here: operators may still be
+      // navigating or inspecting and explicitly enabled these layers.
+      if (display_manager_) {
+        display_manager_->ApplyConfiguredDisplayVisibility();
+      }
     } break;
     case kErase: {
       SetPointMoveEnable(false);

@@ -402,6 +402,27 @@ TEST(InspectionUiContract, KeepsAnalysisInTaskPanelOnly) {
   EXPECT_TRUE(mainwindow_source.contains("setTextFormat(Qt::RichText)"));
 }
 
+TEST(InspectionUiContract, OpensCameraAndPreservesNavigationLayersAfterProfileSwitch) {
+  const QFileInfo test_source(QString::fromUtf8(__FILE__));
+  QFile command_center(test_source.dir().filePath(
+      QStringLiteral("widgets/command_center_widget.cpp")));
+  ASSERT_TRUE(command_center.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray command_center_source = command_center.readAll();
+
+  QFile scene_manager(test_source.dir().filePath(
+      QStringLiteral("display/manager/scene_manager.cpp")));
+  ASSERT_TRUE(scene_manager.open(QIODevice::ReadOnly | QIODevice::Text));
+  const QByteArray scene_manager_source = scene_manager.readAll();
+
+  EXPECT_TRUE(command_center_source.contains(
+      "profile == QStringLiteral(\"navigation\")"));
+  EXPECT_TRUE(command_center_source.contains("emit CameraViewRequested(true)"));
+  EXPECT_TRUE(scene_manager_source.contains(
+      "display_manager_->ApplyConfiguredDisplayVisibility();"));
+  EXPECT_FALSE(scene_manager_source.contains(
+      "GetDisplay(DISPLAY_GLOBAL_PATH)->setVisible(false)"));
+}
+
 TEST(MissionContractTest, InspectionResultPrefersDetectedClassAndUsesConfigAsFallback) {
   const nlohmann::json pressure_point = {
       {"waypoint", {{"id", "NAV_POINT_0#1"},
