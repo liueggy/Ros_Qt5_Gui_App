@@ -62,6 +62,15 @@ struct LaserScan {
   const std::vector<Point>& RelocationPreviewData() const {
     return robot_relative_data.empty() ? data : robot_relative_data;
   }
+  const std::vector<Point>& DisplayData(bool relocation_mode) const {
+    if (!relocation_mode && points_in_map) {
+      return data;
+    }
+    return RelocationPreviewData();
+  }
+  bool DisplayDataIsInMap(bool relocation_mode) const {
+    return !relocation_mode && points_in_map;
+  }
 };
 // 机器人路径 由点集组成
 

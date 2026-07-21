@@ -106,15 +106,11 @@ DisplayManager::DisplayManager() {
         }
       }
       std::vector<Point> transformed_points;
-      if (!data.robot_relative_data.empty()) {
-        transformed_points = transLaserPoint(data.robot_relative_data);
-      } else if (is_reloc_mode_ && !data.RelocationPreviewData().empty() &&
-                 !data.points_in_map) {
-        transformed_points = transLaserPoint(data.RelocationPreviewData());
+      const auto& display_points = data.DisplayData(is_reloc_mode_);
+      if (data.DisplayDataIsInMap(is_reloc_mode_)) {
+        transformed_points = mapPointsToScene(display_points);
       } else {
-        transformed_points = data.points_in_map
-                                 ? mapPointsToScene(data.data)
-                                 : transLaserPoint(data.data);
+        transformed_points = transLaserPoint(display_points);
       }
       laser_display->UpdateLaserData(data.id, transformed_points);
       laser_data_received_ = true;

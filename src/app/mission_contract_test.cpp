@@ -266,6 +266,25 @@ TEST(LaserScanContractTest, PrefersRobotRelativePointsForRelocation) {
   EXPECT_DOUBLE_EQ(preview.front().y, 2.0);
 }
 
+TEST(LaserScanContractTest, UsesFrameMapCoordinatesDuringNavigation) {
+  basic::LaserScan scan;
+  scan.data.emplace_back(10.0, 20.0);
+  scan.robot_relative_data.emplace_back(1.0, 2.0);
+  scan.points_in_map = true;
+
+  const auto& navigation_points = scan.DisplayData(false);
+  ASSERT_EQ(navigation_points.size(), 1U);
+  EXPECT_DOUBLE_EQ(navigation_points.front().x, 10.0);
+  EXPECT_DOUBLE_EQ(navigation_points.front().y, 20.0);
+  EXPECT_TRUE(scan.DisplayDataIsInMap(false));
+
+  const auto& relocation_points = scan.DisplayData(true);
+  ASSERT_EQ(relocation_points.size(), 1U);
+  EXPECT_DOUBLE_EQ(relocation_points.front().x, 1.0);
+  EXPECT_DOUBLE_EQ(relocation_points.front().y, 2.0);
+  EXPECT_FALSE(scan.DisplayDataIsInMap(true));
+}
+
 TEST(MissionContractTest, ProfileSwitchNeedsMatchingAckAndReadyStatus) {
   AppContract::ProfileSwitchTracker tracker;
   tracker.Begin(QStringLiteral("inspection"), QStringLiteral("profile-1"));
